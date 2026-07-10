@@ -1,0 +1,22 @@
+CREATE TABLE `students` (
+	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
+	`organization_id` integer NOT NULL,
+	`dojo_id` integer,
+	`firstName` text NOT NULL,
+	`lastName` text NOT NULL,
+	`email` text,
+	`phone` text,
+	`dateOfBirth` integer,
+	`gender` text,
+	`address` text,
+	`emergencyContact` text,
+	`emergencyPhone` text,
+	`medicalNotes` text,
+	`status` text DEFAULT 'active',
+	`avatar` text,
+	`joinedAt` integer NOT NULL,
+	`createdAt` integer NOT NULL,
+	`updatedAt` integer NOT NULL,
+	FOREIGN KEY (`organization_id`) REFERENCES `organizations`(`id`) ON UPDATE no action ON DELETE cascade,
+	FOREIGN KEY (`dojo_id`) REFERENCES `dojos`(`id`) ON UPDATE no action ON DELETE set null
+);
