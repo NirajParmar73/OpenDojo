@@ -1,7 +1,8 @@
-import { db, tables } from '../../../server/utils/database'
+import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
-import { getAccessibleDojoIds } from '../../../server/utils/permissions'
+import { getAccessibleDojoIds } from '../../utils/permissions'
 
+console.log('✅ Schedules GET handler loaded')
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user) {

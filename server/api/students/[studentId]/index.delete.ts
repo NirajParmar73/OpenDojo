@@ -1,6 +1,6 @@
-import { db, tables } from '../../../server/utils/database'
+import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
-import { isDojoAccessible } from '../../../server/utils/permissions'
+import { isDojoAccessible } from '../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'User has no organization' })
   }
 
-  const id = getRouterParam(event, 'id')
+  const id = getRouterParam(event, 'studentId')
   if (!id) {
     throw createError({ statusCode: 400, statusMessage: 'Missing ID' })
   }

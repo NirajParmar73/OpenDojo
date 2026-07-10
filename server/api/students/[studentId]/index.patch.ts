@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { db, tables } from '../../utils/database'
+import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 
 const updateStudentSchema = z.object({
@@ -31,7 +31,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'User has no organization' })
   }
 
-  const id = getRouterParam(event, 'id')
+  const id = getRouterParam(event, 'studentId')
   if (!id) {
     throw createError({ statusCode: 400, statusMessage: 'Missing ID' })
   }

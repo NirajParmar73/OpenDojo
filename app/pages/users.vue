@@ -2,8 +2,8 @@
   <div class="max-w-6xl mx-auto p-6">
     <h1 class="text-2xl font-bold mb-6">User Management</h1>
 
-    <!-- Create User Form -->
-    <UCard class="mb-6">
+    <!-- Create User Form (only if user has permissions) -->
+    <UCard class="mb-6" v-if="canCreateUsers">
       <h3 class="text-lg font-semibold mb-3">Add User</h3>
       <form @submit.prevent="createUser">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -17,21 +17,21 @@
           <div v-for="(assign, index) in newUser.assignments" :key="index" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
             <USelect
               v-model="assign.role"
-              :items="roleOptions"
+              :items="filteredRoleOptions"
               placeholder="Role"
               @update:model-value="assign.scopeId = null"
             />
             <template v-if="isNodeRole(assign.role)">
               <USelect
                 v-model="assign.scopeId"
-                :items="getNodeOptionsForRole(assign.role) as any"
+                :items="filteredNodeOptions"
                 placeholder="Select Node"
               />
             </template>
             <template v-else-if="isDojoRole(assign.role)">
               <USelect
                 v-model="assign.scopeId"
-                :items="dojoOptions as any"
+                :items="filteredDojoOptions"
                 placeholder="Select Dojo"
               />
             </template>
@@ -42,6 +42,11 @@
         </div>
         <UButton type="submit" class="mt-4" :loading="creating">Create User</UButton>
       </form>
+    </UCard>
+
+    <!-- No permissions message -->
+    <UCard class="mb-6" v-else>
+      <p class="text-gray-500">You do not have permission to create new users.</p>
     </UCard>
 
     <!-- User List -->
@@ -115,21 +120,21 @@
             <div v-for="(assign, index) in editForm.assignments" :key="index" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
               <USelect
                 v-model="assign.role"
-                :items="roleOptions"
+                :items="filteredRoleOptions"
                 placeholder="Role"
                 @update:model-value="assign.scopeId = null"
               />
               <template v-if="isNodeRole(assign.role)">
                 <USelect
                   v-model="assign.scopeId"
-                  :items="getNodeOptionsForRole(assign.role) as any"
+                  :items="filteredNodeOptions"
                   placeholder="Select Node"
                 />
               </template>
               <template v-else-if="isDojoRole(assign.role)">
                 <USelect
                   v-model="assign.scopeId"
-                  :items="dojoOptions as any"
+                  :items="filteredDojoOptions"
                   placeholder="Select Dojo"
                 />
               </template>
@@ -157,10 +162,16 @@ const nodes = ref<any[]>([])
 const flatNodes = ref<any[]>([])
 const dojos = ref<any[]>([])
 const levels = ref<any[]>([])
+const permissions = ref({
+  allowedRoles: [] as string[],
+  allowedNodeIds: [] as number[],
+  allowedDojoIds: [] as number[],
+})
 
 const creating = ref(false)
 const updating = ref(false)
 
+// File upload states
 const uploadingAvatar = ref(false)
 const uploadingCertificate = ref(false)
 
@@ -174,6 +185,39 @@ const roleOptions = [
   { label: 'Instructor', value: 'instructor' },
   { label: 'Member', value: 'member' },
 ]
+
+// Filtered role options based on permissions
+const filteredRoleOptions = computed(() => {
+  if (permissions.value.allowedRoles.length === 0) return []
+  return roleOptions.filter(r => permissions.value.allowedRoles.includes(r.value))
+})
+
+// ✅ Fixed: convert node.id to number using Number()
+const filteredNodeOptions = computed(() => {
+  return flatNodes.value
+    .filter(node => permissions.value.allowedNodeIds.includes(Number(node.id)))
+    .map(node => ({
+      label: nodePathMap.value[node.id] || node.name,
+      value: Number(node.id),
+    }))
+})
+
+// ✅ Fixed: convert dojo.id to number using Number()
+const filteredDojoOptions = computed(() => {
+  return dojos.value
+    .filter(dojo => permissions.value.allowedDojoIds.includes(Number(dojo.id)))
+    .map(dojo => ({
+      label: dojo.name,
+      value: Number(dojo.id),
+    }))
+})
+
+// Whether the current user can create users
+const canCreateUsers = computed(() => {
+  return permissions.value.allowedRoles.length > 0 ||
+         permissions.value.allowedNodeIds.length > 0 ||
+         permissions.value.allowedDojoIds.length > 0
+})
 
 const roleScopeMap: Record<string, string> = {
   state_head: 'node',
@@ -215,7 +259,7 @@ function buildNodePathMap(nodesList: any[]) {
   for (const node of nodesList) {
     map[node.id] = node
   }
-  const pathMap: Record<string, string> = {}
+  const pathMap: Record<number, string> = {}
   for (const node of nodesList) {
     const parts: string[] = []
     let current: any = node
@@ -227,54 +271,12 @@ function buildNodePathMap(nodesList: any[]) {
         break
       }
     }
-    pathMap[String(node.id)] = parts.join(' → ')
+    pathMap[node.id] = parts.join(' → ')
   }
   return pathMap
 }
 
-const nodePathMap = ref<Record<string, string>>({})
-
-function getNodeOptionsForRole(role: string): any[] {
-  const roleLevelMap: Record<string, string> = {
-    state_head: 'State/Province',
-    district_head: 'District',
-    city_head: 'City',
-  }
-  const levelName = roleLevelMap[role]
-  if (!levelName) {
-    return flatNodes.value.map((node: any) => ({
-      label: nodePathMap.value[String(node.id)] || node.name,
-      value: Number(node.id),
-    }))
-  }
-  const levelId = levelNameMap.value[levelName]
-  if (!levelId) {
-    return flatNodes.value.map((node: any) => ({
-      label: nodePathMap.value[String(node.id)] || node.name,
-      value: Number(node.id),
-    }))
-  }
-  const filtered = flatNodes.value
-    .filter((node: any) => node.levelId === levelId)
-    .map((node: any) => ({
-      label: nodePathMap.value[String(node.id)] || node.name,
-      value: Number(node.id),
-    }))
-  if (filtered.length === 0) {
-    return flatNodes.value.map((node: any) => ({
-      label: nodePathMap.value[String(node.id)] || node.name,
-      value: Number(node.id),
-    }))
-  }
-  return filtered
-}
-
-const dojoOptions = computed<any[]>(() => {
-  return dojos.value.map((dojo: any) => ({
-    label: dojo.name,
-    value: Number(dojo.id),
-  }))
-})
+const nodePathMap = ref<Record<number, string>>({})
 
 // ----- New User Form -----
 const newUser = reactive<any>({
@@ -294,7 +296,19 @@ const editForm = reactive<any>({
   assignments: [],
 })
 
-// ----- Load Data -----
+// ----- Load Permissions and Data -----
+async function loadPermissions() {
+  try {
+    permissions.value = await $fetch('/api/users/me/permissions')
+  } catch (error: any) {
+    toast.add({
+      color: 'error',
+      title: 'Failed to load permissions',
+      description: error.data?.statusMessage || error.message,
+    })
+  }
+}
+
 async function loadData() {
   try {
     const [usersData, nodesData, dojosData, levelsData] = await Promise.all([
@@ -338,6 +352,7 @@ async function createUser() {
     return
   }
 
+  // ✅ Ensure scopeId is a number
   const assignments = newUser.assignments
     .filter((a: any) => a.role && a.scopeId)
     .map((a: any) => ({
@@ -386,19 +401,16 @@ async function createUser() {
   }
 }
 
-// ----- Start Edit (with detailed logs) -----
+// ----- Start Edit -----
 function startEdit(user: any) {
-  console.log('🔍 Start edit - user object:', user)
-  console.log('🔍 Start edit - user.assignments:', JSON.stringify(user.assignments, null, 2))
   editingUser.value = user
   editForm.name = user.name
   editForm.email = user.email
   editForm.danDegree = user.danDegree || ''
   editForm.assignments = user.assignments.map((a: any) => ({
     role: a.role,
-    scopeId: a.scopeId,
+    scopeId: a.scopeId, // will be converted later
   }))
-  console.log('🔍 Start edit - editForm.assignments after mapping:', JSON.stringify(editForm.assignments, null, 2))
 }
 
 function cancelEdit() {
@@ -409,7 +421,7 @@ function cancelEdit() {
   editForm.assignments = []
 }
 
-// ----- Update User (with detailed logs) -----
+// ----- Update User -----
 async function updateUser() {
   if (!editingUser.value) return
   if (!editForm.name || !editForm.email) {
@@ -417,7 +429,7 @@ async function updateUser() {
     return
   }
 
-  console.log('📤 Update - editForm.assignments before filter:', JSON.stringify(editForm.assignments, null, 2))
+  // ✅ Ensure scopeId is a number
   const assignments = editForm.assignments
     .filter((a: any) => a.role && a.scopeId)
     .map((a: any) => ({
@@ -426,7 +438,6 @@ async function updateUser() {
       scopeId: Number(a.scopeId),
     }))
     .filter((a: any) => a.scopeType !== null)
-  console.log('📤 Update - assignments after filter and map:', JSON.stringify(assignments, null, 2))
 
   for (const a of assignments) {
     if (isNodeRole(a.role) || isDojoRole(a.role)) {
@@ -439,7 +450,9 @@ async function updateUser() {
 
   updating.value = true
   try {
-    const response = await $fetch(`/api/users/${editingUser.value.id}`, {
+    // ✅ convert user id to number
+    const userId = Number(editingUser.value.id)
+    await $fetch(`/api/users/${userId}`, {
       method: 'PATCH' as any,
       body: {
         name: editForm.name,
@@ -448,7 +461,6 @@ async function updateUser() {
         assignments,
       },
     })
-    console.log('✅ Update response:', response)
     toast.add({ color: 'success', title: 'User updated' })
     cancelEdit()
     await loadData()
@@ -467,7 +479,7 @@ async function updateUser() {
 async function deleteUser(id: number) {
   if (!confirm('Delete this user? This cannot be undone.')) return
   try {
-    await $fetch(`/api/users/${id}`, { method: 'DELETE' as any })
+    await $fetch(`/api/users/${Number(id)}`, { method: 'DELETE' as any })
     toast.add({ color: 'success', title: 'User deleted' })
     await loadData()
   } catch (error: any) {
@@ -494,7 +506,7 @@ async function uploadAvatar(userId: number, event: Event) {
   try {
     const fd = new FormData()
     fd.append('avatar', file)
-    await $fetch(`/api/users/${userId}/avatar`, { method: 'POST' as any, body: fd })
+    await $fetch(`/api/users/${Number(userId)}/avatar`, { method: 'POST' as any, body: fd })
     toast.add({ color: 'success', title: 'Avatar uploaded' })
     await loadData()
   } catch (error: any) {
@@ -514,7 +526,7 @@ async function uploadCertificate(userId: number, event: Event) {
   try {
     const fd = new FormData()
     fd.append('certificate', file)
-    await $fetch(`/api/users/${userId}/certificate`, { method: 'POST' as any, body: fd })
+    await $fetch(`/api/users/${Number(userId)}/certificate`, { method: 'POST' as any, body: fd })
     toast.add({ color: 'success', title: 'Certificate uploaded' })
     await loadData()
   } catch (error: any) {
@@ -525,5 +537,8 @@ async function uploadCertificate(userId: number, event: Event) {
   }
 }
 
-onMounted(loadData)
+// ----- Mounted -----
+onMounted(async () => {
+  await Promise.all([loadPermissions(), loadData()])
+})
 </script>

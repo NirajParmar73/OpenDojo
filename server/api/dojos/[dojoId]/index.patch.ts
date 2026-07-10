@@ -1,6 +1,6 @@
 import { z } from 'zod'
-import { db, tables } from '../../../server/utils/database'
-import { eq } from 'drizzle-orm'
+import { db, tables } from '../../../utils/database'
+import { eq, and } from 'drizzle-orm'
 
 const updateDojoSchema = z.object({
   nodeId: z.number().int().positive().optional(),
@@ -20,22 +20,23 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
-  const id = getRouterParam(event, 'id')
-  if (!id) {
+  const dojoId = getRouterParam(event, 'dojoId')
+  if (!dojoId) {
     throw createError({ statusCode: 400, statusMessage: 'Missing ID' })
   }
 
   const body = await readValidatedBody(event, updateDojoSchema.parse)
 
-  // Check ownership
   const existing = await db.query.dojos.findFirst({
-    where: eq(tables.dojos.id, Number(id)),
+    where: and(
+      eq(tables.dojos.id, Number(dojoId)),
+      eq(tables.dojos.organizationId, session.user.organizationId!)
+    ),
   })
-  if (!existing || existing.organizationId !== session.user.organizationId) {
+  if (!existing) {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
 
-  // If nodeId provided, verify it belongs to the organization
   if (body.nodeId) {
     const node = await db.query.hierarchyNodes.findFirst({
       where: eq(tables.hierarchyNodes.id, body.nodeId),
@@ -46,11 +47,8 @@ export default defineEventHandler(async (event) => {
   }
 
   const [updated] = await db.update(tables.dojos)
-    .set({
-      ...body,
-      updatedAt: new Date(),
-    })
-    .where(eq(tables.dojos.id, Number(id)))
+    .set({ ...body, updatedAt: new Date() })
+    .where(eq(tables.dojos.id, Number(dojoId)))
     .returning() as any[]
 
   if (!updated) {

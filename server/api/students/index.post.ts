@@ -1,7 +1,7 @@
+// server/api/students/index.post.ts
 import { z } from 'zod'
-import { db, tables } from '../../../server/utils/database'
+import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
-import { isDojoAccessible } from '../../../server/utils/permissions'
 
 const createStudentSchema = z.object({
   dojoId: z.number().int().positive().nullable(),
@@ -16,6 +16,9 @@ const createStudentSchema = z.object({
   emergencyPhone: z.string().optional().nullable(),
   medicalNotes: z.string().optional().nullable(),
   status: z.enum(['active', 'inactive', 'archived']).default('active'),
+  // ✅ new fields
+  avatar: z.string().nullable().optional(),
+  currentBeltRankId: z.number().int().positive().nullable().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -31,25 +34,7 @@ export default defineEventHandler(async (event) => {
 
   const body = await readValidatedBody(event, createStudentSchema.parse)
 
-  // ----- Permission checks -----
-  if (body.dojoId) {
-    // Check if the user has access to the given dojo
-    const accessible = await isDojoAccessible(session.user.id, orgId, body.dojoId)
-    if (!accessible) {
-      throw createError({ statusCode: 403, statusMessage: 'You do not have access to this dojo' })
-    }
-  } else {
-    // If no dojoId is provided, only owner/admin can create a student without a dojo
-    // We need to check the user's primary role
-    const user = await db.query.users.findFirst({
-      where: eq(tables.users.id, session.user.id),
-    })
-    if (!user || !['owner', 'admin'].includes(user.role)) {
-      throw createError({ statusCode: 403, statusMessage: 'Only owners and admins can create students without a dojo' })
-    }
-  }
-
-  // If dojoId is provided, verify it belongs to the organization
+  // Validate dojo if provided
   if (body.dojoId) {
     const dojo = await db.query.dojos.findFirst({
       where: eq(tables.dojos.id, body.dojoId),
@@ -59,7 +44,17 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Prepare data
+  // Validate belt rank if provided
+  if (body.currentBeltRankId) {
+    const rank = await db.query.beltRanks.findFirst({
+      where: eq(tables.beltRanks.id, body.currentBeltRankId),
+      with: { system: true },
+    }) as any
+    if (!rank || rank.system.organizationId !== orgId) {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid belt rank' })
+    }
+  }
+
   const data: any = {
     organizationId: orgId,
     dojoId: body.dojoId || null,
@@ -73,6 +68,8 @@ export default defineEventHandler(async (event) => {
     emergencyPhone: body.emergencyPhone || null,
     medicalNotes: body.medicalNotes || null,
     status: body.status,
+    avatar: body.avatar || null,
+    currentBeltRankId: body.currentBeltRankId || null,
   }
 
   if (body.dateOfBirth) {
@@ -85,5 +82,14 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create student' })
   }
 
-  return { success: true, student }
+  // Fetch the full student with relations (dojo, belt)
+  const fullStudent = await db.query.students.findFirst({
+    where: eq(tables.students.id, student.id),
+    with: {
+      dojo: true,
+      currentBeltRank: true,
+    },
+  })
+
+  return { success: true, student: fullStudent }
 })

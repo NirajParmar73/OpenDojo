@@ -1,5 +1,5 @@
-import { db, tables } from '../../../server/utils/database'
-import { eq } from 'drizzle-orm'
+import { db, tables } from '../../../utils/database'
+import { eq, and } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -11,21 +11,23 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
-  const id = getRouterParam(event, 'id')
-  if (!id) {
+  const dojoId = getRouterParam(event, 'dojoId')
+  if (!dojoId) {
     throw createError({ statusCode: 400, statusMessage: 'Missing ID' })
   }
 
-  // Verify ownership
   const existing = await db.query.dojos.findFirst({
-    where: eq(tables.dojos.id, Number(id)),
+    where: and(
+      eq(tables.dojos.id, Number(dojoId)),
+      eq(tables.dojos.organizationId, session.user.organizationId!)
+    ),
   })
-  if (!existing || existing.organizationId !== session.user.organizationId) {
+  if (!existing) {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
 
   const [deleted] = await db.delete(tables.dojos)
-    .where(eq(tables.dojos.id, Number(id)))
+    .where(eq(tables.dojos.id, Number(dojoId)))
     .returning() as any[]
 
   if (!deleted) {

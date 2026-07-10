@@ -155,6 +155,8 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
     references: [beltRanks.id],
   }),
   gradings: many(studentGradings),
+
+  guardians: many(guardians),
 }))
 
 export const studentGradingsRelations = relations(studentGradings, ({ one }) => ({
@@ -229,5 +231,48 @@ export const beltRanksRelations = relations(beltRanks, ({ one }) => ({
   system: one(beltSystems, {
     fields: [beltRanks.systemId],
     references: [beltSystems.id],
+  }),
+}))
+
+export const guardians = sqliteTable('guardians', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  relationship: t.text().notNull(), // e.g., "Father", "Mother", "Guardian"
+  phone: t.text(),
+  email: t.text(),
+  address: t.text(),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+export const guardiansRelations = relations(guardians, ({ one }) => ({
+  student: one(students, {
+    fields: [guardians.studentId],
+    references: [students.id],
+  }),
+}))
+
+export const dojoSchedules = sqliteTable('dojo_schedules', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
+  dayOfWeek: t.integer('day_of_week').notNull(), // 0=Sunday, 1=Monday, ...
+  startTime: t.text().notNull(), // "HH:MM" 24-hour
+  endTime: t.text().notNull(),
+  name: t.text(),
+  instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// New relations for dojoSchedules
+export const dojoSchedulesRelations = relations(dojoSchedules, ({ one }) => ({
+  dojo: one(dojos, {
+    fields: [dojoSchedules.dojoId],
+    references: [dojos.id],
+  }),
+  instructor: one(users, {
+    fields: [dojoSchedules.instructorId],
+    references: [users.id],
   }),
 }))

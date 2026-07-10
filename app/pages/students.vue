@@ -34,6 +34,36 @@
           <UInput type="file" accept="image/*" @change="onNewAvatarChange" />
           <img v-if="newStudentAvatarPreview" :src="newStudentAvatarPreview" class="h-16 w-16 object-cover rounded" />
         </div>
+
+        <!-- Guardians Section -->
+        <div class="mt-4">
+          <h4 class="font-medium mb-2">Guardians</h4>
+          <div
+            v-for="(g, idx) in newStudent.guardians"
+            :key="idx"
+            class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2 border p-2 rounded"
+          >
+            <UInput v-model="g.name" placeholder="Name" />
+            <UInput v-model="g.relationship" placeholder="Relationship" />
+            <UInput v-model="g.phone" placeholder="Phone" />
+            <UInput v-model="g.email" type="email" placeholder="Email" />
+            <div class="col-span-4">
+              <UInput v-model="g.address" placeholder="Address" />
+            </div>
+            <UButton
+              color="error"
+              variant="ghost"
+              size="sm"
+              @click="removeGuardian(newStudent.guardians, idx)"
+            >
+              Remove
+            </UButton>
+          </div>
+          <UButton size="sm" color="secondary" @click="addGuardian(newStudent.guardians)">
+            Add Guardian
+          </UButton>
+        </div>
+
         <UButton type="submit" class="mt-4" :loading="creating">Add Student</UButton>
       </form>
     </UCard>
@@ -121,6 +151,36 @@
             <UInput type="file" accept="image/*" @change="onEditAvatarChange" />
             <img v-if="editFormAvatarPreview" :src="editFormAvatarPreview" class="h-16 w-16 object-cover rounded" />
           </div>
+
+          <!-- Guardians Section (Edit) -->
+          <div class="mt-4">
+            <h4 class="font-medium mb-2">Guardians</h4>
+            <div
+              v-for="(g, idx) in editForm.guardians"
+              :key="idx"
+              class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-2 border p-2 rounded"
+            >
+              <UInput v-model="g.name" placeholder="Name" />
+              <UInput v-model="g.relationship" placeholder="Relationship" />
+              <UInput v-model="g.phone" placeholder="Phone" />
+              <UInput v-model="g.email" type="email" placeholder="Email" />
+              <div class="col-span-4">
+                <UInput v-model="g.address" placeholder="Address" />
+              </div>
+              <UButton
+                color="error"
+                variant="ghost"
+                size="sm"
+                @click="removeGuardian(editForm.guardians, idx)"
+              >
+                Remove
+              </UButton>
+            </div>
+            <UButton size="sm" color="secondary" @click="addGuardian(editForm.guardians)">
+              Add Guardian
+            </UButton>
+          </div>
+
           <div class="flex gap-2 mt-4">
             <UButton type="submit" :loading="updating">Update</UButton>
             <UButton type="button" color="neutral" @click="cancelEdit">Cancel</UButton>
@@ -182,6 +242,7 @@ const newStudent = reactive({
   medicalNotes: '',
   beltRankId: undefined as number | undefined,
   avatarFile: null as File | null,
+  guardians: [] as any[],
 })
 
 const newStudentAvatarPreview = computed(() => {
@@ -205,6 +266,7 @@ const editForm = reactive({
   beltRankId: undefined as number | undefined,
   avatarFile: null as File | null,
   existingAvatar: null as string | null,
+  guardians: [] as any[],
 })
 
 const editFormAvatarPreview = computed(() => {
@@ -245,6 +307,21 @@ function onEditAvatarChange(event: Event) {
   editForm.avatarFile = target.files?.[0] || null
 }
 
+// ----- Guardian Helpers -----
+function addGuardian(guardians: any[]) {
+  guardians.push({
+    name: '',
+    relationship: '',
+    phone: '',
+    email: '',
+    address: '',
+  })
+}
+
+function removeGuardian(guardians: any[], index: number) {
+  guardians.splice(index, 1)
+}
+
 // ----- Create Student -----
 async function createStudent() {
   if (!newStudent.firstName || !newStudent.lastName) {
@@ -263,24 +340,49 @@ async function createStudent() {
       avatarUrl = res.path
     }
 
-    await $fetch('/api/students', {
+    // Create student
+    // Create student
+const studentRes = await $fetch('/api/students', {
+  method: 'POST',
+  body: {
+    firstName: newStudent.firstName,
+    lastName: newStudent.lastName,
+    dojoId: newStudent.dojoId ?? null,
+    email: newStudent.email || undefined,
+    phone: newStudent.phone || undefined,
+    dateOfBirth: newStudent.dateOfBirth || undefined,
+    gender: newStudent.gender || undefined,
+    address: newStudent.address || undefined,
+    emergencyContact: newStudent.emergencyContact || undefined,
+    emergencyPhone: newStudent.emergencyPhone || undefined,
+    medicalNotes: newStudent.medicalNotes || undefined,
+    avatar: avatarUrl,
+    currentBeltRankId: newStudent.beltRankId ?? null,
+  },
+}) as any;
+
+//create student
+const studentId = studentRes?.student?.id;
+if (!studentId) {
+  throw new Error('Student creation failed: no ID returned');
+}
+
+// Create guardians
+for (const g of newStudent.guardians) {
+  if (g.name && g.relationship) {
+    await $fetch(`/api/students/${studentId}/guardians`, {
       method: 'POST',
       body: {
-        firstName: newStudent.firstName,
-        lastName: newStudent.lastName,
-        dojoId: newStudent.dojoId ?? null,
-        email: newStudent.email || undefined,
-        phone: newStudent.phone || undefined,
-        dateOfBirth: newStudent.dateOfBirth || undefined,
-        gender: newStudent.gender || undefined,
-        address: newStudent.address || undefined,
-        emergencyContact: newStudent.emergencyContact || undefined,
-        emergencyPhone: newStudent.emergencyPhone || undefined,
-        medicalNotes: newStudent.medicalNotes || undefined,
-        avatar: avatarUrl,
-        currentBeltRankId: newStudent.beltRankId ?? null,
+        name: g.name,
+        relationship: g.relationship,
+        phone: g.phone || undefined,
+        email: g.email || undefined,
+        address: g.address || undefined,
       },
-    })
+    });
+  }
+}
+
     toast.add({ color: 'success', title: 'Student created' })
     resetNewForm()
     await loadData()
@@ -306,11 +408,12 @@ function resetNewForm() {
     medicalNotes: '',
     beltRankId: undefined,
     avatarFile: null,
+    guardians: [],
   })
 }
 
 // ----- Edit Student -----
-function startEdit(student: any) {
+async function startEdit(student: any) {
   editingStudent.value = student
   editForm.firstName = student.firstName ?? ''
   editForm.lastName = student.lastName ?? ''
@@ -318,7 +421,6 @@ function startEdit(student: any) {
   editForm.email = student.email ?? ''
   editForm.phone = student.phone ?? ''
   editForm.dateOfBirth = (student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '') as string
-  // editForm.dateOfBirth = student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : ''
   editForm.gender = student.gender ?? ''
   editForm.address = student.address ?? ''
   editForm.emergencyContact = student.emergencyContact ?? ''
@@ -327,6 +429,14 @@ function startEdit(student: any) {
   editForm.beltRankId = student.currentBeltRankId ?? undefined
   editForm.existingAvatar = student.avatar ?? null
   editForm.avatarFile = null
+
+  // Load guardians
+  try {
+    const guardiansData = await $fetch(`/api/students/${student.id}/guardians`)
+    editForm.guardians = guardiansData.map((g: any) => ({ ...g }))
+  } catch (e) {
+    editForm.guardians = []
+  }
 }
 
 function cancelEdit() {
@@ -350,6 +460,7 @@ async function updateStudent() {
       avatarUrl = res.path
     }
 
+    // Update student details
     await $fetch(`/api/students/${editingStudent.value.id}`, {
       method: 'PATCH',
       body: {
@@ -368,6 +479,29 @@ async function updateStudent() {
         currentBeltRankId: editForm.beltRankId ?? null,
       },
     })
+
+    // Replace guardians: delete all, then insert new ones
+    // First, delete all existing guardians for this student
+    await $fetch(`/api/students/${editingStudent.value.id}/guardians`, {
+      method: 'DELETE',
+    })
+
+    // Then insert new guardians
+    for (const g of editForm.guardians) {
+      if (g.name && g.relationship) {
+        await $fetch(`/api/students/${editingStudent.value.id}/guardians`, {
+          method: 'POST',
+          body: {
+            name: g.name,
+            relationship: g.relationship,
+            phone: g.phone || undefined,
+            email: g.email || undefined,
+            address: g.address || undefined,
+          },
+        })
+      }
+    }
+
     toast.add({ color: 'success', title: 'Student updated' })
     cancelEdit()
     await loadData()
