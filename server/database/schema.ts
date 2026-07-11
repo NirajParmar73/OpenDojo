@@ -2,7 +2,9 @@
 import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core'
 import { relations } from 'drizzle-orm'
 
-// ---------- Organizations ----------
+// ---------- TABLE DEFINITIONS (all tables first) ----------
+
+// Organizations
 export const organizations = sqliteTable('organizations', (t) => ({
   id: t.integer('id').primaryKey({ autoIncrement: true }),
   name: t.text().notNull(),
@@ -12,7 +14,7 @@ export const organizations = sqliteTable('organizations', (t) => ({
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-// ---------- Users ----------
+// Users
 export const users = sqliteTable('users', (t) => ({
   id: t.integer('id').primaryKey({ autoIncrement: true }),
   name: t.text().notNull(),
@@ -27,7 +29,7 @@ export const users = sqliteTable('users', (t) => ({
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-// ---------- Hierarchy Levels ----------
+// Hierarchy Levels
 export const hierarchyLevels = sqliteTable('hierarchy_levels', (t) => ({
   id: t.integer('id').primaryKey({ autoIncrement: true }),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
@@ -37,7 +39,7 @@ export const hierarchyLevels = sqliteTable('hierarchy_levels', (t) => ({
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-// ---------- Hierarchy Nodes (with explicit :any to break circular type inference) ----------
+// Hierarchy Nodes
 export const hierarchyNodes: any = sqliteTable('hierarchy_nodes', (t) => ({
   id: t.integer('id').primaryKey({ autoIncrement: true }),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
@@ -48,7 +50,7 @@ export const hierarchyNodes: any = sqliteTable('hierarchy_nodes', (t) => ({
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-// ---------- Dojos ----------
+// Dojos
 export const dojos = sqliteTable('dojos', (t) => ({
   id: t.integer('id').primaryKey({ autoIncrement: true }),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
@@ -61,7 +63,31 @@ export const dojos = sqliteTable('dojos', (t) => ({
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-// ---------- Students ----------
+// Belt Systems
+export const beltSystems = sqliteTable('belt_systems', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull().default('Default Belt System'),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Belt Ranks
+export const beltRanks = sqliteTable('belt_ranks', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  systemId: t.integer('system_id').references(() => beltSystems.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  level: t.text().notNull(),
+  order: t.integer('order').notNull(),
+  type: t.text({ enum: ['kyu', 'dan'] }).notNull(),
+  danNumber: t.integer('dan_number'),
+  color: t.text(),
+  description: t.text(),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Students
 export const students = sqliteTable('students', (t) => ({
   id: t.integer('id').primaryKey({ autoIncrement: true }),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
@@ -84,13 +110,91 @@ export const students = sqliteTable('students', (t) => ({
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// Student Gradings
+export const studentGradings = sqliteTable('student_gradings', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  beltRankId: t.integer('belt_rank_id').references(() => beltRanks.id, { onDelete: 'cascade' }).notNull(),
+  awardedDate: t.integer({ mode: 'timestamp_ms' }).notNull(),
+  examiner: t.text(),
+  certificateUrl: t.text(),
+  notes: t.text(),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Guardians
+export const guardians = sqliteTable('guardians', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  relationship: t.text().notNull(),
+  phone: t.text(),
+  email: t.text(),
+  address: t.text(),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Assignments
+export const assignments = sqliteTable('assignments', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  role: t.text({ enum: ['owner', 'admin', 'state_head', 'district_head', 'city_head', 'dojo_head', 'instructor', 'member'] }).notNull(),
+  scopeType: t.text({ enum: ['node', 'dojo'] }).notNull(),
+  scopeId: t.integer('scope_id').notNull(),
+  startDate: t.integer({ mode: 'timestamp_ms' }),
+  endDate: t.integer({ mode: 'timestamp_ms' }),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Dojo Schedules
+export const dojoSchedules = sqliteTable('dojo_schedules', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
+  dayOfWeek: t.integer('day_of_week').notNull(),
+  startTime: t.text().notNull(),
+  endTime: t.text().notNull(),
+  name: t.text(),
+  instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Class Sessions
+export const classSessions = sqliteTable('class_sessions', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
+  scheduleId: t.integer('schedule_id').references(() => dojoSchedules.id, { onDelete: 'set null' }),
+  date: t.integer({ mode: 'timestamp_ms' }).notNull(),
+  startTime: t.text().notNull(),
+  endTime: t.text().notNull(),
+  instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
+  name: t.text(),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Attendance
+export const attendance = sqliteTable('attendance', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  sessionId: t.integer('session_id').references(() => classSessions.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  status: t.text({ enum: ['present', 'absent', 'late', 'excused'] }).default('present'),
+  notes: t.text(),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- RELATIONS (all relations after all tables) ----------
+
 export const organizationsRelations = relations(organizations, ({ many }): any => ({
   users: many(users),
   hierarchyLevels: many(hierarchyLevels),
   hierarchyNodes: many(hierarchyNodes),
   dojos: many(dojos),
-  students: many(students), // ✅ add this
-  
+  students: many(students),
 }))
 
 export const hierarchyLevelsRelations = relations(hierarchyLevels, ({ many }): any => ({
@@ -114,82 +218,12 @@ export const hierarchyNodesRelations = relations(hierarchyNodes, ({ one, many })
   dojos: many(dojos),
 }))
 
-
-// ✅ Updated dojosRelations to include students
-export const dojosRelations = relations(dojos, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [dojos.organizationId],
-    references: [organizations.id],
-  }),
-  node: one(hierarchyNodes, {
-    fields: [dojos.nodeId],
-    references: [hierarchyNodes.id],
-  }),
-  students: many(students), // 👈 added
-}))
-
-export const studentGradings = sqliteTable('student_gradings', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
-  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
-  beltRankId: t.integer('belt_rank_id').references(() => beltRanks.id, { onDelete: 'cascade' }).notNull(),
-  awardedDate: t.integer({ mode: 'timestamp_ms' }).notNull(),
-  examiner: t.text(),
-  certificateUrl: t.text(),
-  notes: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
-}))
-
-// ✅ New studentsRelations
-export const studentsRelations = relations(students, ({ one, many }) => ({
-  organization: one(organizations, {
-    fields: [students.organizationId],
-    references: [organizations.id],
-  }),
-  dojo: one(dojos, {
-    fields: [students.dojoId],
-    references: [dojos.id],
-  }),
-  currentBeltRank: one(beltRanks, {
-    fields: [students.currentBeltRankId],
-    references: [beltRanks.id],
-  }),
-  gradings: many(studentGradings),
-
-  guardians: many(guardians),
-}))
-
-export const studentGradingsRelations = relations(studentGradings, ({ one }) => ({
-  student: one(students, {
-    fields: [studentGradings.studentId],
-    references: [students.id],
-  }),
-  beltRank: one(beltRanks, {
-    fields: [studentGradings.beltRankId],
-    references: [beltRanks.id],
-  }),
-}))
-
-// ---------- Assigments ----------
-export const assignments = sqliteTable('assignments', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
-  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  role: t.text({ enum: ['owner', 'admin', 'state_head', 'district_head', 'city_head', 'dojo_head', 'instructor', 'member'] }).notNull(),
-  scopeType: t.text({ enum: ['node', 'dojo'] }).notNull(), // 'node' for hierarchy nodes, 'dojo' for dojos
-  scopeId: t.integer('scope_id').notNull(), // ID of the node or dojo
-  startDate: t.integer({ mode: 'timestamp_ms' }),
-  endDate: t.integer({ mode: 'timestamp_ms' }),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
-}))
-
-// Add relations for assignments
 export const usersRelations = relations(users, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [users.organizationId],
     references: [organizations.id],
   }),
-  assignments: many(assignments), // 👈 new
+  assignments: many(assignments),
 }))
 
 export const assignmentsRelations = relations(assignments, ({ one }) => ({
@@ -197,30 +231,6 @@ export const assignmentsRelations = relations(assignments, ({ one }) => ({
     fields: [assignments.userId],
     references: [users.id],
   }),
-}))
-
-// ---------- Belt Systems ----------
-export const beltSystems = sqliteTable('belt_systems', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
-  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  name: t.text().notNull().default('Default Belt System'),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
-}))
-
-// ---------- Belt Ranks ----------
-export const beltRanks = sqliteTable('belt_ranks', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
-  systemId: t.integer('system_id').references(() => beltSystems.id, { onDelete: 'cascade' }).notNull(),
-  name: t.text().notNull(),           // "White Belt"
-  level: t.text().notNull(),          // "9th Kyu"
-  order: t.integer('order').notNull(), // progression order (1,2,3...)
-  type: t.text({ enum: ['kyu', 'dan'] }).notNull(),
-  danNumber: t.integer('dan_number'), // for dan grades (1-10)
-  color: t.text(),                    // hex color code
-  description: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 export const beltSystemsRelations = relations(beltSystems, ({ many }) => ({
@@ -234,16 +244,33 @@ export const beltRanksRelations = relations(beltRanks, ({ one }) => ({
   }),
 }))
 
-export const guardians = sqliteTable('guardians', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
-  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
-  name: t.text().notNull(),
-  relationship: t.text().notNull(), // e.g., "Father", "Mother", "Guardian"
-  phone: t.text(),
-  email: t.text(),
-  address: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+export const studentsRelations = relations(students, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [students.organizationId],
+    references: [organizations.id],
+  }),
+  dojo: one(dojos, {
+    fields: [students.dojoId],
+    references: [dojos.id],
+  }),
+  currentBeltRank: one(beltRanks, {
+    fields: [students.currentBeltRankId],
+    references: [beltRanks.id],
+  }),
+  guardians: many(guardians),
+  gradings: many(studentGradings),
+  attendance: many(attendance),
+}))
+
+export const studentGradingsRelations = relations(studentGradings, ({ one }) => ({
+  student: one(students, {
+    fields: [studentGradings.studentId],
+    references: [students.id],
+  }),
+  beltRank: one(beltRanks, {
+    fields: [studentGradings.beltRankId],
+    references: [beltRanks.id],
+  }),
 }))
 
 export const guardiansRelations = relations(guardians, ({ one }) => ({
@@ -253,19 +280,20 @@ export const guardiansRelations = relations(guardians, ({ one }) => ({
   }),
 }))
 
-export const dojoSchedules = sqliteTable('dojo_schedules', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
-  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
-  dayOfWeek: t.integer('day_of_week').notNull(), // 0=Sunday, 1=Monday, ...
-  startTime: t.text().notNull(), // "HH:MM" 24-hour
-  endTime: t.text().notNull(),
-  name: t.text(),
-  instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+export const dojosRelations = relations(dojos, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [dojos.organizationId],
+    references: [organizations.id],
+  }),
+  node: one(hierarchyNodes, {
+    fields: [dojos.nodeId],
+    references: [hierarchyNodes.id],
+  }),
+  students: many(students),
+  schedules: many(dojoSchedules),
+  classSessions: many(classSessions),
 }))
 
-// New relations for dojoSchedules
 export const dojoSchedulesRelations = relations(dojoSchedules, ({ one }) => ({
   dojo: one(dojos, {
     fields: [dojoSchedules.dojoId],
@@ -274,5 +302,32 @@ export const dojoSchedulesRelations = relations(dojoSchedules, ({ one }) => ({
   instructor: one(users, {
     fields: [dojoSchedules.instructorId],
     references: [users.id],
+  }),
+}))
+
+export const classSessionsRelations = relations(classSessions, ({ one, many }) => ({
+  dojo: one(dojos, {
+    fields: [classSessions.dojoId],
+    references: [dojos.id],
+  }),
+  schedule: one(dojoSchedules, {
+    fields: [classSessions.scheduleId],
+    references: [dojoSchedules.id],
+  }),
+  instructor: one(users, {
+    fields: [classSessions.instructorId],
+    references: [users.id],
+  }),
+  attendance: many(attendance),
+}))
+
+export const attendanceRelations = relations(attendance, ({ one }) => ({
+  session: one(classSessions, {
+    fields: [attendance.sessionId],
+    references: [classSessions.id],
+  }),
+  student: one(students, {
+    fields: [attendance.studentId],
+    references: [students.id],
   }),
 }))
