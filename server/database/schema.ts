@@ -10,6 +10,7 @@ export const organizations = sqliteTable('organizations', (t) => ({
   name: t.text().notNull(),
   slug: t.text().notNull().unique(),
   logo: t.text(),
+  currency: t.text().default('USD'),
   createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
@@ -260,6 +261,8 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   guardians: many(guardians),
   gradings: many(studentGradings),
   attendance: many(attendance),
+  documents: many(documents),
+  
 }))
 
 export const studentGradingsRelations = relations(studentGradings, ({ one }) => ({
@@ -329,5 +332,116 @@ export const attendanceRelations = relations(attendance, ({ one }) => ({
   student: one(students, {
     fields: [attendance.studentId],
     references: [students.id],
+  }),
+}))
+
+// ---------- Fee Plans ----------
+export const feePlans = sqliteTable('fee_plans', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  amount: t.integer('amount').notNull(), // in smallest currency unit (e.g., paisa for INR)
+  frequency: t.text({ enum: ['monthly', 'quarterly', 'annual', 'one-time'] }).default('monthly'),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }), // null = organization-wide
+  description: t.text(),
+  isActive: t.integer('is_active').default(1),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- Student Fee Assignments ----------
+export const studentFeeAssignments = sqliteTable('student_fee_assignments', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  feePlanId: t.integer('fee_plan_id').references(() => feePlans.id, { onDelete: 'cascade' }).notNull(),
+  startDate: t.integer({ mode: 'timestamp_ms' }).notNull(),
+  endDate: t.integer({ mode: 'timestamp_ms' }),
+  dueDay: t.integer('due_day').default(1), // day of month (1-28)
+  discount: t.integer('discount').default(0), // discount amount in same currency unit
+  status: t.text({ enum: ['active', 'expired', 'cancelled'] }).default('active'),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- Payments ----------
+export const payments = sqliteTable('payments', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  assignmentId: t.integer('assignment_id').references(() => studentFeeAssignments.id, { onDelete: 'set null' }),
+  amount: t.integer('amount').notNull(),
+  paymentDate: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  method: t.text({ enum: ['cash', 'bank_transfer', 'card', 'other'] }).default('cash'),
+  referenceNumber: t.text(),
+  receiptNumber: t.text().notNull(),
+  notes: t.text(),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- Relations for Financial Tables ----------
+export const feePlansRelations = relations(feePlans, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [feePlans.organizationId],
+    references: [organizations.id],
+  }),
+  dojo: one(dojos, {
+    fields: [feePlans.dojoId],
+    references: [dojos.id],
+  }),
+  assignments: many(studentFeeAssignments),
+}))
+
+export const studentFeeAssignmentsRelations = relations(studentFeeAssignments, ({ one, many }) => ({
+  student: one(students, {
+    fields: [studentFeeAssignments.studentId],
+    references: [students.id],
+  }),
+  feePlan: one(feePlans, {
+    fields: [studentFeeAssignments.feePlanId],
+    references: [feePlans.id],
+  }),
+  payments: many(payments),
+}))
+
+export const paymentsRelations = relations(payments, ({ one }) => ({
+  student: one(students, {
+    fields: [payments.studentId],
+    references: [students.id],
+  }),
+  assignment: one(studentFeeAssignments, {
+    fields: [payments.assignmentId],
+    references: [studentFeeAssignments.id],
+  }),
+}))
+
+// ---------- Documents ----------
+export const documents = sqliteTable('documents', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }),
+  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  documentType: t.text().notNull(), // 'aadhaar', 'passport', 'driving_license', 'voter_id', 'other'
+  documentNumber: t.text(),
+  fileUrl: t.text().notNull(),
+  issuedDate: t.integer({ mode: 'timestamp_ms' }),
+  expiryDate: t.integer({ mode: 'timestamp_ms' }),
+  notes: t.text(),
+  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- Relations ----------
+export const documentsRelations = relations(documents, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [documents.organizationId],
+    references: [organizations.id],
+  }),
+  student: one(students, {
+    fields: [documents.studentId],
+    references: [students.id],
+  }),
+  user: one(users, {
+    fields: [documents.userId],
+    references: [users.id],
   }),
 }))

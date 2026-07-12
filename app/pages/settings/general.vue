@@ -1,11 +1,21 @@
 <template>
   <div class="max-w-2xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-6">Organization Settings</h1>
+    <h1 class="text-2xl font-bold mb-6">General Settings</h1>
 
     <form @submit.prevent="saveSettings" enctype="multipart/form-data">
       <div class="mb-4">
         <label class="block text-sm font-medium">Organization Name</label>
         <UInput v-model="form.name" class="w-full" required />
+      </div>
+
+      <div class="mb-4">
+        <label class="block text-sm font-medium">Currency</label>
+        <USelect
+          v-model="form.currency"
+          :items="currencyOptions"
+          placeholder="Select currency"
+          class="w-full"
+        />
       </div>
 
       <div class="mb-4">
@@ -36,24 +46,35 @@ const toast = useToast()
 const loading = ref(false)
 const message = ref('')
 
+const currencyOptions = [
+  { label: 'INR (₹)', value: 'INR' },
+  { label: 'USD ($)', value: 'USD' },
+  { label: 'EUR (€)', value: 'EUR' },
+  { label: 'GBP (£)', value: 'GBP' },
+  { label: 'JPY (¥)', value: 'JPY' },
+]
+
 const org = reactive({
   name: '',
   logo: null as string | null,
+  currency: 'INR',
 })
 
 const form = reactive({
   name: '',
+  currency: 'INR',
 })
 
 const logoFile = ref<File | null>(null)
 
-// Load current org data
 onMounted(async () => {
   try {
     const data = await $fetch('/api/organization/settings')
     org.name = data.name
     org.logo = data.logo
+    org.currency = data.currency || 'INR'
     form.name = data.name
+    form.currency = data.currency || 'INR'
   } catch (error: any) {
     toast.add({
       color: 'error',
@@ -74,6 +95,7 @@ async function saveSettings() {
   try {
     const fd = new FormData()
     fd.append('name', form.name)
+    fd.append('currency', form.currency)
     if (logoFile.value) {
       fd.append('logo', logoFile.value)
     }
@@ -85,7 +107,7 @@ async function saveSettings() {
     await fetch() // refresh session
     message.value = 'Settings updated successfully!'
     org.name = form.name
-    // update logo from session
+    org.currency = form.currency
     if (user.value?.organizationLogo) {
       org.logo = user.value.organizationLogo
     }

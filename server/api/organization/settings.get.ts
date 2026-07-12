@@ -1,5 +1,5 @@
 // server/api/organization/settings.get.ts
-import { db, tables } from '../../../server/utils/database'
+import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
 
 export default defineEventHandler(async (event) => {
@@ -21,5 +21,6 @@ export default defineEventHandler(async (event) => {
     name: org.name,
     slug: org.slug,
     logo: org.logo,
+    currency: org.currency || 'INR', // ✅ return currency
   }
 })

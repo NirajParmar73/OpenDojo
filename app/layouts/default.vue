@@ -23,6 +23,9 @@
         <NuxtLink to="/dojos" class="block py-2 px-3 rounded hover:bg-gray-700">Dojos</NuxtLink>
         <NuxtLink to="/students" class="block py-2 px-3 rounded hover:bg-gray-700">Students</NuxtLink>
         <NuxtLink to="/attendance" class="block py-2 px-3 rounded hover:bg-gray-700">Attendance</NuxtLink>
+        <NuxtLink to="/reports/attendance" class="block py-2 px-3 rounded hover:bg-gray-700">
+          Attendance Reports
+        </NuxtLink>
         <NuxtLink to="/users" class="block py-2 px-3 rounded hover:bg-gray-700">Users</NuxtLink>
         <NuxtLink to="/settings" class="block py-2 px-3 rounded hover:bg-gray-700">Settings</NuxtLink>
       </nav>

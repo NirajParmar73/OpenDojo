@@ -1,10 +1,8 @@
-// server/api/organization/settings.put.ts
-import { db, tables } from '../../../server/utils/database' // use alias for consistency
+import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
-import { saveUploadedFile } from '../../../server/utils/upload'
+import { saveUploadedFile } from '../../utils/upload'
 
 export default defineEventHandler(async (event) => {
-  // ✅ Declare session once
   const session = await getUserSession(event)
   if (!session.user) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
@@ -19,16 +17,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Invalid form data' })
   }
 
+  // 🔍 Debug: log all parts
+  console.log('📦 Form parts:', form.map(p => ({ name: p.name, type: p.type, filename: p.filename, dataLength: p.data?.length })))
+
+  // ✅ Extract fields more robustly: find part by name, regardless of type
   const getField = (name: string): string | null => {
-    const part = form.find((p) => p.name === name && p.type === 'text')
+    const part = form.find((p) => p.name === name)
     return part ? part.data.toString() : null
   }
 
   const name = getField('name')
+  const currency = getField('currency')
   const logoFilePart = form.find((p) => p.name === 'logo' && p.filename)
 
   const updateData: any = {}
-  if (name) updateData.name = name
+  if (name !== null) updateData.name = name
+  if (currency !== null) updateData.currency = currency
   if (logoFilePart && logoFilePart.data) {
     try {
       const saved = await saveUploadedFile(
@@ -59,13 +63,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to update organization' })
   }
 
-  // ✅ Update session with new data
+  // Update session
   session.user.organizationName = updated.name
   session.user.organizationLogo = updated.logo
   await setUserSession(event, session)
 
   return {
     success: true,
-    organization: { id: updated.id, name: updated.name, slug: updated.slug, logo: updated.logo },
+    organization: { id: updated.id, name: updated.name, slug: updated.slug, logo: updated.logo, currency: updated.currency },
   }
 })

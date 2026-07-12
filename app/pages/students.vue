@@ -34,8 +34,6 @@
           <UInput type="file" accept="image/*" @change="onNewAvatarChange" />
           <img v-if="newStudentAvatarPreview" :src="newStudentAvatarPreview" class="h-16 w-16 object-cover rounded" />
         </div>
-
-        <!-- Guardians Section -->
         <div class="mt-4">
           <h4 class="font-medium mb-2">Guardians</h4>
           <div
@@ -54,7 +52,7 @@
               color="error"
               variant="ghost"
               size="sm"
-              @click="removeGuardian(newStudent.guardians, idx)"
+              @click="removeGuardian(newStudent.guardians, +idx)"
             >
               Remove
             </UButton>
@@ -63,7 +61,6 @@
             Add Guardian
           </UButton>
         </div>
-
         <UButton type="submit" class="mt-4" :loading="creating">Add Student</UButton>
       </form>
     </UCard>
@@ -85,33 +82,150 @@
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
-          <tbody class="bg-white divide-y divide-gray-200">
-            <tr v-for="student in students" :key="student.id">
-              <td class="px-4 py-4">
-                <img v-if="student.avatar" :src="student.avatar" class="h-10 w-10 rounded-full object-cover" />
-                <div v-else class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">No</div>
-              </td>
-              <td class="px-4 py-4">{{ student.firstName }} {{ student.lastName }}</td>
-              <td class="px-4 py-4">{{ student.dojo?.name || 'None' }}</td>
-              <td class="px-4 py-4">{{ student.currentBeltRank?.name || '-' }}</td>
-              <td class="px-4 py-4">{{ student.email || '-' }}</td>
-              <td class="px-4 py-4">{{ student.phone || '-' }}</td>
-              <td class="px-4 py-4">
-                <USelect
-                  v-model="student.status"
-                  :items="statusOptions"
-                  @update:model-value="updateStatus(student.id, $event)"
-                  variant="ghost"
-                  size="sm"
-                />
-              </td>
-              <td class="px-4 py-4 whitespace-nowrap">
-                <div class="flex flex-wrap gap-1">
-                  <UButton color="primary" variant="ghost" size="sm" @click="startEdit(student)">Edit</UButton>
-                  <UButton color="error" variant="ghost" size="sm" @click="deleteStudent(student.id)">Archive</UButton>
-                </div>
-              </td>
-            </tr>
+          <tbody>
+            <template v-for="student in students" :key="student.id">
+              <!-- Main row -->
+              <tr>
+                <td class="px-4 py-4">
+                  <img v-if="student.avatar" :src="student.avatar" class="h-10 w-10 rounded-full object-cover" />
+                  <div v-else class="h-10 w-10 rounded-full bg-gray-200 flex items-center justify-center text-gray-500 text-xs">No</div>
+                </td>
+                <td class="px-4 py-4">{{ student.firstName }} {{ student.lastName }}</td>
+                <td class="px-4 py-4">{{ student.dojo?.name || 'None' }}</td>
+                <td class="px-4 py-4">{{ student.currentBeltRank?.name || '-' }}</td>
+                <td class="px-4 py-4">{{ student.email || '-' }}</td>
+                <td class="px-4 py-4">{{ student.phone || '-' }}</td>
+                <td class="px-4 py-4">
+                  <USelect
+                    v-model="student.status"
+                    :items="statusOptions"
+                    @update:model-value="updateStatus(student.id, $event)"
+                    variant="ghost"
+                    size="sm"
+                  />
+                </td>
+                <td class="px-4 py-4 whitespace-nowrap">
+                  <div class="flex flex-wrap gap-1">
+                    <UButton color="primary" variant="ghost" size="sm" @click="startEdit(student)">Edit</UButton>
+                    <NuxtLink :to="`/fees?id=${student.id}`">
+                      <UButton color="secondary" variant="ghost" size="sm">Fees</UButton>
+                    </NuxtLink>
+                    <UButton color="error" variant="ghost" size="sm" @click="deleteStudent(student.id)">Archive</UButton>
+                    <div class="flex items-center gap-1">
+                      <UInput type="file" accept="image/*" :id="`avatar-${student.id}`" class="hidden" @change="(e) => uploadAvatar(student.id, e)" />
+                      <UButton size="xs" color="secondary" @click="triggerFileInput(`avatar-${student.id}`)">Upload Avatar</UButton>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Fees expanded row -->
+              <tr v-if="expandedFeeStudentId === student.id">
+                <td colspan="8" class="px-4 py-4 bg-gray-50">
+                  <div class="space-y-4">
+                    <div class="flex justify-between items-center">
+                      <h4 class="text-md font-semibold">Fees for {{ student.firstName }} {{ student.lastName }}</h4>
+                      <UButton color="neutral" variant="ghost" size="sm" @click="() => { expandedFeeStudentId = null }">Close</UButton>
+                    </div>
+
+                    <!-- Assignments Section -->
+                    <div>
+                      <h5 class="font-medium">Assignments</h5>
+                      <form @submit.prevent="addFeeAssignment(student.id)" class="grid grid-cols-1 md:grid-cols-4 gap-2 my-2">
+                        <USelect
+                          v-model="newAssignment.feePlanId"
+                          :items="feePlanOptions"
+                          placeholder="Fee Plan"
+                          required
+                        />
+                        <UInput v-model="newAssignment.startDate" type="date" required />
+                        <UInput v-model.number="newAssignment.discount" type="number" placeholder="Discount" />
+                        <UButton type="submit" :loading="addingAssignment">Assign</UButton>
+                      </form>
+                      <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                          <thead class="bg-gray-50">
+                            <tr>
+                              <th class="px-2 py-1 text-left">Plan</th>
+                              <th class="px-2 py-1 text-left">Start</th>
+                              <th class="px-2 py-1 text-left">Amount</th>
+                              <th class="px-2 py-1 text-left">Discount</th>
+                              <th class="px-2 py-1 text-left">Net</th>
+                              <th class="px-2 py-1 text-left">Outstanding</th>
+                              <th class="px-2 py-1 text-left">Status</th>
+                              <th class="px-2 py-1 text-left">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="ass in feeAssignments[student.id] || []" :key="ass.id">
+                              <td class="px-2 py-1">{{ ass.feePlan?.name }}</td>
+                              <td class="px-2 py-1">{{ formatDate(ass.startDate) }}</td>
+                              <td class="px-2 py-1">{{ formatCurrency(ass.feePlan?.amount || 0) }}</td>
+                              <td class="px-2 py-1">{{ formatCurrency(ass.discount || 0) }}</td>
+                              <td class="px-2 py-1">{{ formatCurrency(ass.netAmount || 0) }}</td>
+                              <td class="px-2 py-1">{{ formatCurrency(ass.outstanding || 0) }}</td>
+                              <td class="px-2 py-1">{{ ass.status }}</td>
+                              <td class="px-2 py-1">
+                                <UButton color="error" variant="ghost" size="xs" @click="deleteFeeAssignment(student.id, ass.id)">Delete</UButton>
+                              </td>
+                            </tr>
+                            <tr v-if="(feeAssignments[student.id] || []).length === 0">
+                              <td colspan="8" class="px-2 py-2 text-center text-gray-500">No assignments</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    <!-- Payments Section -->
+                    <div>
+                      <h5 class="font-medium">Payments</h5>
+                      <form @submit.prevent="recordPayment(student.id)" class="grid grid-cols-1 md:grid-cols-5 gap-2 my-2">
+                        <UInput v-model.number="paymentForm.amount" type="number" placeholder="Amount" required />
+                        <UInput v-model="paymentForm.paymentDate" type="date" required />
+                        <USelect
+                          v-model="paymentForm.method"
+                          :items="paymentMethods"
+                          placeholder="Method"
+                          required
+                        />
+                        <UInput v-model="paymentForm.referenceNumber" placeholder="Reference" />
+                        <UButton type="submit" :loading="recordingPayment">Record</UButton>
+                      </form>
+                      <div class="overflow-x-auto">
+                        <table class="min-w-full divide-y divide-gray-200 text-sm">
+                          <thead class="bg-gray-50">
+                            <tr>
+                              <th class="px-2 py-1 text-left">Receipt</th>
+                              <th class="px-2 py-1 text-left">Date</th>
+                              <th class="px-2 py-1 text-left">Amount</th>
+                              <th class="px-2 py-1 text-left">Method</th>
+                              <th class="px-2 py-1 text-left">Reference</th>
+                              <th class="px-2 py-1 text-left">Receipt</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            <tr v-for="pay in payments[student.id] || []" :key="pay.id">
+                              <td class="px-2 py-1">{{ pay.receiptNumber }}</td>
+                              <td class="px-2 py-1">{{ formatDate(pay.paymentDate) }}</td>
+                              <td class="px-2 py-1">{{ formatCurrency(pay.amount) }}</td>
+                              <td class="px-2 py-1">{{ pay.method }}</td>
+                              <td class="px-2 py-1">{{ pay.referenceNumber || '-' }}</td>
+                              <td class="px-2 py-1">
+                                <UButton color="primary" variant="ghost" size="xs" @click="downloadReceipt(pay.id)">Receipt</UButton>
+                              </td>
+                            </tr>
+                            <tr v-if="(payments[student.id] || []).length === 0">
+                              <td colspan="6" class="px-2 py-2 text-center text-gray-500">No payments</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            </template>
             <tr v-if="students.length === 0">
               <td colspan="8" class="px-6 py-4 text-center text-gray-500">No students yet.</td>
             </tr>
@@ -121,6 +235,7 @@
 
       <!-- Inline Edit Form -->
       <div v-if="editingStudent" class="mt-6 border-t pt-4">
+        <!-- same as before – no changes -->
         <h3 class="text-lg font-semibold mb-3">Edit Student</h3>
         <form @submit.prevent="updateStudent">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -151,8 +266,6 @@
             <UInput type="file" accept="image/*" @change="onEditAvatarChange" />
             <img v-if="editFormAvatarPreview" :src="editFormAvatarPreview" class="h-16 w-16 object-cover rounded" />
           </div>
-
-          <!-- Guardians Section (Edit) -->
           <div class="mt-4">
             <h4 class="font-medium mb-2">Guardians</h4>
             <div
@@ -171,7 +284,7 @@
                 color="error"
                 variant="ghost"
                 size="sm"
-                @click="removeGuardian(editForm.guardians, idx)"
+                @click="removeGuardian(editForm.guardians, +idx)"
               >
                 Remove
               </UButton>
@@ -180,7 +293,6 @@
               Add Guardian
             </UButton>
           </div>
-
           <div class="flex gap-2 mt-4">
             <UButton type="submit" :loading="updating">Update</UButton>
             <UButton type="button" color="neutral" @click="cancelEdit">Cancel</UButton>
@@ -197,9 +309,11 @@ definePageMeta({ middleware: 'auth' })
 const toast = useToast()
 const students = ref<any[]>([])
 const dojos = ref<any[]>([])
+const beltRanks = ref<any[]>([])
 const creating = ref(false)
 const updating = ref(false)
 
+// Gender, status, etc.
 const genderOptions = [
   { label: 'Male', value: 'male' },
   { label: 'Female', value: 'female' },
@@ -211,27 +325,18 @@ const statusOptions = [
   { label: 'Archived', value: 'archived' },
 ]
 
-const dojoOptions = computed(() => {
-  return dojos.value.map((dojo: any) => ({
-    label: dojo.name,
-    value: dojo.id,
-  }))
-})
+const dojoOptions = computed(() =>
+  dojos.value.map(d => ({ label: d.name, value: d.id }))
+)
+const beltOptions = computed(() =>
+  beltRanks.value.map(r => ({ label: `${r.name} (${r.level})`, value: r.id }))
+)
 
-// Belt ranks
-const beltRanks = ref<any[]>([])
-const beltOptions = computed(() => {
-  return beltRanks.value.map((r: any) => ({
-    label: `${r.name} (${r.level})`,
-    value: r.id,
-  }))
-})
-
-// ----- New Student Form -----
-const newStudent = reactive({
+// ---- Student CRUD ----
+const newStudent = reactive<any>({
   firstName: '',
   lastName: '',
-  dojoId: undefined as number | undefined,
+  dojoId: undefined,
   email: '',
   phone: '',
   dateOfBirth: '',
@@ -240,21 +345,19 @@ const newStudent = reactive({
   emergencyContact: '',
   emergencyPhone: '',
   medicalNotes: '',
-  beltRankId: undefined as number | undefined,
-  avatarFile: null as File | null,
-  guardians: [] as any[],
+  beltRankId: undefined,
+  avatarFile: null,
+  guardians: [],
 })
+const newStudentAvatarPreview = computed(() =>
+  newStudent.avatarFile ? URL.createObjectURL(newStudent.avatarFile) : null
+)
 
-const newStudentAvatarPreview = computed(() => {
-  return newStudent.avatarFile ? URL.createObjectURL(newStudent.avatarFile) : null
-})
-
-// ----- Edit Form -----
 const editingStudent = ref<any>(null)
-const editForm = reactive({
+const editForm = reactive<any>({
   firstName: '',
   lastName: '',
-  dojoId: undefined as number | undefined,
+  dojoId: undefined,
   email: '',
   phone: '',
   dateOfBirth: '',
@@ -263,135 +366,14 @@ const editForm = reactive({
   emergencyContact: '',
   emergencyPhone: '',
   medicalNotes: '',
-  beltRankId: undefined as number | undefined,
-  avatarFile: null as File | null,
-  existingAvatar: null as string | null,
-  guardians: [] as any[],
+  beltRankId: undefined,
+  avatarFile: null,
+  existingAvatar: null,
+  guardians: [],
 })
-
-const editFormAvatarPreview = computed(() => {
-  if (editForm.avatarFile) {
-    return URL.createObjectURL(editForm.avatarFile)
-  }
-  return editForm.existingAvatar || null
-})
-
-// ----- Load Data -----
-async function loadData() {
-  try {
-    const [studentsData, dojosData, beltData] = await Promise.all([
-      $fetch('/api/students'),
-      $fetch('/api/dojos'),
-      $fetch('/api/belt-ranks'),
-    ])
-    students.value = studentsData
-    dojos.value = dojosData
-    beltRanks.value = beltData
-  } catch (error: any) {
-    toast.add({
-      color: 'error',
-      title: 'Failed to load data',
-      description: error.data?.statusMessage || error.message,
-    })
-  }
-}
-
-// ----- File Input Handlers -----
-function onNewAvatarChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  newStudent.avatarFile = target.files?.[0] || null
-}
-
-function onEditAvatarChange(event: Event) {
-  const target = event.target as HTMLInputElement
-  editForm.avatarFile = target.files?.[0] || null
-}
-
-// ----- Guardian Helpers -----
-function addGuardian(guardians: any[]) {
-  guardians.push({
-    name: '',
-    relationship: '',
-    phone: '',
-    email: '',
-    address: '',
-  })
-}
-
-function removeGuardian(guardians: any[], index: number) {
-  guardians.splice(index, 1)
-}
-
-// ----- Create Student -----
-async function createStudent() {
-  if (!newStudent.firstName || !newStudent.lastName) {
-    toast.add({ color: 'warning', title: 'First and last name are required' })
-    return
-  }
-
-  creating.value = true
-  try {
-    // Upload avatar if present
-    let avatarUrl = null
-    if (newStudent.avatarFile) {
-      const fd = new FormData()
-      fd.append('avatar', newStudent.avatarFile)
-      const res = await $fetch('/api/upload', { method: 'POST', body: fd })
-      avatarUrl = res.path
-    }
-
-    // Create student
-    // Create student
-const studentRes = await $fetch('/api/students', {
-  method: 'POST',
-  body: {
-    firstName: newStudent.firstName,
-    lastName: newStudent.lastName,
-    dojoId: newStudent.dojoId ?? null,
-    email: newStudent.email || undefined,
-    phone: newStudent.phone || undefined,
-    dateOfBirth: newStudent.dateOfBirth || undefined,
-    gender: newStudent.gender || undefined,
-    address: newStudent.address || undefined,
-    emergencyContact: newStudent.emergencyContact || undefined,
-    emergencyPhone: newStudent.emergencyPhone || undefined,
-    medicalNotes: newStudent.medicalNotes || undefined,
-    avatar: avatarUrl,
-    currentBeltRankId: newStudent.beltRankId ?? null,
-  },
-}) as any;
-
-//create student
-const studentId = studentRes?.student?.id;
-if (!studentId) {
-  throw new Error('Student creation failed: no ID returned');
-}
-
-// Create guardians
-for (const g of newStudent.guardians) {
-  if (g.name && g.relationship) {
-    await $fetch(`/api/students/${studentId}/guardians`, {
-      method: 'POST',
-      body: {
-        name: g.name,
-        relationship: g.relationship,
-        phone: g.phone || undefined,
-        email: g.email || undefined,
-        address: g.address || undefined,
-      },
-    });
-  }
-}
-
-    toast.add({ color: 'success', title: 'Student created' })
-    resetNewForm()
-    await loadData()
-  } catch (error: any) {
-    toast.add({ color: 'error', title: 'Creation failed', description: error.data?.statusMessage || error.message })
-  } finally {
-    creating.value = false
-  }
-}
+const editFormAvatarPreview = computed(() =>
+  editForm.avatarFile ? URL.createObjectURL(editForm.avatarFile) : editForm.existingAvatar
+)
 
 function resetNewForm() {
   Object.assign(newStudent, {
@@ -412,15 +394,108 @@ function resetNewForm() {
   })
 }
 
-// ----- Edit Student -----
-async function startEdit(student: any) {
+function addGuardian(arr: any[]) {
+  arr.push({ name: '', relationship: '', phone: '', email: '', address: '' })
+}
+function removeGuardian(arr: any[], idx: number) {
+  arr.splice(idx, 1)
+}
+
+function onNewAvatarChange(e: Event) {
+  const target = e.target as HTMLInputElement
+  newStudent.avatarFile = target.files?.[0] || null
+}
+function onEditAvatarChange(e: Event) {
+  const target = e.target as HTMLInputElement
+  editForm.avatarFile = target.files?.[0] || null
+}
+
+function triggerFileInput(id: string) {
+  document.getElementById(id)?.click()
+}
+
+async function loadData() {
+  try {
+    const [studentsData, dojosData, beltsData] = await Promise.all([
+      $fetch('/api/students'),
+      $fetch('/api/dojos'),
+      $fetch('/api/belt-ranks'),
+    ])
+    students.value = studentsData
+    dojos.value = dojosData
+    beltRanks.value = beltsData
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Failed to load data', description: error.message })
+  }
+}
+
+async function createStudent() {
+  if (!newStudent.firstName || !newStudent.lastName) {
+    toast.add({ color: 'warning', title: 'First and last name are required' })
+    return
+  }
+  creating.value = true
+  try {
+    let avatarUrl = null
+    if (newStudent.avatarFile) {
+      const fd = new FormData()
+      fd.append('avatar', newStudent.avatarFile)
+      const res = await $fetch('/api/upload', { method: 'POST', body: fd })
+      avatarUrl = res.path
+    }
+    const studentRes = await $fetch('/api/students', {
+      method: 'POST',
+      body: {
+        firstName: newStudent.firstName,
+        lastName: newStudent.lastName,
+        dojoId: newStudent.dojoId ?? null,
+        email: newStudent.email || undefined,
+        phone: newStudent.phone || undefined,
+        dateOfBirth: newStudent.dateOfBirth || undefined,
+        gender: newStudent.gender || undefined,
+        address: newStudent.address || undefined,
+        emergencyContact: newStudent.emergencyContact || undefined,
+        emergencyPhone: newStudent.emergencyPhone || undefined,
+        medicalNotes: newStudent.medicalNotes || undefined,
+        avatar: avatarUrl,
+        currentBeltRankId: newStudent.beltRankId ?? null,
+      },
+    }) as any
+    const studentId = studentRes.student.id
+
+    // Create guardians
+    for (const g of newStudent.guardians) {
+      if (g.name && g.relationship) {
+        await $fetch(`/api/students/${studentId}/guardians`, {
+          method: 'POST',
+          body: {
+            name: g.name,
+            relationship: g.relationship,
+            phone: g.phone || undefined,
+            email: g.email || undefined,
+            address: g.address || undefined,
+          },
+        })
+      }
+    }
+    toast.add({ color: 'success', title: 'Student created' })
+    resetNewForm()
+    await loadData()
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Creation failed', description: error.data?.statusMessage || error.message })
+  } finally {
+    creating.value = false
+  }
+}
+
+function startEdit(student: any) {
   editingStudent.value = student
   editForm.firstName = student.firstName ?? ''
   editForm.lastName = student.lastName ?? ''
   editForm.dojoId = student.dojoId ?? undefined
   editForm.email = student.email ?? ''
   editForm.phone = student.phone ?? ''
-  editForm.dateOfBirth = (student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '') as string
+  editForm.dateOfBirth = student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : ''
   editForm.gender = student.gender ?? ''
   editForm.address = student.address ?? ''
   editForm.emergencyContact = student.emergencyContact ?? ''
@@ -429,14 +504,7 @@ async function startEdit(student: any) {
   editForm.beltRankId = student.currentBeltRankId ?? undefined
   editForm.existingAvatar = student.avatar ?? null
   editForm.avatarFile = null
-
-  // Load guardians
-  try {
-    const guardiansData = await $fetch(`/api/students/${student.id}/guardians`)
-    editForm.guardians = guardiansData.map((g: any) => ({ ...g }))
-  } catch (e) {
-    editForm.guardians = []
-  }
+  editForm.guardians = student.guardians?.map((g: any) => ({ ...g })) || []
 }
 
 function cancelEdit() {
@@ -449,7 +517,6 @@ async function updateStudent() {
     toast.add({ color: 'warning', title: 'First and last name are required' })
     return
   }
-
   updating.value = true
   try {
     let avatarUrl = editForm.existingAvatar
@@ -459,8 +526,6 @@ async function updateStudent() {
       const res = await $fetch('/api/upload', { method: 'POST', body: fd })
       avatarUrl = res.path
     }
-
-    // Update student details
     await $fetch(`/api/students/${editingStudent.value.id}`, {
       method: 'PATCH',
       body: {
@@ -479,14 +544,8 @@ async function updateStudent() {
         currentBeltRankId: editForm.beltRankId ?? null,
       },
     })
-
-    // Replace guardians: delete all, then insert new ones
-    // First, delete all existing guardians for this student
-    await $fetch(`/api/students/${editingStudent.value.id}/guardians`, {
-      method: 'DELETE',
-    })
-
-    // Then insert new guardians
+    // Replace guardians
+    await $fetch(`/api/students/${editingStudent.value.id}/guardians`, { method: 'DELETE' })
     for (const g of editForm.guardians) {
       if (g.name && g.relationship) {
         await $fetch(`/api/students/${editingStudent.value.id}/guardians`, {
@@ -501,7 +560,6 @@ async function updateStudent() {
         })
       }
     }
-
     toast.add({ color: 'success', title: 'Student updated' })
     cancelEdit()
     await loadData()
@@ -512,21 +570,19 @@ async function updateStudent() {
   }
 }
 
-// ----- Status Update -----
-async function updateStatus(studentId: number, newStatus: string) {
+async function updateStatus(id: number, status: string) {
   try {
-    await $fetch(`/api/students/${studentId}`, {
+    await $fetch(`/api/students/${id}`, {
       method: 'PATCH',
-      body: { status: newStatus },
+      body: { status },
     })
-    toast.add({ color: 'success', title: `Status updated to ${newStatus}` })
+    toast.add({ color: 'success', title: `Status updated to ${status}` })
     await loadData()
   } catch (error: any) {
-    toast.add({ color: 'error', title: 'Status update failed', description: error.data?.statusMessage || error.message })
+    toast.add({ color: 'error', title: 'Update failed', description: error.message })
   }
 }
 
-// ----- Delete (Archive) -----
 async function deleteStudent(id: number) {
   if (!confirm('Archive this student?')) return
   try {
@@ -534,7 +590,175 @@ async function deleteStudent(id: number) {
     toast.add({ color: 'success', title: 'Student archived' })
     await loadData()
   } catch (error: any) {
-    toast.add({ color: 'error', title: 'Archiving failed', description: error.data?.statusMessage || error.message })
+    toast.add({ color: 'error', title: 'Archiving failed', description: error.message })
+  }
+}
+
+async function uploadAvatar(studentId: number, event: Event) {
+  const target = event.target as HTMLInputElement
+  const file = target.files?.[0]
+  if (!file) return
+  try {
+    const fd = new FormData()
+    fd.append('avatar', file)
+    await $fetch(`/api/students/${studentId}/avatar`, { method: 'POST', body: fd })
+    toast.add({ color: 'success', title: 'Avatar uploaded' })
+    await loadData()
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Upload failed', description: error.message })
+  } finally {
+    target.value = ''
+  }
+}
+
+// ---- FEES (Inline) ----
+const expandedFeeStudentId = ref<number | null>(null)
+const feeAssignments = ref<Record<number, any[]>>({})
+const payments = ref<Record<number, any[]>>({})
+const feePlans = ref<any[]>([])
+
+const feePlanOptions = computed(() =>
+  feePlans.value.map(p => ({ label: `${p.name} (${formatCurrency(p.amount)})`, value: p.id }))
+)
+
+const newAssignment = reactive({
+  feePlanId: undefined as number | undefined,
+  startDate: '',
+  discount: 0,
+})
+const addingAssignment = ref(false)
+
+const paymentForm = reactive({
+  amount: undefined as number | undefined,
+  paymentDate: '',
+  method: 'cash',
+  referenceNumber: '',
+})
+const recordingPayment = ref(false)
+const paymentMethods = [
+  { label: 'Cash', value: 'cash' },
+  { label: 'Bank Transfer', value: 'bank_transfer' },
+  { label: 'Card', value: 'card' },
+  { label: 'Other', value: 'other' },
+]
+
+function formatCurrency(amount: number) {
+  return `₹${(amount / 100).toFixed(2)}`
+}
+function formatDate(ts: number) {
+  return new Date(ts).toLocaleDateString()
+}
+
+// Toggle expanded row
+function toggleFees(studentId: number) {
+  if (expandedFeeStudentId.value === studentId) {
+    expandedFeeStudentId.value = null
+  } else {
+    expandedFeeStudentId.value = studentId
+    loadFeeData(studentId)
+  }
+}
+
+async function loadFeeData(studentId: number) {
+  try {
+    const [assignments, plans, paymentsData] = await Promise.all([
+      $fetch(`/api/students/${studentId}/fee-assignments`),
+      $fetch('/api/fee-plans'),
+      $fetch(`/api/students/${studentId}/payments`),
+    ]) as [any[], any[], any[]]
+
+    feeAssignments.value[studentId] = assignments
+    feePlans.value = plans
+    payments.value[studentId] = paymentsData
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Failed to load fee data', description: error.message })
+  }
+}
+
+async function addFeeAssignment(studentId: number) {
+  if (!newAssignment.feePlanId || !newAssignment.startDate) {
+    toast.add({ color: 'warning', title: 'Fee plan and start date are required' })
+    return
+  }
+  addingAssignment.value = true
+  try {
+    await $fetch(`/api/students/${studentId}/fee-assignments`, {
+      method: 'POST' as any,
+      body: {
+        feePlanId: newAssignment.feePlanId,
+        startDate: newAssignment.startDate,
+        discount: newAssignment.discount ? Math.round(newAssignment.discount * 100) : 0,
+      },
+    })
+    toast.add({ color: 'success', title: 'Assignment added' })
+    await loadFeeData(studentId)
+    // Reset form
+    newAssignment.feePlanId = undefined
+    newAssignment.startDate = ''
+    newAssignment.discount = 0
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Failed to add assignment', description: error.message })
+  } finally {
+    addingAssignment.value = false
+  }
+}
+
+async function deleteFeeAssignment(studentId: number, assignmentId: number) {
+  if (!confirm('Delete this assignment? This cannot be undone if there are no payments.')) return
+  try {
+    await $fetch(`/api/students/${studentId}/fee-assignments/${assignmentId}`, { method: 'DELETE' })
+    toast.add({ color: 'success', title: 'Assignment deleted' })
+    await loadFeeData(studentId)
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Deletion failed', description: error.message })
+  }
+}
+
+async function recordPayment(studentId: number) {
+  if (!paymentForm.amount || !paymentForm.paymentDate) {
+    toast.add({ color: 'warning', title: 'Amount and date are required' })
+    return
+  }
+  recordingPayment.value = true
+  try {
+    await $fetch(`/api/students/${studentId}/payments`, {
+      method: 'POST' as any,
+      body: {
+        amount: Math.round(paymentForm.amount * 100),
+        paymentDate: paymentForm.paymentDate,
+        method: paymentForm.method,
+        referenceNumber: paymentForm.referenceNumber || undefined,
+      },
+    })
+    toast.add({ color: 'success', title: 'Payment recorded' })
+    await loadFeeData(studentId)
+    // Reset form
+    paymentForm.amount = undefined
+    paymentForm.paymentDate = ''
+    paymentForm.method = 'cash'
+    paymentForm.referenceNumber = ''
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Payment failed', description: error.message })
+  } finally {
+    recordingPayment.value = false
+  }
+}
+
+async function downloadReceipt(paymentId: number) {
+  try {
+    const response = await fetch(`/api/payments/${paymentId}/receipt`)
+    if (!response.ok) throw new Error('Failed to generate receipt')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `receipt_${paymentId}.pdf`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Receipt download failed', description: error.message })
   }
 }
 
