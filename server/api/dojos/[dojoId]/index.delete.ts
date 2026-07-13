@@ -1,5 +1,6 @@
 import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
+import { assertDojoManagementAccess } from '../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -7,9 +8,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  if (!['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-  }
 
   const dojoId = getRouterParam(event, 'dojoId')
   if (!dojoId) {
@@ -25,6 +23,7 @@ export default defineEventHandler(async (event) => {
   if (!existing) {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
+  await assertDojoManagementAccess(session.user.id, session.user.organizationId!, existing.id)
 
   const [deleted] = await db.delete(tables.dojos)
     .where(eq(tables.dojos.id, Number(dojoId)))

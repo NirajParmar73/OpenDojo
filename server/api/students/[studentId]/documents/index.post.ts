@@ -1,7 +1,6 @@
 import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
-import { saveUploadedFile } from '../../../../utils/upload'
-import { z } from 'zod'
+import { allowedDocumentTypes, saveUploadedFile } from '../../../../utils/upload'
 
 const documentTypes = ['aadhaar', 'passport', 'driving_license', 'voter_id', 'other']
 
@@ -26,7 +25,7 @@ export default defineEventHandler(async (event) => {
     where: and(
       eq(tables.students.id, Number(studentId)),
       eq(tables.students.organizationId, orgId)
-    ),
+    )
   })
   if (!student) {
     throw createError({ statusCode: 404, statusMessage: 'Student not found' })
@@ -38,7 +37,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const getField = (name: string): string | null => {
-    const part = form.find((p) => p.name === name && p.type === 'text')
+    // H3 leaves `type` undefined for ordinary FormData fields. Files are
+    // identified by `filename`, so use that distinction instead.
+    const part = form.find(p => p.name === name && !p.filename)
     return part ? part.data.toString() : null
   }
 
@@ -47,7 +48,7 @@ export default defineEventHandler(async (event) => {
   const issuedDate = getField('issuedDate')
   const expiryDate = getField('expiryDate')
   const notes = getField('notes')
-  const filePart = form.find((p) => p.name === 'file' && p.filename)
+  const filePart = form.find(p => p.name === 'file' && p.filename)
 
   if (!documentType || !filePart || !filePart.data) {
     throw createError({ statusCode: 400, statusMessage: 'Document type and file are required' })
@@ -63,9 +64,10 @@ export default defineEventHandler(async (event) => {
       name: filePart.filename || 'document',
       data: filePart.data,
       filename: filePart.filename || 'document',
-      type: filePart.type || 'application/pdf',
+      type: filePart.type || 'application/pdf'
     },
-    'documents'
+    'documents',
+    allowedDocumentTypes
   )
 
   const [doc] = await db.insert(tables.documents).values({
@@ -76,8 +78,8 @@ export default defineEventHandler(async (event) => {
     fileUrl: saved.path,
     issuedDate: issuedDate ? new Date(issuedDate) : null,
     expiryDate: expiryDate ? new Date(expiryDate) : null,
-    notes: notes || null,
-  }).returning() as any[]
+    notes: notes || null
+  }).returning()
 
   if (!doc) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to save document' })

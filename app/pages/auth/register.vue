@@ -29,6 +29,7 @@ const state = reactive({
 
 const toast = useToast()
 const loading = ref(false)
+definePageMeta({ layout: 'auth' })
 
 async function onRegister(event: FormSubmitEvent<Schema>) {
    try {

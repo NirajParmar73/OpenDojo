@@ -2,6 +2,8 @@
 import { z } from 'zod'
 import { db, tables } from '../../../../server/utils/database'
 import { eq } from 'drizzle-orm'
+import { assertNodeManagementAccess } from '../../../utils/permissions'
+import { writeAuditLog } from '../../../utils/audit'
 
 const createNodeSchema = z.object({
   levelId: z.number().int().positive(),
@@ -13,10 +15,6 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  }
-
-  if (!['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
   const orgId = session.user.organizationId
@@ -42,8 +40,13 @@ export default defineEventHandler(async (event) => {
     if (!parent || parent.organizationId !== orgId) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid parent ID' })
     }
-    // Optional: ensure parent's level order is less than current level's order
-    // (to enforce hierarchy order)
+    await assertNodeManagementAccess(session.user.id, orgId, parent.id)
+    const parentLevel = await db.query.hierarchyLevels.findFirst({ where: eq(tables.hierarchyLevels.id, parent.levelId) })
+    if (!parentLevel || parentLevel.order >= level.order) {
+      throw createError({ statusCode: 400, statusMessage: 'A child node must be at a lower hierarchy level than its parent' })
+    }
+  } else if (session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Only organization-wide administrators can create root hierarchy nodes' })
   }
 
   // Create the node
@@ -57,6 +60,7 @@ export default defineEventHandler(async (event) => {
   if (!node) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create node' })
   }
+  await writeAuditLog({ organizationId: orgId, actorUserId: session.user.id, action: 'hierarchy_node.created', entityType: 'hierarchy_node', entityId: node.id, targetLabel: node.name, scope: { type: 'node', id: node.id }, details: `Level: ${level.name}` })
 
   return { success: true, node }
 })

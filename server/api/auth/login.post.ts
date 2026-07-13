@@ -2,6 +2,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq } from 'drizzle-orm'
+import { currentTenant } from '../../utils/tenant'
 // ✅ Import these from nuxt-auth-utils
 
 const loginSchema = z.object({
@@ -18,6 +19,11 @@ export default defineEventHandler(async (event) => {
 
   if (!user) {
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
+  }
+
+  const tenant = currentTenant(event)
+  if (tenant && user.organizationId !== tenant.id) {
+    throw createError({ statusCode: 403, statusMessage: 'Use the workspace address for your organization to sign in' })
   }
 
   const isValid = await verifyPassword(user.passwordHash, body.password)

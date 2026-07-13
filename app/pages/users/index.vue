@@ -11,6 +11,7 @@
           <UInput v-model="newUser.email" type="email" placeholder="Email" required />
           <UInput v-model="newUser.password" type="password" placeholder="Password" required />
           <UInput v-model="newUser.danDegree" placeholder="Dan Degree (e.g., 1st Dan)" />
+          <USelect v-model="newUser.role" :items="accountRoleOptions" placeholder="Account role" />
         </div>
         <div class="mt-4">
           <h4 class="font-medium mb-2">Assignments</h4>
@@ -59,6 +60,7 @@
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avatar</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Role</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dan Degree</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificate</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignments</th>
@@ -73,6 +75,7 @@
               </td>
               <td class="px-4 py-4">{{ user.name }}</td>
               <td class="px-4 py-4">{{ user.email }}</td>
+              <td class="px-4 py-4 capitalize">{{ user.role }}</td>
               <td class="px-4 py-4">{{ user.danDegree || '-' }}</td>
               <td class="px-4 py-4">
                 <a v-if="user.certificateUrl" :href="user.certificateUrl" target="_blank" class="text-blue-600 hover:underline">View</a>
@@ -86,7 +89,7 @@
               </td>
               <td class="px-4 py-4 whitespace-nowrap">
                 <div class="flex flex-wrap gap-1">
-                  <UButton color="primary" variant="ghost" size="sm" @click="startEdit(user)">Edit</UButton>
+                  <UButton :to="`/users/${user.id}/edit`" color="primary" variant="ghost" size="sm">Edit</UButton>
                   <UButton color="error" variant="ghost" size="sm" @click="deleteUser(user.id)">Delete</UButton>
                   <div class="flex items-center gap-1">
                     <UInput type="file" accept="image/*" :id="`avatar-${user.id}`" class="hidden" @change="(e) => uploadAvatar(user.id, e)" />
@@ -100,55 +103,12 @@
               </td>
             </tr>
             <tr v-if="users.length === 0">
-              <td colspan="7" class="px-6 py-4 text-center text-gray-500">No users yet.</td>
+              <td colspan="8" class="px-6 py-4 text-center text-gray-500">No users yet.</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <!-- Inline Edit Form -->
-      <div v-if="editingUser" class="mt-6 border-t pt-4">
-        <h3 class="text-lg font-semibold mb-3">Edit User</h3>
-        <form @submit.prevent="updateUser">
-          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <UInput v-model="editForm.name" placeholder="Full Name" required />
-            <UInput v-model="editForm.email" type="email" placeholder="Email" required />
-            <UInput v-model="editForm.danDegree" placeholder="Dan Degree" />
-          </div>
-          <div class="mt-4">
-            <h4 class="font-medium mb-2">Assignments</h4>
-            <div v-for="(assign, index) in editForm.assignments" :key="index" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
-              <USelect
-                v-model="assign.role"
-                :items="filteredRoleOptions"
-                placeholder="Role"
-                @update:model-value="assign.scopeId = null"
-              />
-              <template v-if="isNodeRole(assign.role)">
-                <USelect
-                  v-model="assign.scopeId"
-                  :items="filteredNodeOptions"
-                  placeholder="Select Node"
-                />
-              </template>
-              <template v-else-if="isDojoRole(assign.role)">
-                <USelect
-                  v-model="assign.scopeId"
-                  :items="filteredDojoOptions"
-                  placeholder="Select Dojo"
-                />
-              </template>
-              <div v-else></div>
-              <UButton color="error" variant="ghost" size="sm" @click="removeAssignment(editForm.assignments, +index)">Remove</UButton>
-            </div>
-            <UButton size="sm" color="secondary" @click="addAssignment(editForm.assignments)">Add Assignment</UButton>
-          </div>
-          <div class="flex gap-2 mt-4">
-            <UButton type="submit" :loading="updating">Update</UButton>
-            <UButton type="button" color="neutral" @click="cancelEdit">Cancel</UButton>
-          </div>
-        </form>
-      </div>
     </UCard>
   </div>
 </template>
@@ -169,21 +129,25 @@ const permissions = ref({
 })
 
 const creating = ref(false)
-const updating = ref(false)
 
 // File upload states
 const uploadingAvatar = ref(false)
 const uploadingCertificate = ref(false)
 
 const roleOptions = [
-  { label: 'Owner', value: 'owner' },
-  { label: 'Admin', value: 'admin' },
+  { label: 'Country Head', value: 'country_head' },
   { label: 'State Head', value: 'state_head' },
   { label: 'District Head', value: 'district_head' },
   { label: 'City Head', value: 'city_head' },
+  { label: 'Zone Head', value: 'zone_head' },
   { label: 'Dojo Head', value: 'dojo_head' },
   { label: 'Instructor', value: 'instructor' },
   { label: 'Member', value: 'member' },
+]
+
+const accountRoleOptions = [
+  { label: 'Member', value: 'member' },
+  { label: 'Admin', value: 'admin' },
 ]
 
 // Filtered role options based on permissions
@@ -220,9 +184,11 @@ const canCreateUsers = computed(() => {
 })
 
 const roleScopeMap: Record<string, string> = {
+  country_head: 'node',
   state_head: 'node',
   district_head: 'node',
   city_head: 'node',
+  zone_head: 'node',
   dojo_head: 'dojo',
   instructor: 'dojo',
 }
@@ -284,15 +250,7 @@ const newUser = reactive<any>({
   email: '',
   password: '',
   danDegree: '',
-  assignments: [],
-})
-
-// ----- Edit Form -----
-const editingUser = ref<any>(null)
-const editForm = reactive<any>({
-  name: '',
-  email: '',
-  danDegree: '',
+  role: 'member',
   assignments: [],
 })
 
@@ -380,6 +338,7 @@ async function createUser() {
         email: newUser.email,
         password: newUser.password,
         danDegree: newUser.danDegree || null,
+        role: newUser.role,
         assignments,
       },
     })
@@ -388,6 +347,7 @@ async function createUser() {
     newUser.email = ''
     newUser.password = ''
     newUser.danDegree = ''
+    newUser.role = 'member'
     newUser.assignments = []
     await loadData()
   } catch (error: any) {
@@ -402,26 +362,8 @@ async function createUser() {
 }
 
 // ----- Start Edit -----
-function startEdit(user: any) {
-  editingUser.value = user
-  editForm.name = user.name
-  editForm.email = user.email
-  editForm.danDegree = user.danDegree || ''
-  editForm.assignments = user.assignments.map((a: any) => ({
-    role: a.role,
-    scopeId: a.scopeId, // will be converted later
-  }))
-}
-
-function cancelEdit() {
-  editingUser.value = null
-  editForm.name = ''
-  editForm.email = ''
-  editForm.danDegree = ''
-  editForm.assignments = []
-}
-
 // ----- Update User -----
+/*
 async function updateUser() {
   if (!editingUser.value) return
   if (!editForm.name || !editForm.email) {
@@ -458,6 +400,7 @@ async function updateUser() {
         name: editForm.name,
         email: editForm.email,
         danDegree: editForm.danDegree || null,
+        ...(editingUser.value.role === 'owner' ? {} : { role: editForm.role }),
         assignments,
       },
     })
@@ -475,6 +418,7 @@ async function updateUser() {
   }
 }
 
+*/
 // ----- Delete User -----
 async function deleteUser(id: number) {
   if (!confirm('Delete this user? This cannot be undone.')) return

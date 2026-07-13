@@ -1,15 +1,13 @@
 // server/api/hierarchy/nodes/[id].delete.ts
 import { db, tables } from '../../../../server/utils/database'
 import { eq, and } from 'drizzle-orm'
+import { assertHierarchyNodeModificationAccess } from '../../../utils/permissions'
+import { writeAuditLog } from '../../../utils/audit'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  }
-
-  if (!['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
   const id = getRouterParam(event, 'id')
@@ -27,6 +25,7 @@ export default defineEventHandler(async (event) => {
   if (!existing) {
     throw createError({ statusCode: 404, statusMessage: 'Node not found' })
   }
+  await assertHierarchyNodeModificationAccess(session.user.id, session.user.organizationId!, existing.id)
 
   // Optional: Check if node has children – prevent deletion if so
   const children = await db.query.hierarchyNodes.findMany({
@@ -47,6 +46,7 @@ export default defineEventHandler(async (event) => {
   if (!deleted) {
     throw createError({ statusCode: 404, statusMessage: 'Node not found' })
   }
+  await writeAuditLog({ organizationId: session.user.organizationId!, actorUserId: session.user.id, action: 'hierarchy_node.deleted', entityType: 'hierarchy_node', entityId: deleted.id, targetLabel: deleted.name, scope: existing.parentId ? { type: 'node', id: existing.parentId } : { type: 'organization' } })
 
   return { success: true }
 })

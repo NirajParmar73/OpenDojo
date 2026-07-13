@@ -1,6 +1,51 @@
 import { db, tables } from '../utils/database'
 import { eq, inArray } from 'drizzle-orm'
 
+export const roleHierarchy = ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']
+
+export async function getHierarchyManagementScope(userId: number, organizationId: number) {
+  const user = await db.query.users.findFirst({ where: eq(tables.users.id, userId) })
+  const allNodes = await db.query.hierarchyNodes.findMany({ where: eq(tables.hierarchyNodes.organizationId, organizationId) })
+  const allDojos = await db.query.dojos.findMany({ where: eq(tables.dojos.organizationId, organizationId) })
+
+  if (user?.role === 'owner') {
+    return {
+      managedParentNodeIds: allNodes.map(node => node.id),
+      managedNodeIds: allNodes.map(node => node.id),
+      managedDojoIds: allDojos.map(dojo => dojo.id),
+    }
+  }
+
+  const assignments = await db.query.assignments.findMany({ where: eq(tables.assignments.userId, userId) })
+  const assignedNodeIds = assignments.filter(item => item.scopeType === 'node').map(item => item.scopeId)
+  const directlyAssignedDojoIds = assignments.filter(item => item.scopeType === 'dojo').map(item => item.scopeId)
+  const childrenByParent = new Map<number, number[]>()
+  for (const node of allNodes) {
+    if (node.parentId !== null) childrenByParent.set(node.parentId, [...(childrenByParent.get(node.parentId) || []), node.id])
+  }
+  const descendantNodeIds = new Set<number>()
+  const visit = (nodeId: number) => {
+    for (const childId of childrenByParent.get(nodeId) || []) {
+      if (!descendantNodeIds.has(childId)) {
+        descendantNodeIds.add(childId)
+        visit(childId)
+      }
+    }
+  }
+  for (const nodeId of assignedNodeIds) visit(nodeId)
+
+  const managedParentNodeIds = [...new Set([...assignedNodeIds, ...descendantNodeIds])]
+  return {
+    // The assigned node itself is a boundary: a head can add below it, but cannot rename or delete it.
+    managedParentNodeIds,
+    managedNodeIds: [...descendantNodeIds],
+    managedDojoIds: [...new Set([
+      ...directlyAssignedDojoIds,
+      ...allDojos.filter(dojo => managedParentNodeIds.includes(dojo.nodeId)).map(dojo => dojo.id),
+    ])],
+  }
+}
+
 // ─── Dojo Access ──────────────────────────────────────────────
 export async function getAccessibleDojoIds(userId: number, organizationId: number): Promise<number[] | null> {
   const user = await db.query.users.findFirst({
@@ -8,7 +53,7 @@ export async function getAccessibleDojoIds(userId: number, organizationId: numbe
   })
   if (!user) return []
 
-  if (user.role === 'owner' || user.role === 'admin') {
+  if (user.role === 'owner') {
     return null
   }
 
@@ -72,7 +117,7 @@ export async function getAllowedAssignmentsForCreator(userId: number, organizati
   })
   if (!user) return { allowedRoles: [], allowedNodeIds: [], allowedDojoIds: [] }
 
-  if (user.role === 'owner' || user.role === 'admin') {
+  if (user.role === 'owner') {
     const allNodes = await db.query.hierarchyNodes.findMany({
       where: eq(tables.hierarchyNodes.organizationId, organizationId),
     })
@@ -80,7 +125,7 @@ export async function getAllowedAssignmentsForCreator(userId: number, organizati
       where: eq(tables.dojos.organizationId, organizationId),
     })
     return {
-      allowedRoles: ['admin', 'state_head', 'district_head', 'city_head', 'dojo_head', 'instructor', 'member'],
+      allowedRoles: ['admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member'],
       allowedNodeIds: allNodes.map(n => n.id),
       allowedDojoIds: allDojos.map(d => d.id),
     }
@@ -93,7 +138,6 @@ export async function getAllowedAssignmentsForCreator(userId: number, organizati
     return { allowedRoles: [], allowedNodeIds: [], allowedDojoIds: [] }
   }
 
-  const roleHierarchy = ['owner', 'admin', 'state_head', 'district_head', 'city_head', 'dojo_head', 'instructor', 'member']
   let highestRole = 'member'
   for (const a of assignments) {
     const idx = roleHierarchy.indexOf(a.role)
@@ -104,45 +148,31 @@ export async function getAllowedAssignmentsForCreator(userId: number, organizati
   const highestIndex = roleHierarchy.indexOf(highestRole)
   const allowedRoles = roleHierarchy.slice(highestIndex + 1)
 
-  const nodeIds: number[] = []
-  const dojoIds: number[] = []
-  for (const a of assignments) {
-    if (a.scopeType === 'node') nodeIds.push(a.scopeId)
-    else if (a.scopeType === 'dojo') dojoIds.push(a.scopeId)
-  }
-
-  const allNodes = await db.query.hierarchyNodes.findMany({
-    where: eq(tables.hierarchyNodes.organizationId, organizationId),
-  })
-
-  async function getDescendantNodeIds(nodeId: number): Promise<number[]> {
-    const result: number[] = [nodeId]
-    for (const n of allNodes) {
-      if (n.parentId === nodeId) {
-        result.push(...await getDescendantNodeIds(n.id))
-      }
-    }
-    return result
-  }
-
-  let expandedNodeIds: number[] = []
-  for (const nid of nodeIds) {
-    expandedNodeIds = expandedNodeIds.concat(await getDescendantNodeIds(nid))
-  }
-  expandedNodeIds = [...new Set(expandedNodeIds)]
-
-  let allowedDojoIds = dojoIds
-  if (expandedNodeIds.length > 0) {
-    const dojosUnderNodes = await db.query.dojos.findMany({
-      where: inArray(tables.dojos.nodeId, expandedNodeIds),
-    })
-    allowedDojoIds = allowedDojoIds.concat(dojosUnderNodes.map(d => d.id))
-  }
-  allowedDojoIds = [...new Set(allowedDojoIds)]
+  const scope = await getHierarchyManagementScope(userId, organizationId)
 
   return {
     allowedRoles,
-    allowedNodeIds: expandedNodeIds,
-    allowedDojoIds,
+    allowedNodeIds: scope.managedNodeIds,
+    allowedDojoIds: scope.managedDojoIds,
+  }
+}
+
+export async function assertDojoManagementAccess(userId: number, organizationId: number, dojoId: number) {
+  if (!await isDojoAccessible(userId, organizationId, dojoId)) {
+    throw createError({ statusCode: 403, statusMessage: 'This dojo is outside your assigned territory' })
+  }
+}
+
+export async function assertNodeManagementAccess(userId: number, organizationId: number, nodeId: number) {
+  const scope = await getHierarchyManagementScope(userId, organizationId)
+  if (!scope.managedParentNodeIds.includes(nodeId)) {
+    throw createError({ statusCode: 403, statusMessage: 'This hierarchy node is outside your assigned territory' })
+  }
+}
+
+export async function assertHierarchyNodeModificationAccess(userId: number, organizationId: number, nodeId: number) {
+  const scope = await getHierarchyManagementScope(userId, organizationId)
+  if (!scope.managedNodeIds.includes(nodeId)) {
+    throw createError({ statusCode: 403, statusMessage: 'You can only modify hierarchy nodes below your assigned level' })
   }
 }

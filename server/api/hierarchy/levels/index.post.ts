@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized – please log in' })
   }
 
-  if (!['owner', 'admin'].includes(session.user.role)) {
+  if (session.user.role !== 'owner') {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 

@@ -39,7 +39,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ middleware: 'auth' })
+definePageMeta({ middleware: ['auth', 'admin'] })
 
 const { user, fetch } = useUserSession()
 const toast = useToast()

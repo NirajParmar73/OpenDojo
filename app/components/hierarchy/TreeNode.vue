@@ -13,18 +13,21 @@
       <span class="text-xs text-gray-400">(Level: {{ levelName }})</span>
 
       <button
+        v-if="canManageChildren(node.id)"
         class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
         @click="$emit('addChild', node)"
       >
         Add Child
       </button>
       <button
+        v-if="canModify(node.id)"
         class="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
         @click="$emit('edit', node)"
       >
         Edit
       </button>
       <button
+        v-if="canModify(node.id)"
         class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
         @click="$emit('delete', node.id)"
       >
@@ -39,6 +42,8 @@
         :key="child.id"
         :node="child"
         :levels="levels"
+        :can-manage-children="canManageChildren"
+        :can-modify="canModify"
         @addChild="$emit('addChild', $event)"
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"
@@ -56,6 +61,8 @@ const props = defineProps<{
     children: any[]
   }
   levels: any[]
+  canManageChildren: (nodeId: number) => boolean
+  canModify: (nodeId: number) => boolean
 }>()
 
 const expanded = ref(true)

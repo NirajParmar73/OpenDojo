@@ -2,6 +2,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
+import { assertDojoManagementAccess } from '../../utils/permissions'
 
 const createStudentSchema = z.object({
   dojoId: z.number().int().positive().nullable(),
@@ -42,6 +43,9 @@ export default defineEventHandler(async (event) => {
     if (!dojo || dojo.organizationId !== orgId) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid dojo' })
     }
+    await assertDojoManagementAccess(session.user.id, orgId, body.dojoId)
+  } else if (session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Only the owner can create an unassigned student' })
   }
 
   // Validate belt rank if provided

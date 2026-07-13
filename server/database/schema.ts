@@ -68,6 +68,7 @@ export const dojos = sqliteTable('dojos', (t) => ({
 export const beltSystems = sqliteTable('belt_systems', (t) => ({
   id: t.integer('id').primaryKey({ autoIncrement: true }),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
   name: t.text().notNull().default('Default Belt System'),
   createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
@@ -118,6 +119,7 @@ export const studentGradings = sqliteTable('student_gradings', (t) => ({
   beltRankId: t.integer('belt_rank_id').references(() => beltRanks.id, { onDelete: 'cascade' }).notNull(),
   awardedDate: t.integer({ mode: 'timestamp_ms' }).notNull(),
   examiner: t.text(),
+  certificateNumber: t.text('certificate_number'),
   certificateUrl: t.text(),
   notes: t.text(),
   createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
@@ -141,7 +143,7 @@ export const guardians = sqliteTable('guardians', (t) => ({
 export const assignments = sqliteTable('assignments', (t) => ({
   id: t.integer('id').primaryKey({ autoIncrement: true }),
   userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
-  role: t.text({ enum: ['owner', 'admin', 'state_head', 'district_head', 'city_head', 'dojo_head', 'instructor', 'member'] }).notNull(),
+  role: t.text({ enum: ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member'] }).notNull(),
   scopeType: t.text({ enum: ['node', 'dojo'] }).notNull(),
   scopeId: t.integer('scope_id').notNull(),
   startDate: t.integer({ mode: 'timestamp_ms' }),
@@ -158,6 +160,7 @@ export const dojoSchedules = sqliteTable('dojo_schedules', (t) => ({
   startTime: t.text().notNull(),
   endTime: t.text().notNull(),
   name: t.text(),
+  programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
   instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
   createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
@@ -173,6 +176,7 @@ export const classSessions = sqliteTable('class_sessions', (t) => ({
   endTime: t.text().notNull(),
   instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
   name: t.text(),
+  programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
   createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
@@ -188,6 +192,130 @@ export const attendance = sqliteTable('attendance', (t) => ({
   updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// External governing bodies are tenant-owned directory records. They do not
+// grant the external organization access to this tenant's data.
+export const governingBodies = sqliteTable('governing_bodies', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  level: t.text({ enum: ['international', 'national', 'state', 'district', 'city', 'local', 'other'] }).notNull().default('other'),
+  country: t.text(), website: t.text(), contactName: t.text('contact_name'), contactEmail: t.text('contact_email'), contactPhone: t.text('contact_phone'), notes: t.text(),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Immutable organization activity trail. Scope makes every event visible only
+// to owners or staff responsible for the relevant hierarchy territory / dojo.
+export const auditLogs = sqliteTable('audit_logs', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  actorUserId: t.integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  action: t.text().notNull(),
+  entityType: t.text('entity_type').notNull(),
+  entityId: t.integer('entity_id'),
+  targetLabel: t.text('target_label').notNull(),
+  scopeType: t.text('scope_type', { enum: ['organization', 'node', 'dojo'] }).notNull(),
+  scopeId: t.integer('scope_id'),
+  details: t.text(),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+}))
+
+export const tournaments = sqliteTable('tournaments', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  level: t.text().notNull(),
+  venue: t.text(),
+  startDate: t.integer('start_date', { mode: 'timestamp_ms' }).notNull(),
+  endDate: t.integer('end_date', { mode: 'timestamp_ms' }),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Category, event, and result are intentionally free-form so each organization
+// can follow its own competition rules.
+export const studentAchievements = sqliteTable('student_achievements', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  tournamentId: t.integer('tournament_id').references(() => tournaments.id, { onDelete: 'set null' }),
+  tournamentName: t.text('tournament_name').notNull(),
+  tournamentLevel: t.text('tournament_level').notNull(),
+  venue: t.text(),
+  startDate: t.integer('start_date', { mode: 'timestamp_ms' }).notNull(),
+  endDate: t.integer('end_date', { mode: 'timestamp_ms' }),
+  eventType: t.text('event_type'),
+  ageCategory: t.text('age_category'),
+  weightCategory: t.text('weight_category'),
+  result: t.text(),
+  medalType: t.text('medal_type'),
+  medalsWon: t.integer('medals_won').notNull().default(0),
+  certificateUrl: t.text('certificate_url'),
+  notes: t.text(),
+  createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+export const affiliations = sqliteTable('affiliations', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }), organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  governingBodyId: t.integer('governing_body_id').references(() => governingBodies.id, { onDelete: 'cascade' }).notNull(),
+  scopeType: t.text('scope_type', { enum: ['organization', 'node', 'dojo'] }).notNull(), scopeId: t.integer('scope_id'),
+  relationshipType: t.text('relationship_type', { enum: ['parent_affiliation', 'membership', 'recognition', 'license', 'accreditation'] }).notNull(), membershipNumber: t.text('membership_number'),
+  status: t.text({ enum: ['pending', 'active', 'expired', 'suspended'] }).notNull().default('pending'),
+  startedAt: t.integer('started_at', { mode: 'timestamp_ms' }), expiresAt: t.integer('expires_at', { mode: 'timestamp_ms' }), renewalDueAt: t.integer('renewal_due_at', { mode: 'timestamp_ms' }),
+  feeAmount: t.integer('fee_amount'), feeFrequency: t.text('fee_frequency', { enum: ['one_time', 'monthly', 'quarterly', 'annual'] }), documentUrl: t.text('document_url'), notes: t.text(),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(), updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+export const expenses = sqliteTable('expenses', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }), organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  affiliationId: t.integer('affiliation_id').references(() => affiliations.id, { onDelete: 'set null' }), scopeType: t.text('scope_type', { enum: ['organization', 'node', 'dojo'] }).notNull(), scopeId: t.integer('scope_id'),
+  category: t.text().notNull(), payee: t.text(), description: t.text().notNull(), invoiceNumber: t.text('invoice_number'), amount: t.integer().notNull(), taxAmount: t.integer('tax_amount').notNull().default(0),
+  incurredAt: t.integer('incurred_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(), dueAt: t.integer('due_at', { mode: 'timestamp_ms' }), paidAt: t.integer('paid_at', { mode: 'timestamp_ms' }), paymentMethod: t.text('payment_method'), paymentReference: t.text('payment_reference'),
+  status: t.text({ enum: ['draft', 'due', 'partially_paid', 'paid', 'overdue', 'cancelled'] }).notNull().default('due'), receiptUrl: t.text('receipt_url'), notes: t.text(), createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(), updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// Programs are tenant-owned so an organization can teach multiple arts/styles.
+export const organizationPrograms = sqliteTable('organization_programs', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  martialArt: t.text('martial_art').notNull(),
+  style: t.text().notNull(),
+  displayName: t.text('display_name').notNull(),
+  isPrimary: t.integer('is_primary').notNull().default(0),
+  isActive: t.integer('is_active').notNull().default(1),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+export const instructorQualifications = sqliteTable('instructor_qualifications', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
+  qualification: t.text().notNull(),
+  issuer: t.text(),
+  certificateNumber: t.text('certificate_number'),
+  expiresAt: t.integer('expires_at', { mode: 'timestamp_ms' }),
+  certificateUrl: t.text('certificate_url'),
+  notes: t.text(),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+export const dojoInstructors = sqliteTable('dojo_instructors', (t) => ({
+  id: t.integer('id').primaryKey({ autoIncrement: true }),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
+  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
+  isPrimary: t.integer('is_primary').notNull().default(0),
+  isActive: t.integer('is_active').notNull().default(1),
+  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
 // ---------- RELATIONS (all relations after all tables) ----------
 
 export const organizationsRelations = relations(organizations, ({ many }): any => ({
@@ -196,6 +324,7 @@ export const organizationsRelations = relations(organizations, ({ many }): any =
   hierarchyNodes: many(hierarchyNodes),
   dojos: many(dojos),
   students: many(students),
+  auditLogs: many(auditLogs),
 }))
 
 export const hierarchyLevelsRelations = relations(hierarchyLevels, ({ many }): any => ({
@@ -225,6 +354,12 @@ export const usersRelations = relations(users, ({ one, many }) => ({
     references: [organizations.id],
   }),
   assignments: many(assignments),
+  auditLogs: many(auditLogs),
+}))
+
+export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
+  organization: one(organizations, { fields: [auditLogs.organizationId], references: [organizations.id] }),
+  actor: one(users, { fields: [auditLogs.actorUserId], references: [users.id] }),
 }))
 
 export const assignmentsRelations = relations(assignments, ({ one }) => ({
@@ -260,6 +395,7 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   }),
   guardians: many(guardians),
   gradings: many(studentGradings),
+  achievements: many(studentAchievements),
   attendance: many(attendance),
   documents: many(documents),
   
@@ -370,6 +506,7 @@ export const payments = sqliteTable('payments', (t) => ({
   assignmentId: t.integer('assignment_id').references(() => studentFeeAssignments.id, { onDelete: 'set null' }),
   amount: t.integer('amount').notNull(),
   paymentDate: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  billingPeriod: t.text('billing_period'), // YYYY-MM fee period covered by this payment
   method: t.text({ enum: ['cash', 'bank_transfer', 'card', 'other'] }).default('cash'),
   referenceNumber: t.text(),
   receiptNumber: t.text().notNull(),
@@ -442,6 +579,68 @@ export const documentsRelations = relations(documents, ({ one }) => ({
   }),
   user: one(users, {
     fields: [documents.userId],
+    references: [users.id],
+  }),
+}))
+
+export const studentAchievementsRelations = relations(studentAchievements, ({ one }) => ({
+  student: one(students, {
+    fields: [studentAchievements.studentId],
+    references: [students.id],
+  }),
+  organization: one(organizations, {
+    fields: [studentAchievements.organizationId],
+    references: [organizations.id],
+  }),
+  tournament: one(tournaments, {
+    fields: [studentAchievements.tournamentId],
+    references: [tournaments.id],
+  }),
+  createdByUser: one(users, {
+    fields: [studentAchievements.createdBy],
+    references: [users.id],
+  }),
+}))
+
+export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [tournaments.organizationId],
+    references: [organizations.id],
+  }),
+  achievements: many(studentAchievements),
+}))
+
+export const governingBodiesRelations = relations(governingBodies, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [governingBodies.organizationId],
+    references: [organizations.id],
+  }),
+  affiliations: many(affiliations),
+}))
+
+export const affiliationsRelations = relations(affiliations, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [affiliations.organizationId],
+    references: [organizations.id],
+  }),
+  governingBody: one(governingBodies, {
+    fields: [affiliations.governingBodyId],
+    references: [governingBodies.id],
+  }),
+  expenses: many(expenses),
+}))
+
+export const expensesRelations = relations(expenses, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [expenses.organizationId],
+    references: [organizations.id],
+  }),
+  affiliation: one(affiliations, {
+    fields: [expenses.affiliationId],
+    references: [affiliations.id],
+  }),
+  createdByUser: one(users, {
+    fields: [expenses.createdBy],
     references: [users.id],
   }),
 }))

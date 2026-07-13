@@ -1,4 +1,4 @@
-import { getAllowedAssignmentsForCreator } from '../../../utils/permissions'
+import { getAllowedAssignmentsForCreator, getHierarchyManagementScope } from '../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const permissions = await getAllowedAssignmentsForCreator(session.user.id, orgId)
+  const scope = await getHierarchyManagementScope(session.user.id, orgId)
 
-  return permissions
+  return { ...permissions, managedParentNodeIds: scope.managedParentNodeIds }
 })

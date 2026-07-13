@@ -109,6 +109,11 @@ export default defineEventHandler(async (event) => {
   yPos += 16
   doc.text(`Method: ${payment.method}`, 50, yPos)
   yPos += 16
+  const billingDate = payment.billingPeriod
+    ? new Date(`${payment.billingPeriod}-01T00:00:00`)
+    : new Date(payment.paymentDate)
+  doc.text(`Fee Period: ${billingDate.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })}`, 50, yPos)
+  yPos += 16
   if (payment.referenceNumber) {
     doc.text(`Reference: ${payment.referenceNumber}`, 50, yPos)
     yPos += 16

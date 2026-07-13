@@ -59,6 +59,10 @@ pnpm preview
 
 Check out the [deployment documentation](https://nuxt.com/docs/getting-started/deployment) for more information.
 
+## Multi-tenant production setup
+
+OpenDojo supports optional organization workspaces at `organization-slug.your-domain.com`. Configure wildcard DNS and set `NUXT_TENANT_BASE_DOMAIN=your-domain.com`. The global tenant middleware resolves the subdomain, rejects unknown organizations, and rejects sessions belonging to another organization. Keep the main app at `app.your-domain.com` (or the apex domain) for onboarding and sign-in discovery.
+
 ## Renovate integration
 
 Install [Renovate GitHub app](https://github.com/apps/renovate/installations/select_target) on your repository and you are good to go.

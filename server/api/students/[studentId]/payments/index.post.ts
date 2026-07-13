@@ -2,10 +2,13 @@ import { z } from 'zod'
 import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
+import { isDojoAccessible } from '../../../../utils/permissions'
+import { writeAuditLog } from '../../../../utils/audit'
 
 const createPaymentSchema = z.object({
   amount: z.number().int().positive(),
   paymentDate: z.string(),
+  billingPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Select the fee month this payment covers'),
   method: z.enum(['cash', 'bank_transfer', 'card', 'other']).default('cash'),
   referenceNumber: z.string().optional().nullable(),
   assignmentId: z.number().int().positive().nullable().optional(),
@@ -16,10 +19,6 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  }
-
-  if (!['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
   const studentId = getRouterParam(event, 'studentId')
@@ -41,6 +40,9 @@ export default defineEventHandler(async (event) => {
   })
   if (!student) {
     throw createError({ statusCode: 404, statusMessage: 'Student not found' })
+  }
+  if (student.dojoId ? !await isDojoAccessible(session.user.id, orgId, student.dojoId) : session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Access denied' })
   }
 
   const body = await readValidatedBody(event, createPaymentSchema.parse)
@@ -68,6 +70,7 @@ export default defineEventHandler(async (event) => {
     studentId: Number(studentId),
     amount: body.amount,
     paymentDate: new Date(body.paymentDate),
+    billingPeriod: body.billingPeriod,
     method: body.method,
     referenceNumber: body.referenceNumber || null,
     receiptNumber,
@@ -78,6 +81,16 @@ export default defineEventHandler(async (event) => {
   if (!payment) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to record payment' })
   }
+  await writeAuditLog({
+    organizationId: orgId,
+    actorUserId: session.user.id,
+    action: 'payment.recorded',
+    entityType: 'payment',
+    entityId: payment.id,
+    targetLabel: `${student.firstName} ${student.lastName}`,
+    scope: student.dojoId ? { type: 'dojo', id: student.dojoId } : { type: 'organization' },
+    details: `₹${(body.amount / 100).toFixed(2)} | ${body.billingPeriod} | ${payment.receiptNumber}`,
+  })
 
   return { success: true, payment }
 })

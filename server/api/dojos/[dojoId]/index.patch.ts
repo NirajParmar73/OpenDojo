@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
+import { assertDojoManagementAccess, assertNodeManagementAccess } from '../../../utils/permissions'
 
 const updateDojoSchema = z.object({
   nodeId: z.number().int().positive().optional(),
@@ -16,9 +17,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  if (!['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-  }
 
   const dojoId = getRouterParam(event, 'dojoId')
   if (!dojoId) {
@@ -36,6 +34,7 @@ export default defineEventHandler(async (event) => {
   if (!existing) {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
+  await assertDojoManagementAccess(session.user.id, session.user.organizationId!, existing.id)
 
   if (body.nodeId) {
     const node = await db.query.hierarchyNodes.findFirst({
@@ -44,6 +43,7 @@ export default defineEventHandler(async (event) => {
     if (!node || node.organizationId !== session.user.organizationId) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid node ID' })
     }
+    await assertNodeManagementAccess(session.user.id, session.user.organizationId!, body.nodeId)
   }
 
   const [updated] = await db.update(tables.dojos)

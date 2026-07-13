@@ -99,6 +99,97 @@
       "when": 1783849426392,
       "tag": "0013_mean_famine",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "6",
+      "when": 1783850000000,
+      "tag": "0014_payment_billing_period",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "6",
+      "when": 1783851000000,
+      "tag": "0015_affiliations_and_expenses",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "6",
+      "when": 1783852000000,
+      "tag": "0016_affiliation_expense_tables",
+      "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1783853000000,
+      "tag": "0017_organization_programs",
+      "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "6",
+      "when": 1783854000000,
+      "tag": "0018_program_belts_and_instructor_qualifications",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1783855000000,
+      "tag": "0019_expense_payment_details",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1783856000000,
+      "tag": "0020_class_programs",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "6",
+      "when": 1783857000000,
+      "tag": "0021_dojo_instructors",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "6",
+      "when": 1783858000000,
+      "tag": "0022_student_achievements",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1783859000000,
+      "tag": "0023_tournaments_and_medals",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1783860000000,
+      "tag": "0024_backfill_achievement_tournaments",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "6",
+      "when": 1783861000000,
+      "tag": "0025_grading_certificate_number",
+      "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "6",
+      "when": 1783862000000,
+      "tag": "0026_audit_logs",
+      "breakpoints": true
     }
   ]
 }

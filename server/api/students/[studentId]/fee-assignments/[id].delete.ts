@@ -1,14 +1,11 @@
 import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
+import { isDojoAccessible } from '../../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  }
-
-  if (!['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
   const studentId = getRouterParam(event, 'studentId')
@@ -31,6 +28,9 @@ export default defineEventHandler(async (event) => {
   })
   if (!student) {
     throw createError({ statusCode: 404, statusMessage: 'Student not found' })
+  }
+  if (student.dojoId ? !await isDojoAccessible(session.user.id, orgId, student.dojoId) : session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Access denied' })
   }
 
   // Verify assignment exists

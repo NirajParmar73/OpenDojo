@@ -1,6 +1,7 @@
 import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { isDojoAccessible } from '../../../utils/permissions'
+import { writeAuditLog } from '../../../utils/audit'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -37,10 +38,7 @@ export default defineEventHandler(async (event) => {
     }
   } else {
     // Student has no dojo – only owner/admin can delete
-    const assignments = await db.query.assignments.findMany({
-      where: eq(tables.assignments.userId, session.user.id),
-    })
-    const hasOrgWideRole = assignments.some(a => a.role === 'owner' || a.role === 'admin')
+    const hasOrgWideRole = session.user.role === 'owner'
     if (!hasOrgWideRole) {
       throw createError({ statusCode: 403, statusMessage: 'You cannot delete this student' })
     }
@@ -50,6 +48,7 @@ export default defineEventHandler(async (event) => {
   await db.update(tables.students)
     .set({ status: 'archived', updatedAt: new Date() })
     .where(eq(tables.students.id, Number(id)))
+  await writeAuditLog({ organizationId: orgId, actorUserId: session.user.id, action: 'student.archived', entityType: 'student', entityId: student.id, targetLabel: `${student.firstName} ${student.lastName}`, scope: student.dojoId ? { type: 'dojo', id: student.dojoId } : { type: 'organization' } })
 
   return { success: true }
 })

@@ -90,7 +90,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ layout: 'settings' })
+definePageMeta({ middleware: ['auth', 'admin'] })
 
 const toast = useToast()
 const ranks = ref<any[]>([])

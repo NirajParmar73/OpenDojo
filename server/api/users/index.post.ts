@@ -7,13 +7,17 @@ const createUserSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
   password: z.string().min(6),
+  role: z.enum(['admin', 'member']).default('member'),
   danDegree: z.string().optional().nullable(),
   assignments: z.array(z.object({
-    role: z.enum(['owner', 'admin', 'state_head', 'district_head', 'city_head', 'dojo_head', 'instructor', 'member']),
+    role: z.enum(['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']),
     scopeType: z.enum(['node', 'dojo']),
     scopeId: z.number().int().positive(),
   })).optional(),
 })
+
+const nodeScopedRoles = new Set(['country_head', 'state_head', 'district_head', 'city_head', 'zone_head'])
+const dojoScopedRoles = new Set(['dojo_head', 'instructor'])
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -40,6 +44,10 @@ export default defineEventHandler(async (event) => {
   // 2. Parse and validate the request body
   const body = await readValidatedBody(event, createUserSchema.parse)
 
+  if (body.role === 'admin' && session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Only an owner can create an admin user' })
+  }
+
   // 3. Check if email already exists
   const existing = await db.query.users.findFirst({
     where: eq(tables.users.email, body.email),
@@ -57,6 +65,10 @@ export default defineEventHandler(async (event) => {
           statusCode: 403,
           statusMessage: `You cannot assign role: ${assign.role}`,
         })
+      }
+
+      if ((nodeScopedRoles.has(assign.role) && assign.scopeType !== 'node') || (dojoScopedRoles.has(assign.role) && assign.scopeType !== 'dojo')) {
+        throw createError({ statusCode: 400, statusMessage: `Role ${assign.role} must use a ${nodeScopedRoles.has(assign.role) ? 'node' : 'dojo'} scope` })
       }
 
       // b. Check if scope is allowed for this creator
@@ -100,7 +112,7 @@ export default defineEventHandler(async (event) => {
     name: body.name,
     email: body.email,
     passwordHash: hashed,
-    role: 'member',
+    role: body.role,
     organizationId: orgId,
     danDegree: body.danDegree || null,
   }).returning()

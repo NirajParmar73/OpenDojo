@@ -1,5 +1,6 @@
 import { db, tables } from '../../utils/database'
 import { eq, and } from 'drizzle-orm'
+import { isDojoAccessible } from '../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -30,6 +31,13 @@ export default defineEventHandler(async (event) => {
 
   if (!student) {
     throw createError({ statusCode: 404, statusMessage: 'Student not found' })
+  }
+
+  if (student.dojoId && !await isDojoAccessible(session.user.id, orgId, student.dojoId)) {
+    throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+  }
+  if (!student.dojoId && session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Access denied' })
   }
 
   return student

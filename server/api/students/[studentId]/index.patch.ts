@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
+import { isDojoAccessible } from '../../../utils/permissions'
+import { writeAuditLog } from '../../../utils/audit'
 
 const updateStudentSchema = z.object({
   firstName: z.string().min(1).optional(),
@@ -49,6 +51,13 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Student not found' })
   }
 
+  if (existing.dojoId && !await isDojoAccessible(session.user.id, orgId, existing.dojoId)) {
+    throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+  }
+  if (!existing.dojoId && session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+  }
+
   // If dojoId provided, verify it belongs to organization
   if (body.dojoId !== undefined && body.dojoId !== null) {
     const dojo = await db.query.dojos.findFirst({
@@ -57,6 +66,11 @@ export default defineEventHandler(async (event) => {
     if (!dojo || dojo.organizationId !== orgId) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid dojo' })
     }
+  }
+
+  if (body.dojoId !== undefined && body.dojoId !== null
+    && !await isDojoAccessible(session.user.id, orgId, body.dojoId)) {
+    throw createError({ statusCode: 403, statusMessage: 'You do not have access to the selected dojo' })
   }
 
   // If belt rank provided, verify it belongs to the organization's belt system
@@ -99,6 +113,7 @@ export default defineEventHandler(async (event) => {
   if (!updated) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to update student' })
   }
+  await writeAuditLog({ organizationId: orgId, actorUserId: session.user.id, action: 'student.updated', entityType: 'student', entityId: updated.id, targetLabel: `${updated.firstName} ${updated.lastName}`, scope: updated.dojoId ? { type: 'dojo', id: updated.dojoId } : { type: 'organization' }, details: Object.keys(updateData).filter(key => key !== 'updatedAt').join(', ') })
 
   // Fetch full student with relations
   const fullStudent = await db.query.students.findFirst({

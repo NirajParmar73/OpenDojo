@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-bold mb-6">Hierarchy Nodes</h1>
 
     <!-- Add Root Node -->
-    <UCard class="mb-6">
+    <UCard v-if="isOwner" class="mb-6">
       <h3 class="text-lg font-semibold mb-3">Add Root Node</h3>
       <form @submit.prevent="createRootNode">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -30,6 +30,8 @@
           :key="node.id"
           :node="node"
           :levels="levels"
+          :can-manage-children="canManageChildren"
+          :can-modify="canModify"
           @add-child="openAddChild"
           @edit="openEdit"
           @delete="deleteNode"
@@ -76,9 +78,11 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({layout: 'settings'})
+definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
+const { user } = useUserSession()
+const { data: permissions } = await useFetch<{ allowedNodeIds: number[], managedParentNodeIds: number[] }>('/api/users/me/permissions')
 const levels = ref<any[]>([])
 const nodes = ref<any[]>([])
 const tree = ref<any[]>([])
@@ -104,6 +108,10 @@ const editForm = reactive({
   levelId: undefined as number | undefined,
   name: '',
 })
+
+const isOwner = computed(() => user.value?.role === 'owner')
+const canManageChildren = (nodeId: number) => isOwner.value || permissions.value?.managedParentNodeIds.includes(nodeId) || false
+const canModify = (nodeId: number) => isOwner.value || permissions.value?.allowedNodeIds.includes(nodeId) || false
 
 // Load levels and nodes
 async function loadData() {

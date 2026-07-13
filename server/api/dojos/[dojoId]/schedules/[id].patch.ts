@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
+import { assertDojoManagementAccess } from '../../../../utils/permissions'
 
 const updateSchema = z.object({
   dayOfWeek: z.number().int().min(0).max(6).optional(),
@@ -37,6 +38,7 @@ export default defineEventHandler(async (event) => {
   if (!dojo) {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
+  await assertDojoManagementAccess(session.user.id, orgId, Number(dojoId))
 
   // Verify schedule exists and belongs to dojo
   const existing = await db.query.dojoSchedules.findFirst({
@@ -62,7 +64,7 @@ export default defineEventHandler(async (event) => {
     if (!instructor) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid instructor' })
     }
-    if (!['owner', 'admin', 'instructor'].includes(instructor.role)) {
+    if (!['owner', 'instructor'].includes(instructor.role)) {
       throw createError({ statusCode: 400, statusMessage: 'User is not an instructor' })
     }
   }

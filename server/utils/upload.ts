@@ -14,6 +14,7 @@ export interface UploadedFile {
 }
 
 const allowedImageTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp', 'image/svg+xml']
+export const allowedDocumentTypes = [...allowedImageTypes, 'application/pdf']
 const maxFileSize = 5 * 1024 * 1024 // 5MB
 
 /**
@@ -22,11 +23,12 @@ const maxFileSize = 5 * 1024 * 1024 // 5MB
  */
 export async function saveUploadedFile(
   filePart: { name: string; data: Buffer; filename: string; type?: string },
-  subfolder: string // e.g., 'avatars' or 'logos'
+  subfolder: string, // e.g., 'avatars' or 'logos'
+  allowedTypes: readonly string[] = allowedImageTypes
 ): Promise<UploadedFile> {
   // Validate file type
-  if (!allowedImageTypes.includes(filePart.type ?? '')) {
-    throw new Error('Invalid file type. Only images are allowed.')
+  if (!allowedTypes.includes(filePart.type ?? '')) {
+    throw new Error('Invalid file type.')
   }
 
   // Validate file size

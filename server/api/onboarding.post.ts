@@ -2,8 +2,10 @@
 import { db, tables } from '../../server/utils/database'
 import { eq } from 'drizzle-orm'
 import { saveUploadedFile } from '../../server/utils/upload'
+import { currentTenant } from '../utils/tenant'
 
 export default defineEventHandler(async (event) => {
+  if (currentTenant(event)) throw createError({ statusCode: 403, statusMessage: 'New organizations must be created from the main OpenDojo site' })
   console.log('📝 Onboarding started')
   const form = await readMultipartFormData(event)
   if (!form) {
@@ -18,9 +20,11 @@ export default defineEventHandler(async (event) => {
   const name = getField('name')
   const email = getField('email')
   const password = getField('password')
+  const martialArt = getField('martialArt')
+  const style = getField('style')
   const logoFilePart = form.find((p) => p.name === 'logo' && p.filename)
 
-  if (!orgName || !name || !email || !password) {
+  if (!orgName || !name || !email || !password || !martialArt || !style) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
 
@@ -75,10 +79,19 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create organization' })
   }
 
+  const [program] = await db.insert(tables.organizationPrograms).values({
+    organizationId: org.id,
+    martialArt,
+    style,
+    displayName: `${martialArt.replaceAll('_', ' ')} - ${style.replaceAll('_', ' ')}`,
+    isPrimary: 1,
+  }).returning()
+
   // Create default belt system for the organization
 try {
   await db.insert(tables.beltSystems).values({
     organizationId: org.id,
+    programId: program?.id,
     name: 'Default Belt System',
   })
 } catch (error) {

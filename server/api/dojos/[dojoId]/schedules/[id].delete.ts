@@ -1,5 +1,6 @@
 import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
+import { assertDojoManagementAccess } from '../../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -28,6 +29,7 @@ export default defineEventHandler(async (event) => {
   if (!dojo) {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
+  await assertDojoManagementAccess(session.user.id, orgId, Number(dojoId))
 
   // Verify schedule exists
   const existing = await db.query.dojoSchedules.findFirst({

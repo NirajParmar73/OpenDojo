@@ -9,6 +9,12 @@
     <div v-else-if="error" class="text-red-500">Error: {{ error }}</div>
 
     <div v-else>
+      <UCard class="mb-6">
+        <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div><h2 class="text-lg font-semibold">Shareable fee statement</h2><p class="mt-1 text-sm text-slate-500">Download a payment statement for a selected period to share with the student.</p></div>
+          <div class="grid gap-3 sm:grid-cols-3"><UInput v-model="reportFrom" type="date" placeholder="From" /><UInput v-model="reportTo" type="date" placeholder="To" /><UButton color="primary" icon="i-lucide-download" :loading="downloadingReport" @click="downloadFeeReport">Download PDF</UButton></div>
+        </div>
+      </UCard>
       <!-- Assignments Section -->
       <UCard class="mb-6">
         <h2 class="text-lg font-semibold mb-3">Assignments</h2>
@@ -56,9 +62,11 @@
       <!-- Payments Section -->
       <UCard>
         <h2 class="text-lg font-semibold mb-3">Payments</h2>
-        <form @submit.prevent="recordPayment" class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
+        <form @submit.prevent="recordPayment" class="grid grid-cols-1 md:grid-cols-7 gap-3 mb-4">
+          <USelect v-model="paymentForm.assignmentId" :items="assignmentOptions" placeholder="Fee assignment" required />
           <UInput v-model.number="paymentForm.amount" type="number" placeholder="Amount" required />
           <UInput v-model="paymentForm.paymentDate" type="date" required />
+          <UInput v-model="paymentForm.billingPeriod" type="month" required />
           <USelect v-model="paymentForm.method" :items="paymentMethods" placeholder="Method" required />
           <UInput v-model="paymentForm.referenceNumber" placeholder="Reference" />
           <UButton type="submit" :loading="recordingPayment">Record</UButton>
@@ -130,6 +138,9 @@ const organization = ref<any>({})
 const loading = ref(true)
 const error = ref('')
 const downloadingReceipt = ref(false)
+const downloadingReport = ref(false)
+const reportFrom = ref('')
+const reportTo = ref('')
 
 // Forms (unchanged)
 const newAssignment = reactive({
@@ -140,8 +151,10 @@ const newAssignment = reactive({
 const addingAssignment = ref(false)
 
 const paymentForm = reactive({
+  assignmentId: undefined as number | undefined,
   amount: undefined as number | undefined,
   paymentDate: '',
+  billingPeriod: '',
   method: 'cash',
   referenceNumber: '',
 })
@@ -156,6 +169,14 @@ const paymentMethods = [
 
 const feePlanOptions = computed(() =>
   feePlans.value.map(p => ({ label: `${p.name} (${formatCurrency(p.amount)})`, value: p.id }))
+)
+const assignmentOptions = computed(() =>
+  assignments.value
+    .filter(assignment => assignment.status === 'active')
+    .map(assignment => ({
+      label: `${assignment.feePlan?.name || 'Fee plan'} · ${formatCurrency(assignment.outstanding || 0)} due`,
+      value: assignment.id,
+    }))
 )
 
 function formatCurrency(amount: number) {
@@ -229,8 +250,8 @@ async function deleteAssignment(assignmentId: number) {
 }
 
 async function recordPayment() {
-  if (!paymentForm.amount || !paymentForm.paymentDate) {
-    toast.add({ color: 'warning', title: 'Amount and date are required' })
+  if (!paymentForm.assignmentId || !paymentForm.amount || !paymentForm.paymentDate || !paymentForm.billingPeriod) {
+    toast.add({ color: 'warning', title: 'Fee assignment, amount, payment date, and fee month are required' })
     return
   }
   recordingPayment.value = true
@@ -239,15 +260,19 @@ async function recordPayment() {
       method: 'POST' as any,
       body: {
         amount: Math.round(paymentForm.amount * 100),
+        assignmentId: paymentForm.assignmentId,
         paymentDate: paymentForm.paymentDate,
+        billingPeriod: paymentForm.billingPeriod,
         method: paymentForm.method,
         referenceNumber: paymentForm.referenceNumber || undefined,
       },
     })
     toast.add({ color: 'success', title: 'Payment recorded' })
     await loadData()
+    paymentForm.assignmentId = undefined
     paymentForm.amount = undefined
     paymentForm.paymentDate = ''
+    paymentForm.billingPeriod = ''
     paymentForm.method = 'cash'
     paymentForm.referenceNumber = ''
   } catch (err: any) {
@@ -283,6 +308,32 @@ async function downloadReceipt(payment: any) {
     toast.add({ color: 'error', title: 'Receipt download failed', description: err.message || 'Unknown error' })
   } finally {
     downloadingReceipt.value = false
+  }
+}
+
+async function downloadFeeReport() {
+  if (downloadingReport.value) return
+  downloadingReport.value = true
+  try {
+    const params = new URLSearchParams()
+    if (reportFrom.value) params.set('from', reportFrom.value)
+    if (reportTo.value) params.set('to', reportTo.value)
+    const response = await fetch(`/api/students/${studentId}/fee-report?${params.toString()}`)
+    if (!response.ok) throw new Error((await response.text()) || 'Failed to generate fee statement')
+    const blob = await response.blob()
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `fee_statement_${student.value?.firstName || 'student'}_${student.value?.lastName || ''}.pdf`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    toast.add({ color: 'success', title: 'Fee statement downloaded' })
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not download fee statement', description: error.message })
+  } finally {
+    downloadingReport.value = false
   }
 }
 onMounted(loadData)

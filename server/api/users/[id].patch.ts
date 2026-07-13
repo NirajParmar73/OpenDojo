@@ -1,26 +1,28 @@
 import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq, and } from 'drizzle-orm'
+import { getAllowedAssignmentsForCreator, getHierarchyManagementScope } from '../../utils/permissions'
+import { writeAuditLog } from '../../utils/audit'
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
   email: z.string().email().optional(),
   danDegree: z.string().optional().nullable(),
+  role: z.enum(['admin', 'member']).optional(),
   assignments: z.array(z.object({
-    role: z.enum(['owner', 'admin', 'state_head', 'district_head', 'city_head', 'dojo_head', 'instructor', 'member']),
+    role: z.enum(['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']),
     scopeType: z.enum(['node', 'dojo']),
     scopeId: z.number().int().positive(),
   })).optional(),
 })
 
+const nodeScopedRoles = new Set(['country_head', 'state_head', 'district_head', 'city_head', 'zone_head'])
+const dojoScopedRoles = new Set(['dojo_head', 'instructor'])
+
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  }
-
-  if (!['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
   const orgId = session.user.organizationId
@@ -41,9 +43,29 @@ export default defineEventHandler(async (event) => {
       eq(tables.users.id, Number(id)),
       eq(tables.users.organizationId, orgId)
     ),
+    with: { assignments: true },
   })
   if (!existingUser) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
+  }
+  if (existingUser.role === 'owner' && session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Only an owner can manage an owner account' })
+  }
+  if (body.role !== undefined && body.role !== existingUser.role && session.user.role !== 'owner') {
+    throw createError({ statusCode: 403, statusMessage: 'Only an owner can change an account role' })
+  }
+
+  const allowed = await getAllowedAssignmentsForCreator(session.user.id, orgId)
+  const managementScope = await getHierarchyManagementScope(session.user.id, orgId)
+  if (session.user.role !== 'owner' && allowed.allowedRoles.length === 0) {
+    throw createError({ statusCode: 403, statusMessage: 'You do not have permission to manage users' })
+  }
+  if (session.user.role !== 'owner' && existingUser.assignments.some(assignment => (
+    assignment.scopeType === 'node'
+      ? !(existingUser.id === session.user.id ? managementScope.managedParentNodeIds : allowed.allowedNodeIds).includes(assignment.scopeId)
+      : !allowed.allowedDojoIds.includes(assignment.scopeId)
+  ))) {
+    throw createError({ statusCode: 403, statusMessage: 'This user has responsibilities outside your territory' })
   }
 
   // If email is updated, check uniqueness
@@ -58,23 +80,31 @@ export default defineEventHandler(async (event) => {
 
   // Validate assignments' scopes
   if (body.assignments) {
+    const unchangedAssignments = new Set(existingUser.assignments.map(assignment => `${assignment.role}:${assignment.scopeType}:${assignment.scopeId}`))
     console.log('📥 Received assignments:', JSON.stringify(body.assignments, null, 2))
     for (const assign of body.assignments) {
+      const isUnchanged = unchangedAssignments.has(`${assign.role}:${assign.scopeType}:${assign.scopeId}`)
+      if (!allowed.allowedRoles.includes(assign.role) && !isUnchanged) {
+        throw createError({ statusCode: 403, statusMessage: `You cannot assign role: ${assign.role}` })
+      }
+      if ((nodeScopedRoles.has(assign.role) && assign.scopeType !== 'node') || (dojoScopedRoles.has(assign.role) && assign.scopeType !== 'dojo')) {
+        throw createError({ statusCode: 400, statusMessage: `Role ${assign.role} must use a ${nodeScopedRoles.has(assign.role) ? 'node' : 'dojo'} scope` })
+      }
       let valid = false
       if (assign.scopeType === 'node') {
         const node = await db.query.hierarchyNodes.findFirst({
           where: eq(tables.hierarchyNodes.id, assign.scopeId),
         })
-        valid = !!node && node.organizationId === orgId
+        valid = !!node && node.organizationId === orgId && (allowed.allowedNodeIds.includes(assign.scopeId) || (isUnchanged && managementScope.managedParentNodeIds.includes(assign.scopeId)))
       } else if (assign.scopeType === 'dojo') {
         const dojo = await db.query.dojos.findFirst({
           where: eq(tables.dojos.id, assign.scopeId),
         })
-        valid = !!dojo && dojo.organizationId === orgId
+        valid = !!dojo && dojo.organizationId === orgId && allowed.allowedDojoIds.includes(assign.scopeId)
       }
       if (!valid) {
         console.error(`❌ Invalid scope: ${assign.scopeType} ID ${assign.scopeId}`)
-        throw createError({ statusCode: 400, statusMessage: `Invalid scope for assignment: ${assign.scopeType} ID ${assign.scopeId}` })
+        throw createError({ statusCode: 403, statusMessage: `This ${assign.scopeType} is outside your permitted territory` })
       }
     }
   }
@@ -84,6 +114,7 @@ export default defineEventHandler(async (event) => {
   if (body.name !== undefined) updateData.name = body.name
   if (body.email !== undefined) updateData.email = body.email
   if (body.danDegree !== undefined) updateData.danDegree = body.danDegree
+  if (body.role !== undefined) updateData.role = body.role
   updateData.updatedAt = new Date()
 
   await db.update(tables.users)
@@ -144,6 +175,17 @@ export default defineEventHandler(async (event) => {
   )
 
   const { passwordHash, ...userWithoutPassword } = updatedUser!
+  const auditAssignment = body.assignments?.length === 1 ? body.assignments[0] : null
+  await writeAuditLog({
+    organizationId: orgId,
+    actorUserId: session.user.id,
+    action: 'user.access_updated',
+    entityType: 'user',
+    entityId: Number(id),
+    targetLabel: updatedUser!.name,
+    scope: auditAssignment ? { type: auditAssignment.scopeType, id: auditAssignment.scopeId } : { type: 'organization' },
+    details: body.assignments !== undefined ? `${body.assignments.length} scoped assignment${body.assignments.length === 1 ? '' : 's'} configured` : Object.keys(updateData).filter(key => key !== 'updatedAt').join(', '),
+  })
   return {
     success: true,
     user: {

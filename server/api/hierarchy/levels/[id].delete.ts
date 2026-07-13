@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Only owners/admins can delete
-  if (!['owner', 'admin'].includes(session.user.role)) {
+  if (session.user.role !== 'owner') {
     throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 

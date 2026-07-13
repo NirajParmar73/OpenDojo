@@ -18,6 +18,7 @@ const loading = ref(false)
 const toast = useToast()
 const { fetch } = useUserSession()
 const router = useRouter()
+definePageMeta({ layout: 'auth' })
 
 async function onLogin(event: FormSubmitEvent<Schema>) {
   loading.value = true

@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq } from 'drizzle-orm'
+import { assertNodeManagementAccess } from '../../utils/permissions'
 
 const createDojoSchema = z.object({
   nodeId: z.number().int().positive(),
@@ -16,9 +17,6 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  if (!['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-  }
 
   const orgId = session.user.organizationId
   if (!orgId) {
@@ -34,6 +32,7 @@ export default defineEventHandler(async (event) => {
   if (!node || node.organizationId !== orgId) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid node ID' })
   }
+  await assertNodeManagementAccess(session.user.id, orgId, body.nodeId)
 
   const [dojo] = await db.insert(tables.dojos).values({
     organizationId: orgId,
