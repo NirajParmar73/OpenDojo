@@ -20,10 +20,10 @@
         </UFormGroup>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <UFormGroup label="From">
+          <UFormGroup label="Attendance from">
             <UInput v-model="dateFrom" type="date" />
           </UFormGroup>
-          <UFormGroup label="To">
+          <UFormGroup label="Attendance to">
             <UInput v-model="dateTo" type="date" />
           </UFormGroup>
         </div>

@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq } from 'drizzle-orm'
 import { assertNodeManagementAccess } from '../../utils/permissions'
+import { assertDojoLimit } from '../../utils/subscription'
 
 const createDojoSchema = z.object({
   nodeId: z.number().int().positive(),
@@ -24,6 +25,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, createDojoSchema.parse)
+  await assertDojoLimit(orgId)
 
   // Verify node belongs to the organization
   const node = await db.query.hierarchyNodes.findFirst({

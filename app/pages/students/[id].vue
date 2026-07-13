@@ -117,7 +117,7 @@
           <UCard>
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div><p class="text-sm font-semibold text-primary">SHAREABLE RECORD</p><h3 class="mt-1 font-semibold">Fee history statement</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Download a professional payment history and current balance to share with the student or guardian.</p></div>
-              <div class="grid gap-3 sm:grid-cols-3"><UInput v-model="statementFrom" type="date" placeholder="From" /><UInput v-model="statementTo" type="date" placeholder="To" /><UButton color="primary" icon="i-lucide-download" :loading="downloadingStatement" @click="downloadFeeStatement">Download PDF</UButton></div>
+              <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="statementFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="statementTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-download" :loading="downloadingStatement" @click="downloadFeeStatement">Download PDF</UButton></div></div>
             </div>
           </UCard>
           <UCard>
@@ -188,7 +188,7 @@
         </UCard>
 
         <UCard v-else>
-          <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Grading history</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record milestones and keep a complete progression history.</p></div><UButton size="sm" color="primary" icon="i-lucide-award" @click="toggleGradingForm">Record grading</UButton></div></template>
+          <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Grading history</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record milestones and keep a complete progression history.</p></div><UButton size="sm" color="primary" icon="i-lucide-award" @click="openNewGrading">Record grading</UButton></div></template>
           <form v-if="showGradingForm" class="mb-5 grid gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-2" @submit.prevent="recordGrading">
             <UFormField label="Awarded rank" required><USelect v-model="gradingForm.beltRankId" :items="beltRankOptions" placeholder="Select a rank" /></UFormField>
             <UFormField label="Awarded date" required><UInput v-model="gradingForm.awardedDate" type="date" /></UFormField>
@@ -196,9 +196,9 @@
             <UFormField label="Certificate number"><UInput v-model="gradingForm.certificateNumber" placeholder="e.g. KGI-2026-00124" /></UFormField>
             <UFormField label="Certificate"><UInput type="file" accept="application/pdf,image/*" @change="onCertificateFileChange" /></UFormField>
             <UFormField label="Notes" class="sm:col-span-2"><UTextarea v-model="gradingForm.notes" placeholder="Assessment notes (optional)" /></UFormField>
-            <div class="flex justify-end gap-2 sm:col-span-2"><UButton color="neutral" variant="ghost" @click="toggleGradingForm">Cancel</UButton><UButton type="submit" color="primary" :loading="savingGrading">Save grading</UButton></div>
+            <div class="flex justify-end gap-2 sm:col-span-2"><UButton color="neutral" variant="ghost" @click="cancelGradingEdit">Cancel</UButton><UButton type="submit" color="primary" :loading="savingGrading">{{ editingGradingId ? 'Save changes' : 'Save grading' }}</UButton></div>
           </form>
-          <div v-if="gradings.length" class="space-y-4"><div v-for="grading in gradings" :key="grading.id" class="flex gap-4"><div class="mt-1 h-3 w-3 rounded-full bg-primary ring-4 ring-primary/15" /><div><p class="font-medium">{{ grading.beltRank?.name || 'Rank awarded' }}</p><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ formatDate(grading.awardedDate) }}<span v-if="grading.examiner"> · Examiner: {{ grading.examiner }}</span></p><p v-if="grading.certificateNumber" class="mt-1 text-sm text-slate-600 dark:text-slate-300">Certificate no.: <span class="font-medium">{{ grading.certificateNumber }}</span></p><p v-if="grading.notes" class="mt-2 text-sm">{{ grading.notes }}</p></div></div></div>
+          <div v-if="gradings.length" class="space-y-4"><div v-for="grading in gradings" :key="grading.id" class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800"><div class="flex items-start justify-between gap-3"><div><p class="font-semibold">{{ grading.beltRank?.name || 'Rank awarded' }}</p><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Awarded on {{ formatDate(grading.awardedDate) }}</p></div><div class="flex gap-2"><a v-if="grading.certificateUrl" :href="grading.certificateUrl" target="_blank"><UButton size="xs" color="neutral" variant="soft" icon="i-lucide-file-badge">Certificate</UButton></a><UButton size="xs" color="primary" variant="soft" icon="i-lucide-pencil" @click="editGrading(grading)">Edit</UButton></div></div><dl class="mt-4 grid gap-3 border-t border-slate-100 pt-4 text-sm sm:grid-cols-2 dark:border-slate-800"><div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Awarded rank</dt><dd class="mt-1 font-medium">{{ grading.beltRank?.name || 'Not recorded' }}</dd></div><div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Awarded date</dt><dd class="mt-1 font-medium">{{ formatDate(grading.awardedDate) }}</dd></div><div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Examiner</dt><dd class="mt-1">{{ grading.examiner || 'Not recorded' }}</dd></div><div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Certificate number</dt><dd class="mt-1">{{ grading.certificateNumber || 'Not recorded' }}</dd></div><div class="sm:col-span-2"><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">Notes</dt><dd class="mt-1 whitespace-pre-wrap">{{ grading.notes || 'No notes recorded' }}</dd></div></dl></div></div>
           <EmptyState v-else icon="i-lucide-award" message="No gradings have been recorded yet." />
         </UCard>
       </section>
@@ -224,6 +224,7 @@ const showDocumentForm = ref(false)
 const uploadingDocument = ref(false)
 const showGradingForm = ref(false)
 const savingGrading = ref(false)
+const editingGradingId = ref<number | null>(null)
 const showAchievementForm = ref(false)
 const savingAchievement = ref(false)
 const guardianForm = reactive({ name: '', relationship: '', phone: '', email: '', address: '' })
@@ -335,8 +336,33 @@ function toggleDocumentForm() {
   showDocumentForm.value = !showDocumentForm.value
 }
 
-function toggleGradingForm() {
-  showGradingForm.value = !showGradingForm.value
+function resetGradingForm() {
+  Object.assign(gradingForm, { beltRankId: undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null })
+}
+
+function openNewGrading() {
+  editingGradingId.value = null
+  resetGradingForm()
+  showGradingForm.value = true
+}
+
+function cancelGradingEdit() {
+  editingGradingId.value = null
+  resetGradingForm()
+  showGradingForm.value = false
+}
+
+function editGrading(grading: any) {
+  editingGradingId.value = grading.id
+  Object.assign(gradingForm, {
+    beltRankId: grading.beltRankId,
+    awardedDate: new Date(grading.awardedDate).toISOString().slice(0, 10),
+    examiner: grading.examiner || '',
+    certificateNumber: grading.certificateNumber || '',
+    notes: grading.notes || '',
+    certificate: null,
+  })
+  showGradingForm.value = true
 }
 
 function onDocumentFileChange(event: Event) {
@@ -464,11 +490,11 @@ async function recordGrading() {
     if (gradingForm.certificateNumber.trim()) formData.append('certificateNumber', gradingForm.certificateNumber.trim())
     if (gradingForm.notes.trim()) formData.append('notes', gradingForm.notes.trim())
     if (gradingForm.certificate) formData.append('certificate', gradingForm.certificate)
-    await $fetch(`/api/students/${studentId}/gradings`, { method: 'POST', body: formData })
-    Object.assign(gradingForm, { beltRankId: undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null })
-    showGradingForm.value = false
+    await $fetch(`/api/students/${studentId}/gradings${editingGradingId.value ? `/${editingGradingId.value}` : ''}`, { method: editingGradingId.value ? 'PATCH' : 'POST', body: formData })
+    const wasEditing = editingGradingId.value !== null
+    cancelGradingEdit()
     await Promise.all([refreshGradings(), refreshStudent()])
-    toast.add({ color: 'success', title: 'Grading recorded' })
+    toast.add({ color: 'success', title: wasEditing ? 'Grading updated' : 'Grading recorded' })
   } catch (error: any) {
     toast.add({ color: 'error', title: 'Could not record grading', description: error.data?.statusMessage || error.message })
   } finally {

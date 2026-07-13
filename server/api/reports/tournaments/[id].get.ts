@@ -25,6 +25,7 @@ export default defineEventHandler(async (event) => {
     where: and(eq(tables.tournaments.id, tournamentId), eq(tables.tournaments.organizationId, session.user.organizationId)),
   })
   if (!tournament) throw createError({ statusCode: 404, statusMessage: 'Tournament not found' })
+  const organization = await db.query.organizations.findFirst({ where: eq(tables.organizations.id, session.user.organizationId) })
 
   const accessibleDojoIds = await getAccessibleDojoIds(session.user.id, session.user.organizationId)
   const records = await db.query.studentAchievements.findMany({
@@ -95,7 +96,7 @@ export default defineEventHandler(async (event) => {
     cells.forEach(([value, x, width], cellIndex) => doc.fillColor('#1e293b').font(cellIndex === 0 ? 'Helvetica-Bold' : 'Helvetica').fontSize(8).text(value as string, x as number + 6, y + 8, { width: width as number - 10, height: 26, ellipsis: true }))
     y += rowHeight
   })
-  doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(`Generated ${new Date().toLocaleString('en-IN')} | OpenDojo`, 42, doc.page.height - 35, { width: pageWidth, align: 'center' })
+  doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(`Generated ${new Date().toLocaleString('en-IN')} | ${organization?.name || 'OpenDojo'}`, 42, doc.page.height - 35, { width: pageWidth, align: 'center' })
   doc.end()
 
   setHeader(event, 'Content-Type', 'application/pdf')

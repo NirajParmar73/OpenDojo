@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
   const achievement = await db.query.studentAchievements.findFirst({ where: and(eq(tables.studentAchievements.id, achievementId), eq(tables.studentAchievements.studentId, studentId), eq(tables.studentAchievements.organizationId, session.user.organizationId)), with: { tournament: true } })
   const student = await db.query.students.findFirst({ where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, session.user.organizationId)), with: { dojo: true } })
   if (!achievement || !student) throw createError({ statusCode: 404, statusMessage: 'Achievement not found' })
+  const organization = await db.query.organizations.findFirst({ where: eq(tables.organizations.id, session.user.organizationId) })
 
   const doc = new PDFDocument({ margin: 48, size: 'A4' })
   const chunks: Buffer[] = []
@@ -49,7 +50,7 @@ export default defineEventHandler(async (event) => {
   })
   y += 160
   if (achievement.notes) { doc.font('Helvetica-Bold').fontSize(10).fillColor('#111827').text('Notes', 48, y); doc.font('Helvetica').fontSize(10).fillColor('#475569').text(achievement.notes, 48, y + 17, { width }) }
-  doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(`Generated ${new Date().toLocaleString('en-IN')} · OpenDojo`, 48, doc.page.height - 60, { width, align: 'center' })
+  doc.font('Helvetica').fontSize(8).fillColor('#64748b').text(`Generated ${new Date().toLocaleString('en-IN')} · ${organization?.name || 'OpenDojo'}`, 48, doc.page.height - 60, { width, align: 'center' })
   doc.end()
   const buffer = await complete
   setHeader(event, 'Content-Type', 'application/pdf')

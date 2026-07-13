@@ -1,10 +1,10 @@
 import {defineConfig} from 'drizzle-kit'
 
 export default defineConfig({
-    dialect: 'sqlite',
-    out: './server/database/drizzle',
+    dialect: 'postgresql',
+    out: './server/database/drizzle-postgres',
     schema: './server/database/schema.ts',
     dbCredentials: {
-        url: 'file:./database.sqlite',
+        url: process.env.DATABASE_URL || '',
     }
 })

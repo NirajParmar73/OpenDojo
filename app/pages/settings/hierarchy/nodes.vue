@@ -2,6 +2,16 @@
   <div class="max-w-4xl mx-auto p-6">
     <h1 class="text-2xl font-bold mb-6">Hierarchy Nodes</h1>
 
+    <UCard v-if="isOwner && levels.length < 2" class="mb-6 border-primary/30 bg-primary/5">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 class="font-semibold">Add levels before adding child locations</h2>
+          <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Your main location is ready. Add State / Province, District, and City / Town levels to build a clear hierarchy underneath it.</p>
+        </div>
+        <UButton :loading="addingCommonLevels" icon="i-lucide-sparkles" @click="addCommonLevels">Add common levels</UButton>
+      </div>
+    </UCard>
+
     <!-- Add Root Node -->
     <UCard v-if="isOwner" class="mb-6">
       <h3 class="text-lg font-semibold mb-3">Add Root Node</h3>
@@ -9,7 +19,7 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <USelect
             v-model="newRoot.levelId"
-            :items="levelOptions"
+            :items="rootLevelOptions"
             placeholder="Select level"
             required
           />
@@ -45,7 +55,7 @@
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <USelect
               v-model="newChild.levelId"
-              :items="levelOptions"
+              :items="childLevelOptions"
               placeholder="Select level"
               required
             />
@@ -91,6 +101,7 @@ const levelOptions = ref<{ label: string; value: number }[]>([])
 const creatingRoot = ref(false)
 const creatingChild = ref(false)
 const updating = ref(false)
+const addingCommonLevels = ref(false)
 
 const newRoot = reactive({
   levelId: undefined as number | undefined,
@@ -110,6 +121,15 @@ const editForm = reactive({
 })
 
 const isOwner = computed(() => user.value?.role === 'owner')
+const rootLevelOptions = computed(() => {
+  const firstOrder = Math.min(...levels.value.map(level => level.order))
+  return levelOptions.value.filter(option => levels.value.find(level => level.id === option.value)?.order === firstOrder)
+})
+const childLevelOptions = computed(() => {
+  const parentLevel = levels.value.find(level => level.id === addingChildParent.value?.levelId)
+  if (!parentLevel) return []
+  return levelOptions.value.filter(option => (levels.value.find(level => level.id === option.value)?.order || 0) > parentLevel.order)
+})
 const canManageChildren = (nodeId: number) => isOwner.value || permissions.value?.managedParentNodeIds.includes(nodeId) || false
 const canModify = (nodeId: number) => isOwner.value || permissions.value?.allowedNodeIds.includes(nodeId) || false
 
@@ -163,6 +183,19 @@ async function createRootNode() {
     })
   } finally {
     creatingRoot.value = false
+  }
+}
+
+async function addCommonLevels() {
+  addingCommonLevels.value = true
+  try {
+    const result = await $fetch<{ created: number }>('/api/hierarchy/levels/common', { method: 'POST' })
+    toast.add({ color: 'success', title: result.created ? 'Common hierarchy levels added' : 'Common levels are already available' })
+    await loadData()
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not add hierarchy levels', description: error.data?.statusMessage || error.message })
+  } finally {
+    addingCommonLevels.value = false
   }
 }
 

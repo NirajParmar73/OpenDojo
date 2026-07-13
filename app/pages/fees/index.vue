@@ -1,28 +1,36 @@
 <template>
   <div class="max-w-5xl mx-auto p-6">
     <div class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">Fees for {{ student?.firstName }} {{ student?.lastName }}</h1>
-      <UButton color="neutral" @click="router.back()">Back</UButton>
+      <div><p class="text-sm font-semibold text-primary">FINANCE</p><h1 class="mt-1 text-2xl font-semibold tracking-tight">{{ student ? `Fees for ${student.firstName} ${student.lastName}` : 'Record a payment' }}</h1></div>
+      <UButton v-if="studentId" color="neutral" variant="ghost" icon="i-lucide-arrow-left" to="/students">Students</UButton>
     </div>
 
-    <div v-if="loading" class="text-gray-500">Loading...</div>
+    <UCard v-if="!studentId" class="mx-auto max-w-3xl">
+      <template #header><div><h2 class="font-semibold">Choose a student</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">First choose an area and dojo, then select the student. You will only see locations you are allowed to manage.</p></div></template>
+      <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3"><UFormField label="Area"><USelect v-model="selectedHierarchyId" :items="hierarchyOptions" /></UFormField><UFormField label="Dojo"><USelect v-model="selectedDojoId" :items="dojoOptions" /></UFormField><UFormField label="Student"><USelect v-model="selectedStudentId" :items="studentOptions" placeholder="Select a student" /></UFormField></div>
+      <div class="mt-5 flex justify-end"><UButton color="primary" icon="i-lucide-arrow-right" :disabled="!selectedStudentId" @click="openStudentFees">Continue</UButton></div>
+      <p v-if="!studentOptions.length" class="mt-4 text-sm text-slate-500 dark:text-slate-400">No students are available yet. Add a student first.</p>
+    </UCard>
+
+    <template v-else>
+    <div v-if="loading" class="text-gray-500">Loading fee details...</div>
     <div v-else-if="error" class="text-red-500">Error: {{ error }}</div>
 
     <div v-else>
       <UCard class="mb-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div><h2 class="text-lg font-semibold">Shareable fee statement</h2><p class="mt-1 text-sm text-slate-500">Download a payment statement for a selected period to share with the student.</p></div>
-          <div class="grid gap-3 sm:grid-cols-3"><UInput v-model="reportFrom" type="date" placeholder="From" /><UInput v-model="reportTo" type="date" placeholder="To" /><UButton color="primary" icon="i-lucide-download" :loading="downloadingReport" @click="downloadFeeReport">Download PDF</UButton></div>
+          <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="reportFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="reportTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-download" :loading="downloadingReport" @click="downloadFeeReport">Download PDF</UButton></div></div>
         </div>
       </UCard>
       <!-- Assignments Section -->
       <UCard class="mb-6">
-        <h2 class="text-lg font-semibold mb-3">Assignments</h2>
-        <form @submit.prevent="addAssignment" class="grid grid-cols-1 md:grid-cols-4 gap-3 mb-4">
-          <USelect v-model="newAssignment.feePlanId" :items="feePlanOptions" placeholder="Fee Plan" required />
-          <UInput v-model="newAssignment.startDate" type="date" required />
-          <UInput v-model.number="newAssignment.discount" type="number" placeholder="Discount" />
-          <UButton type="submit" :loading="addingAssignment">Assign</UButton>
+        <div class="mb-3"><h2 class="text-lg font-semibold">Fee plan for this student</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Set this up once before recording payments. It keeps the outstanding balance accurate.</p></div>
+        <form @submit.prevent="addAssignment" class="mb-4 grid gap-4 md:grid-cols-4">
+          <UFormField label="Fee plan" required><USelect v-model="newAssignment.feePlanId" :items="feePlanOptions" placeholder="Choose a fee plan" required /></UFormField>
+          <UFormField label="Plan starts on" required><UInput v-model="newAssignment.startDate" type="date" required /></UFormField>
+          <UFormField label="Discount"><UInput v-model.number="newAssignment.discount" type="number" min="0" placeholder="0.00" /></UFormField>
+          <div class="self-end"><UButton type="submit" class="w-full" :loading="addingAssignment">Assign plan</UButton></div>
         </form>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -61,15 +69,15 @@
 
       <!-- Payments Section -->
       <UCard>
-        <h2 class="text-lg font-semibold mb-3">Payments</h2>
-        <form @submit.prevent="recordPayment" class="grid grid-cols-1 md:grid-cols-7 gap-3 mb-4">
-          <USelect v-model="paymentForm.assignmentId" :items="assignmentOptions" placeholder="Fee assignment" required />
-          <UInput v-model.number="paymentForm.amount" type="number" placeholder="Amount" required />
-          <UInput v-model="paymentForm.paymentDate" type="date" required />
-          <UInput v-model="paymentForm.billingPeriod" type="month" required />
-          <USelect v-model="paymentForm.method" :items="paymentMethods" placeholder="Method" required />
-          <UInput v-model="paymentForm.referenceNumber" placeholder="Reference" />
-          <UButton type="submit" :loading="recordingPayment">Record</UButton>
+        <div class="mb-3"><h2 class="text-lg font-semibold">Record payment</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Enter the amount received and how it was paid. A receipt is created automatically.</p></div>
+        <form @submit.prevent="recordPayment" class="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <UFormField label="Payment for" required><USelect v-model="paymentForm.assignmentId" :items="assignmentOptions" placeholder="Choose a fee plan" required /></UFormField>
+          <UFormField label="Amount received" required><UInput v-model.number="paymentForm.amount" type="number" min="0.01" step="0.01" placeholder="0.00" required /></UFormField>
+          <UFormField label="Payment received on" required><UInput v-model="paymentForm.paymentDate" type="date" required /></UFormField>
+          <UFormField label="Fee period covered" required><UInput v-model="paymentForm.billingPeriod" type="month" required /></UFormField>
+          <UFormField label="Payment method" required><USelect v-model="paymentForm.method" :items="paymentMethods" required /></UFormField>
+          <UFormField label="Reference"><UInput v-model="paymentForm.referenceNumber" placeholder="Optional reference" /></UFormField>
+          <div class="self-end xl:col-span-2"><UButton type="submit" class="w-full" :loading="recordingPayment">Save payment</UButton></div>
         </form>
 
         <div class="overflow-x-auto">
@@ -112,6 +120,7 @@
         </div>
       </UCard>
     </div>
+    </template>
   </div>
 </template>
 
@@ -123,11 +132,11 @@ definePageMeta({ middleware: 'auth' })
 
 const router = useRouter()
 const route = useRoute()
-const studentId = route.query.id as string
-
-if (!studentId) {
-  throw createError({ statusCode: 400, statusMessage: 'Missing student ID' })
-}
+const studentId = ref(typeof route.query.id === 'string' ? route.query.id : '')
+const selectedStudentId = ref<number | undefined>()
+const selectedHierarchyId = ref<number | 'all'>('all')
+const selectedDojoId = ref<number | 'all'>('all')
+const { data: studentDirectory } = await useFetch<any[]>('/api/students')
 
 const toast = useToast()
 const student = ref<any>(null)
@@ -141,6 +150,8 @@ const downloadingReceipt = ref(false)
 const downloadingReport = ref(false)
 const reportFrom = ref('')
 const reportTo = ref('')
+const today = new Date().toISOString().slice(0, 10)
+const currentMonth = today.slice(0, 7)
 
 // Forms (unchanged)
 const newAssignment = reactive({
@@ -153,8 +164,8 @@ const addingAssignment = ref(false)
 const paymentForm = reactive({
   assignmentId: undefined as number | undefined,
   amount: undefined as number | undefined,
-  paymentDate: '',
-  billingPeriod: '',
+  paymentDate: today,
+  billingPeriod: currentMonth,
   method: 'cash',
   referenceNumber: '',
 })
@@ -166,6 +177,32 @@ const paymentMethods = [
   { label: 'Card', value: 'card' },
   { label: 'Other', value: 'other' },
 ]
+
+const hierarchyOptions = computed(() => {
+  const areas = new Map<number, string>()
+  for (const student of studentDirectory.value || []) {
+    if (student.dojo?.node?.id) areas.set(student.dojo.node.id, student.dojo.node.name)
+  }
+  return [{ label: 'All accessible areas', value: 'all' }, ...[...areas].map(([id, name]) => ({ label: name, value: id }))]
+})
+const dojoOptions = computed(() => {
+  const dojos = new Map<number, string>()
+  for (const student of studentDirectory.value || []) {
+    if (student.dojo && (selectedHierarchyId.value === 'all' || student.dojo.nodeId === selectedHierarchyId.value)) dojos.set(student.dojo.id, student.dojo.name)
+  }
+  return [{ label: 'All accessible dojos', value: 'all' }, ...[...dojos].map(([id, name]) => ({ label: name, value: id }))]
+})
+const filteredStudents = computed(() => (studentDirectory.value || []).filter(student =>
+  (selectedHierarchyId.value === 'all' || student.dojo?.nodeId === selectedHierarchyId.value)
+  && (selectedDojoId.value === 'all' || student.dojoId === selectedDojoId.value)
+))
+const studentOptions = computed(() => filteredStudents.value.map(student => ({
+  label: `${student.firstName} ${student.lastName}${student.dojo?.name ? ` · ${student.dojo.name}` : ''}`,
+  value: student.id,
+})))
+
+watch(selectedHierarchyId, () => { selectedDojoId.value = 'all'; selectedStudentId.value = undefined })
+watch(selectedDojoId, () => { selectedStudentId.value = undefined })
 
 const feePlanOptions = computed(() =>
   feePlans.value.map(p => ({ label: `${p.name} (${formatCurrency(p.amount)})`, value: p.id }))
@@ -188,13 +225,14 @@ function formatDate(ts: number) {
 }
 
 async function loadData() {
+  if (!studentId.value) return
   loading.value = true
   error.value = ''
   try {
     const [studentData, assignmentsData, paymentsData, feePlansData, orgData] = await Promise.all([
-      $fetch(`/api/students/${studentId}`),
-      $fetch(`/api/students/${studentId}/fee-assignments`),
-      $fetch(`/api/students/${studentId}/payments`),
+      $fetch(`/api/students/${studentId.value}`),
+      $fetch(`/api/students/${studentId.value}/fee-assignments`),
+      $fetch(`/api/students/${studentId.value}/payments`),
       $fetch('/api/fee-plans'),
       $fetch('/api/organization/settings'),
     ])
@@ -218,7 +256,7 @@ async function addAssignment() {
   }
   addingAssignment.value = true
   try {
-    await $fetch(`/api/students/${studentId}/fee-assignments`, {
+    await $fetch(`/api/students/${studentId.value}/fee-assignments`, {
       method: 'POST' as any,
       body: {
         feePlanId: newAssignment.feePlanId,
@@ -238,10 +276,15 @@ async function addAssignment() {
   }
 }
 
+function openStudentFees() {
+  if (!selectedStudentId.value) return
+  router.push({ path: '/fees', query: { id: String(selectedStudentId.value) } })
+}
+
 async function deleteAssignment(assignmentId: number) {
   if (!confirm('Delete this assignment? This cannot be undone if there are no payments.')) return
   try {
-    await $fetch(`/api/students/${studentId}/fee-assignments/${assignmentId}`, { method: 'DELETE' })
+    await $fetch(`/api/students/${studentId.value}/fee-assignments/${assignmentId}`, { method: 'DELETE' })
     toast.add({ color: 'success', title: 'Assignment deleted' })
     await loadData()
   } catch (err: any) {
@@ -256,7 +299,7 @@ async function recordPayment() {
   }
   recordingPayment.value = true
   try {
-    await $fetch(`/api/students/${studentId}/payments`, {
+    await $fetch(`/api/students/${studentId.value}/payments`, {
       method: 'POST' as any,
       body: {
         amount: Math.round(paymentForm.amount * 100),
@@ -271,8 +314,8 @@ async function recordPayment() {
     await loadData()
     paymentForm.assignmentId = undefined
     paymentForm.amount = undefined
-    paymentForm.paymentDate = ''
-    paymentForm.billingPeriod = ''
+    paymentForm.paymentDate = today
+    paymentForm.billingPeriod = currentMonth
     paymentForm.method = 'cash'
     paymentForm.referenceNumber = ''
   } catch (err: any) {
@@ -318,7 +361,7 @@ async function downloadFeeReport() {
     const params = new URLSearchParams()
     if (reportFrom.value) params.set('from', reportFrom.value)
     if (reportTo.value) params.set('to', reportTo.value)
-    const response = await fetch(`/api/students/${studentId}/fee-report?${params.toString()}`)
+    const response = await fetch(`/api/students/${studentId.value}/fee-report?${params.toString()}`)
     if (!response.ok) throw new Error((await response.text()) || 'Failed to generate fee statement')
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
@@ -336,5 +379,13 @@ async function downloadFeeReport() {
     downloadingReport.value = false
   }
 }
-onMounted(loadData)
+watch(() => route.query.id, async id => {
+  studentId.value = typeof id === 'string' ? id : ''
+  student.value = null
+  assignments.value = []
+  payments.value = []
+  if (studentId.value) await loadData()
+})
+
+onMounted(() => { if (studentId.value) loadData() })
 </script>

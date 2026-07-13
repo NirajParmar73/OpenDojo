@@ -3,7 +3,7 @@ export default defineNuxtConfig({
   modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils'],
 
   devtools: {
-    enabled: true
+    enabled: process.env.NODE_ENV !== 'production'
   },
 
   css: ['~/assets/css/main.css'],
@@ -18,11 +18,34 @@ export default defineNuxtConfig({
     '/insights/attendance': { redirect: '/reports/attendance' },
     '/hierarchy/levels': { redirect: '/settings/hierarchy/levels' },
     '/hierarchy/nodes': { redirect: '/settings/hierarchy/nodes' },
+    '/**': {
+      headers: {
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+      }
+    },
+    '/api/**': {
+      headers: {
+        'Cache-Control': 'no-store',
+        'X-Content-Type-Options': 'nosniff',
+        'X-Frame-Options': 'DENY',
+        'Referrer-Policy': 'strict-origin-when-cross-origin',
+        'Permissions-Policy': 'camera=(), microphone=(), geolocation=()'
+      }
+    },
   },
 
 
   runtimeConfig:{
     tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
+    public: {
+      legalEntityName: process.env.NUXT_PUBLIC_LEGAL_ENTITY_NAME || 'OpenDojo',
+      supportEmail: process.env.NUXT_PUBLIC_SUPPORT_EMAIL || 'support@your-domain.com',
+      supportPhone: process.env.NUXT_PUBLIC_SUPPORT_PHONE || '',
+      legalAddress: process.env.NUXT_PUBLIC_LEGAL_ADDRESS || '',
+    },
     session:{
       password: '',
       name: 'nau-session',

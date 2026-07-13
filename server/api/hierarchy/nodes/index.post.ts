@@ -4,6 +4,7 @@ import { db, tables } from '../../../../server/utils/database'
 import { eq } from 'drizzle-orm'
 import { assertNodeManagementAccess } from '../../../utils/permissions'
 import { writeAuditLog } from '../../../utils/audit'
+import { assertFederationManagementAccess } from '../../../utils/subscription'
 
 const createNodeSchema = z.object({
   levelId: z.number().int().positive(),
@@ -23,6 +24,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, createNodeSchema.parse)
+  await assertFederationManagementAccess(orgId)
 
   // Verify that the level belongs to the organization
   const level = await db.query.hierarchyLevels.findFirst({

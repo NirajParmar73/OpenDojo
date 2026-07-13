@@ -110,7 +110,8 @@ const router = useRouter()
 const route = useRoute()
 const colorMode = useColorMode()
 const mobileNavigationOpen = ref(false)
-const isPublicLanding = computed(() => route.path === '/' && !loggedIn.value)
+const publicPaths = new Set(['/', '/pricing', '/terms', '/privacy', '/refund-policy', '/contact'])
+const isPublicLanding = computed(() => publicPaths.has(route.path) && !loggedIn.value)
 const { data: profile, refresh: refreshProfile } = await useFetch<any>('/api/user/profile', { immediate: false })
 
 if (loggedIn.value) await refreshProfile()
@@ -148,9 +149,10 @@ const allNavigation = [
   {
     label: 'Finance',
     items: [
+      { label: 'Record payment', to: '/fees', icon: 'i-lucide-circle-dollar-sign' },
+      { label: 'Collections overview', to: '/finance', icon: 'i-lucide-chart-no-axes-combined' },
       { label: 'Expenses', to: '/finance/expenses', icon: 'i-lucide-receipt-indian-rupee' },
       { label: 'Fee plans', to: '/settings/finance/fee-plans', icon: 'i-lucide-wallet-cards' },
-      { label: 'Collections', to: '/finance', icon: 'i-lucide-receipt-text' },
     ],
   },
   {
@@ -161,6 +163,7 @@ const allNavigation = [
     label: 'Organization',
     items: [
       { label: 'Settings', to: '/settings', icon: 'i-lucide-settings-2' },
+      { label: 'Plan & billing', to: '/settings/subscription', icon: 'i-lucide-credit-card' },
       { label: 'Hierarchy', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
       { label: 'Belt system', to: '/settings/belts', icon: 'i-lucide-award' },
       { label: 'Martial arts & programs', to: '/settings/programs', icon: 'i-lucide-swords' },
@@ -170,7 +173,6 @@ const allNavigation = [
   },
 ]
 const navigation = computed(() => allNavigation.map(section => {
-  if (section.label === 'Finance' && user.value?.role !== 'owner') return { ...section, items: section.items.filter(item => item.to !== '/settings/finance/fee-plans') }
   if (section.label === 'Organization' && user.value?.role !== 'owner') return { ...section, items: section.items.filter(item => ['/settings/hierarchy/nodes', '/settings/affiliations', '/settings/audit-log'].includes(item.to)) }
   return section
 }).filter(section => section.items.length > 0))
@@ -189,8 +191,10 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/reports/student-progress': { title: 'Student progress report', section: 'Insights' },
   '/reports/tournaments': { title: 'Tournament achievement reports', section: 'Insights' },
   '/settings': { title: 'Organization settings', section: 'Organization' },
+  '/settings/subscription': { title: 'Plan & billing', section: 'Organization' },
   '/settings/finance/fee-plans': { title: 'Fee plans', section: 'Finance' },
-  '/finance': { title: 'Collections', section: 'Finance' },
+  '/fees': { title: 'Record payment', section: 'Finance' },
+  '/finance': { title: 'Collections overview', section: 'Finance' },
   '/finance/expenses': { title: 'Expenses', section: 'Finance' },
   '/settings/hierarchy/nodes': { title: 'Hierarchy', section: 'Organization' },
   '/settings/hierarchy/levels': { title: 'Hierarchy levels', section: 'Organization' },

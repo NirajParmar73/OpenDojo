@@ -14,15 +14,17 @@
     <UCard v-if="showCreate" class="mb-6">
       <template #header><div><h3 class="font-semibold">Add a student</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Start with the essentials. Complete fees, guardians, documents, and gradings from the student profile.</p></div></template>
       <form class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" @submit.prevent="createStudent">
-        <UInput v-model="newStudent.firstName" placeholder="First name" required />
-        <UInput v-model="newStudent.lastName" placeholder="Last name" required />
-        <USelect v-model="newStudent.dojoId" :items="dojoOptions" placeholder="Assign dojo (optional)" />
-        <UInput v-model="newStudent.email" type="email" placeholder="Email address" />
-        <UInput v-model="newStudent.phone" placeholder="Phone number" />
-        <UInput v-model="newStudent.dateOfBirth" type="date" />
-        <USelect v-model="newStudent.gender" :items="genderOptions" placeholder="Gender (optional)" />
-        <UInput v-model="newStudent.emergencyContact" placeholder="Emergency contact" />
-        <UInput v-model="newStudent.emergencyPhone" placeholder="Emergency phone" />
+        <UFormField label="First name" required><UInput v-model="newStudent.firstName" required /></UFormField>
+        <UFormField label="Last name" required><UInput v-model="newStudent.lastName" required /></UFormField>
+        <UFormField label="Dojo"><USelect v-model="newStudent.dojoId" :items="dojoOptions" placeholder="Optional" /></UFormField>
+        <UFormField label="Email address"><UInput v-model="newStudent.email" type="email" /></UFormField>
+        <UFormField label="Phone number"><UInput v-model="newStudent.phone" /></UFormField>
+        <UFormField label="Date of birth">
+          <UInput v-model="newStudent.dateOfBirth" type="date" />
+        </UFormField>
+        <UFormField label="Gender"><USelect v-model="newStudent.gender" :items="genderOptions" placeholder="Optional" /></UFormField>
+        <UFormField label="Emergency contact"><UInput v-model="newStudent.emergencyContact" /></UFormField>
+        <UFormField label="Emergency phone"><UInput v-model="newStudent.emergencyPhone" /></UFormField>
         <div class="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2 pt-2">
           <UButton type="button" color="neutral" variant="ghost" @click="resetCreateForm">Cancel</UButton>
           <UButton type="submit" color="primary" :loading="creating">Create student</UButton>
@@ -65,7 +67,8 @@
               </div>
             </div>
             <div class="mt-4 flex gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-              <UButton :to="`/students/${student.id}`" size="sm" color="primary" variant="soft">Profile</UButton>
+              <UButton :to="`/fees?id=${student.id}`" size="sm" color="primary" variant="soft">Record fee</UButton>
+              <UButton :to="`/students/${student.id}`" size="sm" color="neutral" variant="ghost">Profile</UButton>
               <UButton :to="`/students/${student.id}/edit`" size="sm" color="neutral" variant="ghost">Edit</UButton>
               <UButton size="sm" color="error" variant="ghost" @click="archiveStudent(student)">Archive</UButton>
             </div>
@@ -84,7 +87,7 @@
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ student.currentBeltRank?.name || '—' }}</td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300"><p>{{ student.email || '—' }}</p><p class="mt-1 text-xs text-slate-400">{{ student.phone || '' }}</p></td>
                 <td class="px-3 py-4"><UBadge :color="student.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ student.status }}</UBadge></td>
-                <td class="px-3 py-4"><div class="flex justify-end gap-1"><UButton :to="`/students/${student.id}`" size="xs" color="primary" variant="soft">Profile</UButton><UButton :to="`/students/${student.id}/edit`" size="xs" color="neutral" variant="ghost">Edit</UButton><UButton size="xs" color="error" variant="ghost" @click="archiveStudent(student)">Archive</UButton></div></td>
+                <td class="px-3 py-4"><div class="flex justify-end gap-1"><UButton :to="`/fees?id=${student.id}`" size="xs" color="primary" variant="soft">Record fee</UButton><UButton :to="`/students/${student.id}`" size="xs" color="neutral" variant="ghost">Profile</UButton><UButton :to="`/students/${student.id}/edit`" size="xs" color="neutral" variant="ghost">Edit</UButton><UButton size="xs" color="error" variant="ghost" @click="archiveStudent(student)">Archive</UButton></div></td>
               </tr>
             </tbody>
           </table>

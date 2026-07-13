@@ -10,28 +10,39 @@
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "migrations:generate": "drizzle-kit generate",
-    "migrations:migrate": "drizzle-kit migrate"
+    "migrations:migrate": "drizzle-kit migrate",
+    "subscription:set": "bun server/scripts/set-subscription-plan.ts"
   },
   "dependencies": {
-    "@iconify-json/lucide": "^1.2.114",
-    "@iconify-json/simple-icons": "^1.2.87",
-    "@libsql/client": "^0.17.4",
+    "@iconify-json/lucide": "^1.2.117",
+    "@iconify-json/simple-icons": "^1.2.90",
     "@nuxt/ui": "^4.9.0",
     "drizzle-orm": "^0.45.2",
     "html2pdf.js": "^0.14.0",
     "nuxt": "^4.4.8",
     "nuxt-auth-utils": "0.5.29",
     "pdfkit": "^0.19.1",
-    "tailwindcss": "^4.3.1",
+    "postgres": "^3.4.9",
+    "tailwindcss": "^4.3.2",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.16.0",
     "@types/pdfkit": "^0.17.6",
     "drizzle-kit": "^0.31.10",
-    "eslint": "^10.6.0",
+    "eslint": "^10.7.0",
     "typescript": "^6.0.3",
-    "vue-tsc": "^3.3.5"
+    "vite": "7.3.6",
+    "vue-tsc": "^3.3.7"
+  },
+  "overrides": {
+    "@babel/core": "7.29.7",
+    "esbuild": "0.28.1",
+    "js-yaml": "4.3.0",
+    "launch-editor": "2.14.1",
+    "shell-quote": "1.10.0",
+    "tar": "7.5.20",
+    "vite": "7.3.6"
   },
   "packageManager": "pnpm@11.9.0"
 }

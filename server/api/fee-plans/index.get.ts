@@ -1,5 +1,6 @@
 import { db, tables } from '../../utils/database'
-import { eq, or } from 'drizzle-orm'
+import { and, eq, inArray } from 'drizzle-orm'
+import { getAccessibleDojoIds } from '../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -7,22 +8,22 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  // Only owner/admin can view fee plans (you can extend to finance role later)
-  if (session.user.role !== 'owner') {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
-  }
-
   const orgId = session.user.organizationId
   if (!orgId) {
     throw createError({ statusCode: 400, statusMessage: 'User has no organization' })
   }
 
+  const accessibleDojos = await getAccessibleDojoIds(session.user.id, orgId)
+  if (accessibleDojos !== null && !accessibleDojos.length) return []
+
   const feePlans = await db.query.feePlans.findMany({
-    where: eq(tables.feePlans.organizationId, orgId),
+    where: accessibleDojos === null
+      ? eq(tables.feePlans.organizationId, orgId)
+      : and(eq(tables.feePlans.organizationId, orgId), inArray(tables.feePlans.dojoId, accessibleDojos)),
     with: {
-      dojo: true, // include dojo details if linked
+      dojo: true // include dojo details if linked
     },
-    orderBy: (plans, { asc }) => [asc(plans.name)],
+    orderBy: (plans, { asc }) => [asc(plans.name)]
   })
 
   return feePlans

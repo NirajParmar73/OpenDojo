@@ -18,7 +18,10 @@ const loading = ref(false)
 const toast = useToast()
 const { fetch } = useUserSession()
 const router = useRouter()
+const route = useRoute()
 definePageMeta({ layout: 'auth' })
+
+if (route.query.created === '1' && typeof route.query.email === 'string') state.email = route.query.email
 
 async function onLogin(event: FormSubmitEvent<Schema>) {
   loading.value = true
@@ -49,6 +52,7 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
 <template>
   <div class="max-w-md mx-auto mt-10">
     <h1 class="text-2xl font-bold text-center mb-6">Login</h1>
+    <UAlert v-if="route.query.created === '1'" class="mb-5" color="success" icon="i-lucide-circle-check" title="Your workspace is ready" description="Sign in to start adding students, recording payments, and managing your dojo." />
     <UForm :schema :state @submit="onLogin" class="space-y-4">
       <UFormField name="email" label="Email Address">
         <UInput

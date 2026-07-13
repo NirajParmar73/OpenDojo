@@ -16,7 +16,8 @@
           <USelect
             v-model="newPlan.dojoId"
             :items="dojoOptions"
-            placeholder="Dojo (optional)"
+            :placeholder="isOwner ? 'Dojo (optional)' : 'Choose a dojo'"
+            :required="!isOwner"
           />
           <UInput v-model="newPlan.description" placeholder="Description (optional)" />
           <UButton type="submit" :loading="creating">Add Fee Plan</UButton>
@@ -75,7 +76,8 @@
             <USelect
               v-model="editForm.dojoId"
               :items="dojoOptions"
-              placeholder="Dojo (optional)"
+              :placeholder="isOwner ? 'Dojo (optional)' : 'Choose a dojo'"
+              :required="!isOwner"
             />
             <UInput v-model="editForm.description" placeholder="Description" />
             <div class="flex items-center gap-2">
@@ -96,11 +98,13 @@
 definePageMeta({ middleware: ['auth', 'admin'] })
 
 const toast = useToast()
+const { user } = useUserSession()
 const feePlans = ref<any[]>([])
 const dojos = ref<any[]>([])
 const currency = ref('INR')
 const creating = ref(false)
 const updating = ref(false)
+const isOwner = computed(() => user.value?.role === 'owner')
 
 const frequencyOptions = [
   { label: 'Monthly', value: 'monthly' },
@@ -152,8 +156,8 @@ async function loadData() {
 }
 
 async function createFeePlan() {
-  if (!newPlan.name || !newPlan.amount) {
-    toast.add({ color: 'warning', title: 'Name and amount are required' })
+  if (!newPlan.name || !newPlan.amount || (!isOwner.value && !newPlan.dojoId)) {
+    toast.add({ color: 'warning', title: isOwner.value ? 'Name and amount are required' : 'Name, amount, and dojo are required' })
     return
   }
   creating.value = true
@@ -195,8 +199,8 @@ function cancelEdit() {
 
 async function updatePlan() {
   if (!editingPlan.value) return
-  if (!editForm.name || !editForm.amount) {
-    toast.add({ color: 'warning', title: 'Name and amount are required' })
+  if (!editForm.name || !editForm.amount || (!isOwner.value && !editForm.dojoId)) {
+    toast.add({ color: 'warning', title: isOwner.value ? 'Name and amount are required' : 'Name, amount, and dojo are required' })
     return
   }
   updating.value = true

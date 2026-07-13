@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
   return part ? part.data.toString() : null
 }
   const orgName = getField('organizationName')
+  const dojoName = getField('dojoName')
   const name = getField('name')
   const email = getField('email')
   const password = getField('password')
@@ -24,7 +25,7 @@ export default defineEventHandler(async (event) => {
   const style = getField('style')
   const logoFilePart = form.find((p) => p.name === 'logo' && p.filename)
 
-  if (!orgName || !name || !email || !password || !martialArt || !style) {
+  if (!orgName || !dojoName || !name || !email || !password || !martialArt || !style) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
 
@@ -79,6 +80,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create organization' })
   }
 
+  const [level] = await db.insert(tables.hierarchyLevels).values({ organizationId: org.id, name: 'Main location', order: 1 }).returning()
+  const [node] = await db.insert(tables.hierarchyNodes).values({ organizationId: org.id, levelId: level!.id, name: dojoName }).returning()
+  await db.insert(tables.dojos).values({ organizationId: org.id, nodeId: node!.id, name: dojoName })
+
   const [program] = await db.insert(tables.organizationPrograms).values({
     organizationId: org.id,
     martialArt,
@@ -131,6 +136,8 @@ await setUserSession(event, {
 
   console.log('✅ Onboarding successful, session set for:', email)
 
+  // New owners sign in explicitly after setup so they can confirm their account works.
+  await clearUserSession(event)
   return {
     success: true,
     organization: { id: org.id, name: org.name, slug: org.slug, logo: org.logo },

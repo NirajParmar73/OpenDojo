@@ -1,0 +1,1 @@
+ALTER TABLE `organizations` ADD `subscription_plan` text DEFAULT 'free' NOT NULL;

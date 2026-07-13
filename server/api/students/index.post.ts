@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
 import { assertDojoManagementAccess } from '../../utils/permissions'
+import { assertStudentLimit } from '../../utils/subscription'
 
 const createStudentSchema = z.object({
   dojoId: z.number().int().positive().nullable(),
@@ -34,6 +35,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, createStudentSchema.parse)
+  await assertStudentLimit(orgId)
 
   // Validate dojo if provided
   if (body.dojoId) {

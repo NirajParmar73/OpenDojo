@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../utils/database'
 import { eq, and } from 'drizzle-orm'
+import { assertDojoManagementAccess } from '../../utils/permissions'
 
 const updateFeePlanSchema = z.object({
   name: z.string().min(1).optional(),
@@ -8,17 +9,13 @@ const updateFeePlanSchema = z.object({
   frequency: z.enum(['monthly', 'quarterly', 'annual', 'one-time']).optional(),
   dojoId: z.number().int().positive().nullable().optional(),
   description: z.string().optional().nullable(),
-  isActive: z.boolean().optional(),
+  isActive: z.boolean().optional()
 })
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  }
-
-  if (session.user.role !== 'owner') {
-    throw createError({ statusCode: 403, statusMessage: 'Forbidden' })
   }
 
   const id = getRouterParam(event, 'id')
@@ -38,23 +35,30 @@ export default defineEventHandler(async (event) => {
     where: and(
       eq(tables.feePlans.id, Number(id)),
       eq(tables.feePlans.organizationId, orgId)
-    ),
+    )
   })
   if (!existing) {
     throw createError({ statusCode: 404, statusMessage: 'Fee plan not found' })
   }
 
+  if (session.user.role !== 'owner') {
+    if (!existing.dojoId) throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can edit organization-wide fee plans.' })
+    await assertDojoManagementAccess(session.user.id, orgId, existing.dojoId)
+    if (body.dojoId === null) throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can make a fee plan organization-wide.' })
+  }
+
   // If dojoId is provided, verify it belongs to the organization
   if (body.dojoId !== undefined && body.dojoId !== null) {
     const dojo = await db.query.dojos.findFirst({
-      where: eq(tables.dojos.id, body.dojoId),
+      where: eq(tables.dojos.id, body.dojoId)
     })
     if (!dojo || dojo.organizationId !== orgId) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid dojo' })
     }
+    await assertDojoManagementAccess(session.user.id, orgId, dojo.id)
   }
 
-  const updateData: any = {}
+  const updateData: Partial<typeof tables.feePlans.$inferInsert> = {}
   if (body.name !== undefined) updateData.name = body.name
   if (body.amount !== undefined) updateData.amount = body.amount
   if (body.frequency !== undefined) updateData.frequency = body.frequency
@@ -66,7 +70,7 @@ export default defineEventHandler(async (event) => {
   const [updated] = await db.update(tables.feePlans)
     .set(updateData)
     .where(eq(tables.feePlans.id, Number(id)))
-    .returning() as any[]
+    .returning()
 
   if (!updated) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to update fee plan' })

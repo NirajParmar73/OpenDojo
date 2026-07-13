@@ -1,6 +1,6 @@
-import { db, tables } from '../../utils/database'
+import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
-import { isDojoAccessible } from '../../utils/permissions'
+import { isDojoAccessible } from '../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -8,9 +8,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
 
-  const id = getRouterParam(event, 'id')
-  if (!id) {
-    throw createError({ statusCode: 400, statusMessage: 'Missing ID' })
+  const studentId = getRouterParam(event, 'studentId')
+  if (!studentId) {
+    throw createError({ statusCode: 400, statusMessage: 'Missing student ID' })
   }
 
   const orgId = session.user.organizationId
@@ -20,7 +20,7 @@ export default defineEventHandler(async (event) => {
 
   const student = await db.query.students.findFirst({
     where: and(
-      eq(tables.students.id, Number(id)),
+      eq(tables.students.id, Number(studentId)),
       eq(tables.students.organizationId, orgId)
     ),
     with: {

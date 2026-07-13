@@ -1,23 +1,24 @@
 // server/database/schema.ts
-import { sqliteTable, integer, text } from 'drizzle-orm/sqlite-core'
+import { pgTable } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // ---------- TABLE DEFINITIONS (all tables first) ----------
 
 // Organizations
-export const organizations = sqliteTable('organizations', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const organizations = pgTable('organizations', (t) => ({
+  id: t.serial('id').primaryKey(),
   name: t.text().notNull(),
   slug: t.text().notNull().unique(),
+  subscriptionPlan: t.text('subscription_plan').notNull().default('free'),
   logo: t.text(),
   currency: t.text().default('USD'),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Users
-export const users = sqliteTable('users', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const users = pgTable('users', (t) => ({
+  id: t.serial('id').primaryKey(),
   name: t.text().notNull(),
   email: t.text().notNull().unique(),
   passwordHash: t.text().notNull(),
@@ -26,57 +27,57 @@ export const users = sqliteTable('users', (t) => ({
   avatar: t.text(),
   danDegree: t.text(),
   certificateUrl: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Hierarchy Levels
-export const hierarchyLevels = sqliteTable('hierarchy_levels', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const hierarchyLevels = pgTable('hierarchy_levels', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   name: t.text().notNull(),
   order: t.integer('order').notNull(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Hierarchy Nodes
-export const hierarchyNodes: any = sqliteTable('hierarchy_nodes', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const hierarchyNodes: any = pgTable('hierarchy_nodes', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   levelId: t.integer('level_id').references(() => hierarchyLevels.id, { onDelete: 'cascade' }).notNull(),
   parentId: t.integer('parent_id').references(() => hierarchyNodes.id, { onDelete: 'cascade' }),
   name: t.text().notNull(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Dojos
-export const dojos = sqliteTable('dojos', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const dojos = pgTable('dojos', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   nodeId: t.integer('node_id').references(() => hierarchyNodes.id, { onDelete: 'cascade' }).notNull(),
   name: t.text().notNull(),
   address: t.text(),
   phone: t.text(),
   email: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Belt Systems
-export const beltSystems = sqliteTable('belt_systems', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const beltSystems = pgTable('belt_systems', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
   name: t.text().notNull().default('Default Belt System'),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Belt Ranks
-export const beltRanks = sqliteTable('belt_ranks', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const beltRanks = pgTable('belt_ranks', (t) => ({
+  id: t.serial('id').primaryKey(),
   systemId: t.integer('system_id').references(() => beltSystems.id, { onDelete: 'cascade' }).notNull(),
   name: t.text().notNull(),
   level: t.text().notNull(),
@@ -85,20 +86,20 @@ export const beltRanks = sqliteTable('belt_ranks', (t) => ({
   danNumber: t.integer('dan_number'),
   color: t.text(),
   description: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Students
-export const students = sqliteTable('students', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const students = pgTable('students', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
   firstName: t.text().notNull(),
   lastName: t.text().notNull(),
   email: t.text(),
   phone: t.text(),
-  dateOfBirth: t.integer({ mode: 'timestamp_ms' }),
+  dateOfBirth: t.timestamp({ withTimezone: true }),
   gender: t.text({ enum: ['male', 'female', 'other'] }),
   address: t.text(),
   emergencyContact: t.text(),
@@ -107,54 +108,54 @@ export const students = sqliteTable('students', (t) => ({
   status: t.text().default('active'),
   avatar: t.text(),
   currentBeltRankId: t.integer('current_belt_rank_id').references(() => beltRanks.id),
-  joinedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  joinedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Student Gradings
-export const studentGradings = sqliteTable('student_gradings', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const studentGradings = pgTable('student_gradings', (t) => ({
+  id: t.serial('id').primaryKey(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   beltRankId: t.integer('belt_rank_id').references(() => beltRanks.id, { onDelete: 'cascade' }).notNull(),
-  awardedDate: t.integer({ mode: 'timestamp_ms' }).notNull(),
+  awardedDate: t.timestamp({ withTimezone: true }).notNull(),
   examiner: t.text(),
   certificateNumber: t.text('certificate_number'),
   certificateUrl: t.text(),
   notes: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Guardians
-export const guardians = sqliteTable('guardians', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const guardians = pgTable('guardians', (t) => ({
+  id: t.serial('id').primaryKey(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   name: t.text().notNull(),
   relationship: t.text().notNull(),
   phone: t.text(),
   email: t.text(),
   address: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Assignments
-export const assignments = sqliteTable('assignments', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const assignments = pgTable('assignments', (t) => ({
+  id: t.serial('id').primaryKey(),
   userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   role: t.text({ enum: ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member'] }).notNull(),
   scopeType: t.text({ enum: ['node', 'dojo'] }).notNull(),
   scopeId: t.integer('scope_id').notNull(),
-  startDate: t.integer({ mode: 'timestamp_ms' }),
-  endDate: t.integer({ mode: 'timestamp_ms' }),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  startDate: t.timestamp({ withTimezone: true }),
+  endDate: t.timestamp({ withTimezone: true }),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Dojo Schedules
-export const dojoSchedules = sqliteTable('dojo_schedules', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const dojoSchedules = pgTable('dojo_schedules', (t) => ({
+  id: t.serial('id').primaryKey(),
   dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
   dayOfWeek: t.integer('day_of_week').notNull(),
   startTime: t.text().notNull(),
@@ -162,52 +163,52 @@ export const dojoSchedules = sqliteTable('dojo_schedules', (t) => ({
   name: t.text(),
   programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
   instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Class Sessions
-export const classSessions = sqliteTable('class_sessions', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const classSessions = pgTable('class_sessions', (t) => ({
+  id: t.serial('id').primaryKey(),
   dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
   scheduleId: t.integer('schedule_id').references(() => dojoSchedules.id, { onDelete: 'set null' }),
-  date: t.integer({ mode: 'timestamp_ms' }).notNull(),
+  date: t.timestamp({ withTimezone: true }).notNull(),
   startTime: t.text().notNull(),
   endTime: t.text().notNull(),
   instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
   name: t.text(),
   programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Attendance
-export const attendance = sqliteTable('attendance', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const attendance = pgTable('attendance', (t) => ({
+  id: t.serial('id').primaryKey(),
   sessionId: t.integer('session_id').references(() => classSessions.id, { onDelete: 'cascade' }).notNull(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   status: t.text({ enum: ['present', 'absent', 'late', 'excused'] }).default('present'),
   notes: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // External governing bodies are tenant-owned directory records. They do not
 // grant the external organization access to this tenant's data.
-export const governingBodies = sqliteTable('governing_bodies', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const governingBodies = pgTable('governing_bodies', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   name: t.text().notNull(),
   level: t.text({ enum: ['international', 'national', 'state', 'district', 'city', 'local', 'other'] }).notNull().default('other'),
   country: t.text(), website: t.text(), contactName: t.text('contact_name'), contactEmail: t.text('contact_email'), contactPhone: t.text('contact_phone'), notes: t.text(),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Immutable organization activity trail. Scope makes every event visible only
 // to owners or staff responsible for the relevant hierarchy territory / dojo.
-export const auditLogs = sqliteTable('audit_logs', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const auditLogs = pgTable('audit_logs', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   actorUserId: t.integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
   action: t.text().notNull(),
@@ -217,33 +218,33 @@ export const auditLogs = sqliteTable('audit_logs', (t) => ({
   scopeType: t.text('scope_type', { enum: ['organization', 'node', 'dojo'] }).notNull(),
   scopeId: t.integer('scope_id'),
   details: t.text(),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
 }))
 
-export const tournaments = sqliteTable('tournaments', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const tournaments = pgTable('tournaments', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   name: t.text().notNull(),
   level: t.text().notNull(),
   venue: t.text(),
-  startDate: t.integer('start_date', { mode: 'timestamp_ms' }).notNull(),
-  endDate: t.integer('end_date', { mode: 'timestamp_ms' }),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
+  endDate: t.timestamp('end_date', { withTimezone: true }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Category, event, and result are intentionally free-form so each organization
 // can follow its own competition rules.
-export const studentAchievements = sqliteTable('student_achievements', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const studentAchievements = pgTable('student_achievements', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   tournamentId: t.integer('tournament_id').references(() => tournaments.id, { onDelete: 'set null' }),
   tournamentName: t.text('tournament_name').notNull(),
   tournamentLevel: t.text('tournament_level').notNull(),
   venue: t.text(),
-  startDate: t.integer('start_date', { mode: 'timestamp_ms' }).notNull(),
-  endDate: t.integer('end_date', { mode: 'timestamp_ms' }),
+  startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
+  endDate: t.timestamp('end_date', { withTimezone: true }),
   eventType: t.text('event_type'),
   ageCategory: t.text('age_category'),
   weightCategory: t.text('weight_category'),
@@ -253,67 +254,67 @@ export const studentAchievements = sqliteTable('student_achievements', (t) => ({
   certificateUrl: t.text('certificate_url'),
   notes: t.text(),
   createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-export const affiliations = sqliteTable('affiliations', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }), organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+export const affiliations = pgTable('affiliations', (t) => ({
+  id: t.serial('id').primaryKey(), organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   governingBodyId: t.integer('governing_body_id').references(() => governingBodies.id, { onDelete: 'cascade' }).notNull(),
   scopeType: t.text('scope_type', { enum: ['organization', 'node', 'dojo'] }).notNull(), scopeId: t.integer('scope_id'),
   relationshipType: t.text('relationship_type', { enum: ['parent_affiliation', 'membership', 'recognition', 'license', 'accreditation'] }).notNull(), membershipNumber: t.text('membership_number'),
   status: t.text({ enum: ['pending', 'active', 'expired', 'suspended'] }).notNull().default('pending'),
-  startedAt: t.integer('started_at', { mode: 'timestamp_ms' }), expiresAt: t.integer('expires_at', { mode: 'timestamp_ms' }), renewalDueAt: t.integer('renewal_due_at', { mode: 'timestamp_ms' }),
+  startedAt: t.timestamp('started_at', { withTimezone: true }), expiresAt: t.timestamp('expires_at', { withTimezone: true }), renewalDueAt: t.timestamp('renewal_due_at', { withTimezone: true }),
   feeAmount: t.integer('fee_amount'), feeFrequency: t.text('fee_frequency', { enum: ['one_time', 'monthly', 'quarterly', 'annual'] }), documentUrl: t.text('document_url'), notes: t.text(),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(), updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(), updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-export const expenses = sqliteTable('expenses', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }), organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+export const expenses = pgTable('expenses', (t) => ({
+  id: t.serial('id').primaryKey(), organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   affiliationId: t.integer('affiliation_id').references(() => affiliations.id, { onDelete: 'set null' }), scopeType: t.text('scope_type', { enum: ['organization', 'node', 'dojo'] }).notNull(), scopeId: t.integer('scope_id'),
   category: t.text().notNull(), payee: t.text(), description: t.text().notNull(), invoiceNumber: t.text('invoice_number'), amount: t.integer().notNull(), taxAmount: t.integer('tax_amount').notNull().default(0),
-  incurredAt: t.integer('incurred_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(), dueAt: t.integer('due_at', { mode: 'timestamp_ms' }), paidAt: t.integer('paid_at', { mode: 'timestamp_ms' }), paymentMethod: t.text('payment_method'), paymentReference: t.text('payment_reference'),
+  incurredAt: t.timestamp('incurred_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(), dueAt: t.timestamp('due_at', { withTimezone: true }), paidAt: t.timestamp('paid_at', { withTimezone: true }), paymentMethod: t.text('payment_method'), paymentReference: t.text('payment_reference'),
   status: t.text({ enum: ['draft', 'due', 'partially_paid', 'paid', 'overdue', 'cancelled'] }).notNull().default('due'), receiptUrl: t.text('receipt_url'), notes: t.text(), createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(), updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(), updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // Programs are tenant-owned so an organization can teach multiple arts/styles.
-export const organizationPrograms = sqliteTable('organization_programs', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const organizationPrograms = pgTable('organization_programs', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   martialArt: t.text('martial_art').notNull(),
   style: t.text().notNull(),
   displayName: t.text('display_name').notNull(),
   isPrimary: t.integer('is_primary').notNull().default(0),
   isActive: t.integer('is_active').notNull().default(1),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-export const instructorQualifications = sqliteTable('instructor_qualifications', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const instructorQualifications = pgTable('instructor_qualifications', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
   qualification: t.text().notNull(),
   issuer: t.text(),
   certificateNumber: t.text('certificate_number'),
-  expiresAt: t.integer('expires_at', { mode: 'timestamp_ms' }),
+  expiresAt: t.timestamp('expires_at', { withTimezone: true }),
   certificateUrl: t.text('certificate_url'),
   notes: t.text(),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
-export const dojoInstructors = sqliteTable('dojo_instructors', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const dojoInstructors = pgTable('dojo_instructors', (t) => ({
+  id: t.serial('id').primaryKey(),
   dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
   userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
   programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
   isPrimary: t.integer('is_primary').notNull().default(0),
   isActive: t.integer('is_active').notNull().default(1),
-  createdAt: t.integer('created_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer('updated_at', { mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // ---------- RELATIONS (all relations after all tables) ----------
@@ -472,8 +473,8 @@ export const attendanceRelations = relations(attendance, ({ one }) => ({
 }))
 
 // ---------- Fee Plans ----------
-export const feePlans = sqliteTable('fee_plans', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const feePlans = pgTable('fee_plans', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   name: t.text().notNull(),
   amount: t.integer('amount').notNull(), // in smallest currency unit (e.g., paisa for INR)
@@ -481,38 +482,38 @@ export const feePlans = sqliteTable('fee_plans', (t) => ({
   dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }), // null = organization-wide
   description: t.text(),
   isActive: t.integer('is_active').default(1),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // ---------- Student Fee Assignments ----------
-export const studentFeeAssignments = sqliteTable('student_fee_assignments', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const studentFeeAssignments = pgTable('student_fee_assignments', (t) => ({
+  id: t.serial('id').primaryKey(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   feePlanId: t.integer('fee_plan_id').references(() => feePlans.id, { onDelete: 'cascade' }).notNull(),
-  startDate: t.integer({ mode: 'timestamp_ms' }).notNull(),
-  endDate: t.integer({ mode: 'timestamp_ms' }),
+  startDate: t.timestamp({ withTimezone: true }).notNull(),
+  endDate: t.timestamp({ withTimezone: true }),
   dueDay: t.integer('due_day').default(1), // day of month (1-28)
   discount: t.integer('discount').default(0), // discount amount in same currency unit
   status: t.text({ enum: ['active', 'expired', 'cancelled'] }).default('active'),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // ---------- Payments ----------
-export const payments = sqliteTable('payments', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const payments = pgTable('payments', (t) => ({
+  id: t.serial('id').primaryKey(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   assignmentId: t.integer('assignment_id').references(() => studentFeeAssignments.id, { onDelete: 'set null' }),
   amount: t.integer('amount').notNull(),
-  paymentDate: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
+  paymentDate: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   billingPeriod: t.text('billing_period'), // YYYY-MM fee period covered by this payment
   method: t.text({ enum: ['cash', 'bank_transfer', 'card', 'other'] }).default('cash'),
   referenceNumber: t.text(),
   receiptNumber: t.text().notNull(),
   notes: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // ---------- Relations for Financial Tables ----------
@@ -552,19 +553,19 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
 }))
 
 // ---------- Documents ----------
-export const documents = sqliteTable('documents', (t) => ({
-  id: t.integer('id').primaryKey({ autoIncrement: true }),
+export const documents = pgTable('documents', (t) => ({
+  id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }),
   userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
   documentType: t.text().notNull(), // 'aadhaar', 'passport', 'driving_license', 'voter_id', 'other'
   documentNumber: t.text(),
   fileUrl: t.text().notNull(),
-  issuedDate: t.integer({ mode: 'timestamp_ms' }),
-  expiryDate: t.integer({ mode: 'timestamp_ms' }),
+  issuedDate: t.timestamp({ withTimezone: true }),
+  expiryDate: t.timestamp({ withTimezone: true }),
   notes: t.text(),
-  createdAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.integer({ mode: 'timestamp_ms' }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
 // ---------- Relations ----------

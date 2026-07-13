@@ -43,11 +43,11 @@
     <UCard v-if="user" class="mt-6">
       <template #header><div><h3 class="font-semibold">Instructor credentials</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record qualifications for the martial-arts programs this person teaches.</p></div></template>
       <form class="grid gap-4 sm:grid-cols-3" @submit.prevent="addQualification">
-        <USelect v-model="qualificationForm.programId" :items="programOptions" placeholder="Program (optional)" />
-        <UInput v-model="qualificationForm.qualification" placeholder="Qualification" />
-        <UInput v-model="qualificationForm.issuer" placeholder="Issuing body" />
-        <UInput v-model="qualificationForm.expiresAt" type="date" />
-        <UButton type="submit" :loading="savingQualification">Add qualification</UButton>
+        <UFormField label="Program"><USelect v-model="qualificationForm.programId" :items="programOptions" placeholder="Optional" /></UFormField>
+        <UFormField label="Qualification" required><UInput v-model="qualificationForm.qualification" required /></UFormField>
+        <UFormField label="Issuing body"><UInput v-model="qualificationForm.issuer" /></UFormField>
+        <UFormField label="Expiry date"><UInput v-model="qualificationForm.expiresAt" type="date" /></UFormField>
+        <div class="self-end"><UButton type="submit" class="w-full" :loading="savingQualification">Add qualification</UButton></div>
       </form>
       <div v-if="qualifications?.length" class="mt-5 divide-y divide-slate-100 border-t border-slate-100 dark:divide-slate-800 dark:border-slate-800"><div v-for="item in qualifications" :key="item.id" class="flex items-center justify-between gap-3 py-3"><div><p class="font-medium">{{ item.qualification }}</p><p class="mt-1 text-sm text-slate-500">{{ item.issuer || 'No issuing body' }}{{ item.expiresAt ? ` · Expires ${new Date(item.expiresAt).toLocaleDateString()}` : '' }}</p></div></div></div>
       <p v-else class="mt-5 text-sm text-slate-500">No instructor credentials recorded.</p>
