@@ -151,6 +151,7 @@
             <UInput v-model="editDojoForm.address" placeholder="Address" />
             <UInput v-model="editDojoForm.phone" placeholder="Phone" />
             <UInput v-model="editDojoForm.email" placeholder="Email" />
+            <USelect v-model="editDojoForm.defaultFeePlanId" :items="feePlanOptions" placeholder="Default fee plan (optional)" />
           </div>
           <div class="flex gap-2 mt-4">
             <UButton type="submit" :loading="updatingDojo">Update</UButton>
@@ -171,6 +172,7 @@ const allNodes = ref<any[]>([])
 const flatNodes = ref<any[]>([])
 const instructors = ref<any[]>([])
 const programs = ref<any[]>([])
+const feePlans = ref<any[]>([])
 const dojoInstructors = ref<Record<number, any[]>>({})
 const schedules = ref<Record<number, any[]>>({})
 const expandedDojoId = ref<number | null>(null)
@@ -190,6 +192,7 @@ const newDojo = reactive({
   address: '',
   phone: '',
   email: '',
+  defaultFeePlanId: null as number | null,
 })
 
 const editingDojo = ref<any>(null)
@@ -283,6 +286,7 @@ const nodeOptions = computed(() => {
     value: node.id,
   }))
 })
+const feePlanOptions = computed(() => [{ label: 'No default fee plan', value: null }, ...feePlans.value.filter((plan: any) => plan.isActive).map((plan: any) => ({ label: plan.name, value: plan.id }))])
 
 function getDayName(day: number): string {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
@@ -292,17 +296,19 @@ function getDayName(day: number): string {
 // ----- Load data -----
 async function loadData() {
   try {
-    const [dojosData, nodesData, instructorsData, programsData] = await Promise.all([
+    const [dojosData, nodesData, instructorsData, programsData, feePlansData] = await Promise.all([
       $fetch('/api/dojos'),
       $fetch('/api/hierarchy/nodes'),
       $fetch('/api/users'), // we'll filter instructors on frontend
       $fetch('/api/organization/programs'),
+      $fetch('/api/fee-plans'),
     ])
     dojos.value = dojosData
     allNodes.value = nodesData
     flatNodes.value = flattenTree(nodesData)
     nodePathMap.value = buildNodePathMap(flatNodes.value)
     programs.value = programsData
+    feePlans.value = feePlansData
 
     // Filter users who can be instructors (owner, admin, instructor, dojo_head)
     instructors.value = instructorsData.filter((u: any) =>
@@ -353,6 +359,7 @@ function startEdit(dojo: any) {
   editDojoForm.address = dojo.address || ''
   editDojoForm.phone = dojo.phone || ''
   editDojoForm.email = dojo.email || ''
+  editDojoForm.defaultFeePlanId = dojo.defaultFeePlanId || null
 }
 
 function cancelEditDojo() {
@@ -376,6 +383,7 @@ async function updateDojo() {
         address: editDojoForm.address || undefined,
         phone: editDojoForm.phone || undefined,
         email: editDojoForm.email || undefined,
+        defaultFeePlanId: editDojoForm.defaultFeePlanId,
       },
     })
     toast.add({ color: 'success', title: 'Dojo updated' })

@@ -16,7 +16,7 @@ const state = reactive({
 
 const loading = ref(false)
 const toast = useToast()
-const { fetch } = useUserSession()
+const { fetch, user } = useUserSession()
 const router = useRouter()
 const route = useRoute()
 definePageMeta({ layout: 'auth' })
@@ -35,8 +35,9 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
     })
     // Refresh session data
     await fetch()
-    // Redirect to dashboard
-    router.push('/')
+    // Platform operators begin in the platform console; everyone else uses
+    // their organization workspace dashboard.
+    router.push(user.value?.isPlatformAdmin ? '/platform' : '/')
   } catch (error: any) {
     toast.add({
       color: 'error',

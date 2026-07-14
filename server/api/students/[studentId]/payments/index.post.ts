@@ -7,6 +7,7 @@ import { writeAuditLog } from '../../../../utils/audit'
 
 const createPaymentSchema = z.object({
   amount: z.number().int().positive(),
+  discountAmount: z.number().int().nonnegative().default(0),
   paymentDate: z.string(),
   billingPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Select the fee month this payment covers'),
   method: z.enum(['cash', 'bank_transfer', 'card', 'other']).default('cash'),
@@ -69,6 +70,7 @@ export default defineEventHandler(async (event) => {
   const [payment] = await db.insert(tables.payments).values({
     studentId: Number(studentId),
     amount: body.amount,
+    discountAmount: body.discountAmount,
     paymentDate: new Date(body.paymentDate),
     billingPeriod: body.billingPeriod,
     method: body.method,

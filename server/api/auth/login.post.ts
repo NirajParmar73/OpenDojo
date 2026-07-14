@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq } from 'drizzle-orm'
 import { currentTenant } from '../../utils/tenant'
+import { isPlatformAdminEmail } from '../../utils/platform-admin'
 // ✅ Import these from nuxt-auth-utils
 
 const loginSchema = z.object({
@@ -53,6 +54,7 @@ export default defineEventHandler(async (event) => {
       organizationName: orgName,
       organizationLogo: orgLogo,
       avatar: user.avatar || null,
+      isPlatformAdmin: isPlatformAdminEmail(user.email),
     },
     lastLoggedIn: new Date(),
   })

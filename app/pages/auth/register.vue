@@ -29,6 +29,7 @@ const state = reactive({
 
 const toast = useToast()
 const loading = ref(false)
+const { fetch, user } = useUserSession()
 definePageMeta({ layout: 'auth' })
 
 async function onRegister(event: FormSubmitEvent<Schema>) {
@@ -47,7 +48,8 @@ async function onRegister(event: FormSubmitEvent<Schema>) {
         throw new Error('Registration Error')
     }
 
-    navigateTo('/')
+    await fetch()
+    navigateTo(user.value?.isPlatformAdmin ? '/platform' : '/')
 
    } catch (error) {
     toast.add({
@@ -74,7 +76,7 @@ async function onRegister(event: FormSubmitEvent<Schema>) {
             <UFormField name="password" label="Password">
                 <UInput class="w-full" v-model="state.password" type="password" placeholder="Enter you password" required/>
             </UFormField>
-            <UFormField name="passwordConfirm" label="Email Address">
+            <UFormField name="passwordConfirm" label="Confirm password">
                 <UInput class="w-full" v-model="state.passwordConfirm" type="password" placeholder="Confirm your password" required/>
             </UFormField>
             <UButton :loading type="submit">

@@ -11,6 +11,7 @@ const updateStudentSchema = z.object({
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
   dateOfBirth: z.string().optional().nullable(),
+  joinedAt: z.string().date().optional(),
   gender: z.enum(['male', 'female', 'other']).optional().nullable(),
   address: z.string().optional().nullable(),
   emergencyContact: z.string().optional().nullable(),
@@ -98,6 +99,9 @@ export default defineEventHandler(async (event) => {
   if (body.dojoId !== undefined) updateData.dojoId = body.dojoId
   if (body.dateOfBirth !== undefined) {
     updateData.dateOfBirth = body.dateOfBirth ? new Date(body.dateOfBirth) : null
+  }
+  if (body.joinedAt !== undefined) {
+    updateData.joinedAt = new Date(`${body.joinedAt}T00:00:00.000Z`)
   }
   // ✅ new fields
   if (body.currentBeltRankId !== undefined) updateData.currentBeltRankId = body.currentBeltRankId

@@ -8,6 +8,34 @@
       "when": 1783964705233,
       "tag": "0000_modern_blockbuster",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1783999500000,
+      "tag": "0001_dojo_default_fee_plan_and_payment_discount",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1784001000000,
+      "tag": "0002_fee_assignment_discount_reason",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1784002000000,
+      "tag": "0003_tournament_entry_belt_division",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784003000000,
+      "tag": "0004_tournament_entry_place_secured",
+      "breakpoints": true
     }
   ]
 }

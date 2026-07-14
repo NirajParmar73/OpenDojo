@@ -1,4 +1,5 @@
 import {z} from 'zod'
+import { isPlatformAdminEmail } from '../../utils/platform-admin'
 
 const registerSchema = z.object({
 
@@ -20,7 +21,9 @@ export default defineEventHandler(async (event)=>{
     await setUserSession(event, {
         user:{
             id: user?.id,
-            name: user?.name
+            name: user?.name,
+            email: user?.email,
+            isPlatformAdmin: isPlatformAdminEmail(user?.email)
         },
         lastLoggedIn: new Date()
     })

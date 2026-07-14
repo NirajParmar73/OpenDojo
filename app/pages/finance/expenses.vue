@@ -294,7 +294,15 @@ async function createExpense() {
   }
   saving.value = true
   try {
-    const payload = { ...form, amount: Math.round(form.amount * 100), scopeId: form.scopeType === 'organization' ? null : form.scopeId, paidAt: form.status === 'paid' ? (form.paidAt || new Date().toISOString().slice(0, 10)) : null, paymentMethod: form.status === 'paid' ? form.paymentMethod : null }
+    const payload = {
+      ...form,
+      amount: Math.round(form.amount * 100),
+      scopeId: form.scopeType === 'organization' ? null : form.scopeId,
+      // Optional date fields must be omitted instead of sent as empty strings.
+      dueAt: form.dueAt || undefined,
+      paidAt: form.status === 'paid' ? (form.paidAt || new Date().toISOString().slice(0, 10)) : undefined,
+      paymentMethod: form.status === 'paid' ? form.paymentMethod : undefined,
+    }
     await $fetch(editingExpenseId.value ? `/api/finance/expenses/${editingExpenseId.value}` : '/api/finance/expenses', { method: editingExpenseId.value ? 'PATCH' : 'POST', body: editingExpenseId.value ? payload : { ...payload, incurredAt: new Date().toISOString().slice(0, 10) } })
     Object.assign(form, { category: 'other', description: '', amount: undefined, scopeType: user.value?.role === 'owner' ? 'organization' : 'node', scopeId: null, dueAt: '', paidAt: '', paymentMethod: 'cash', status: 'due', affiliationId: null, payee: '', invoiceNumber: '', notes: '' })
     showForm.value = false

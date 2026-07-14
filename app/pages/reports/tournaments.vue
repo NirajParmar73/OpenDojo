@@ -12,7 +12,7 @@
         <UFormField label="Tournament">
           <USelect v-model="selectedTournamentId" :items="tournamentOptions" placeholder="Select a tournament" searchable class="w-full" />
         </UFormField>
-        <UButton :disabled="!selectedTournamentId" icon="i-lucide-file-down" :loading="downloading" @click="download">Download PDF</UButton>
+        <UButton :disabled="!selectedTournamentId" icon="i-lucide-eye" :loading="downloading" @click="download">Preview PDF</UButton>
       </div>
       <UAlert v-else color="neutral" variant="subtle" icon="i-lucide-trophy" title="No tournament records in your territory" description="Record student achievements first; each tournament will then be available here." />
       <div v-if="selectedTournament" class="mt-6 grid gap-3 border-t border-slate-200 pt-5 text-sm sm:grid-cols-3 dark:border-slate-800">
@@ -37,17 +37,17 @@ const selectedTournament = computed(() => (tournaments.value || []).find(tournam
 
 async function download() {
   if (!selectedTournamentId.value) return
+  const preview = window.open('', '_blank')
   downloading.value = true
   try {
     const response = await fetch(`/api/reports/tournaments/${selectedTournamentId.value}`)
     if (!response.ok) throw new Error('Could not generate the tournament report')
     const url = URL.createObjectURL(await response.blob())
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'tournament_achievement_report.pdf'
-    link.click()
-    URL.revokeObjectURL(url)
+    if (preview) preview.location.href = url
+    else window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   } catch (error: any) {
+    preview?.close()
     toast.add({ color: 'error', title: 'Could not download report', description: error.message })
   } finally { downloading.value = false }
 }

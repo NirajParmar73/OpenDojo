@@ -44,6 +44,18 @@ export default defineEventHandler(async (event) => {
         dueDay: assignment.dueDay,
         payments: assignment.payments,
       })
+      const monthsPerPeriod = assignment.feePlan.frequency === 'quarterly' ? 3 : assignment.feePlan.frequency === 'annual' ? 12 : 1
+      const firstUnpaidDueDate = balance.pendingPeriods && balance.paidPeriods < balance.periodsDue
+        ? new Date(
+            new Date(assignment.startDate).getFullYear(),
+            new Date(assignment.startDate).getMonth() + (balance.paidPeriods * monthsPerPeriod),
+            Math.min(Math.max(assignment.dueDay || new Date(assignment.startDate).getDate() || 1, 1), 28),
+          )
+        : null
+      const todayAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      const daysOverdue = firstUnpaidDueDate && firstUnpaidDueDate < todayAtMidnight
+        ? Math.floor((todayAtMidnight.getTime() - firstUnpaidDueDate.getTime()) / 86_400_000)
+        : 0
       return {
         assignmentId: assignment.id,
         studentId: assignment.student.id,
@@ -52,6 +64,8 @@ export default defineEventHandler(async (event) => {
         dojoName: assignment.student.dojo?.name || 'Unassigned',
         feePlanName: assignment.feePlan.name,
         frequency: assignment.feePlan.frequency,
+        firstUnpaidDueDate,
+        daysOverdue,
         paidThisMonth: assignment.payments.reduce((sum: number, payment: any) => {
           const paymentDate = new Date(payment.paymentDate)
           return paymentDate >= monthStart && paymentDate < nextMonthStart ? sum + payment.amount : sum

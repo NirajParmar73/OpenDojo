@@ -20,11 +20,11 @@
       <UCard class="mb-6">
         <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div><h2 class="text-lg font-semibold">Shareable fee statement</h2><p class="mt-1 text-sm text-slate-500">Download a payment statement for a selected period to share with the student.</p></div>
-          <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="reportFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="reportTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-download" :loading="downloadingReport" @click="downloadFeeReport">Download PDF</UButton></div></div>
+          <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="reportFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="reportTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-eye" :loading="downloadingReport" @click="downloadFeeReport">Preview PDF</UButton></div></div>
         </div>
       </UCard>
-      <!-- Assignments Section -->
-      <UCard class="mb-6">
+      <!-- Fee-plan changes are managed from the student profile, not while collecting payment. -->
+      <UCard v-if="false" class="mb-6">
         <div class="mb-3"><h2 class="text-lg font-semibold">Fee plan for this student</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Set this up once before recording payments. It keeps the outstanding balance accurate.</p></div>
         <form @submit.prevent="addAssignment" class="mb-4 grid gap-4 md:grid-cols-4">
           <UFormField label="Fee plan" required><USelect v-model="newAssignment.feePlanId" :items="feePlanOptions" placeholder="Choose a fee plan" required /></UFormField>
@@ -75,7 +75,7 @@
           <UFormField label="Amount received" required><UInput v-model.number="paymentForm.amount" type="number" min="0.01" step="0.01" placeholder="0.00" required /></UFormField>
           <UFormField label="Payment received on" required><UInput v-model="paymentForm.paymentDate" type="date" required /></UFormField>
           <UFormField label="Fee period covered" required><UInput v-model="paymentForm.billingPeriod" type="month" required /></UFormField>
-          <UFormField label="Payment method" required><USelect v-model="paymentForm.method" :items="paymentMethods" required /></UFormField>
+          <UFormField label="Payment method" required><USelect v-model="paymentForm.method" :items="paymentMethods" class="min-w-40" :ui="{ content: 'min-w-40' }" required /></UFormField>
           <UFormField label="Reference"><UInput v-model="paymentForm.referenceNumber" placeholder="Optional reference" /></UFormField>
           <div class="self-end xl:col-span-2"><UButton type="submit" class="w-full" :loading="recordingPayment">Save payment</UButton></div>
         </form>
@@ -356,6 +356,7 @@ async function downloadReceipt(payment: any) {
 
 async function downloadFeeReport() {
   if (downloadingReport.value) return
+  const preview = window.open('', '_blank')
   downloadingReport.value = true
   try {
     const params = new URLSearchParams()
@@ -365,15 +366,12 @@ async function downloadFeeReport() {
     if (!response.ok) throw new Error((await response.text()) || 'Failed to generate fee statement')
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `fee_statement_${student.value?.firstName || 'student'}_${student.value?.lastName || ''}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
-    toast.add({ color: 'success', title: 'Fee statement downloaded' })
+    if (preview) preview.location.href = url
+    else window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    toast.add({ color: 'success', title: 'Fee statement ready to preview' })
   } catch (error: any) {
+    preview?.close()
     toast.add({ color: 'error', title: 'Could not download fee statement', description: error.message })
   } finally {
     downloadingReport.value = false

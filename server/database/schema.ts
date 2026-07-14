@@ -61,6 +61,7 @@ export const dojos = pgTable('dojos', (t) => ({
   address: t.text(),
   phone: t.text(),
   email: t.text(),
+  defaultFeePlanId: t.integer('default_fee_plan_id').references(() => feePlans.id, { onDelete: 'set null' }),
   createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
@@ -246,9 +247,11 @@ export const studentAchievements = pgTable('student_achievements', (t) => ({
   startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
   endDate: t.timestamp('end_date', { withTimezone: true }),
   eventType: t.text('event_type'),
+  beltDivision: t.text('belt_division').default('colour'),
   ageCategory: t.text('age_category'),
   weightCategory: t.text('weight_category'),
   result: t.text(),
+  placeSecured: t.integer('place_secured'),
   medalType: t.text('medal_type'),
   medalsWon: t.integer('medals_won').notNull().default(0),
   certificateUrl: t.text('certificate_url'),
@@ -495,6 +498,7 @@ export const studentFeeAssignments = pgTable('student_fee_assignments', (t) => (
   endDate: t.timestamp({ withTimezone: true }),
   dueDay: t.integer('due_day').default(1), // day of month (1-28)
   discount: t.integer('discount').default(0), // discount amount in same currency unit
+  discountReason: t.text('discount_reason'),
   status: t.text({ enum: ['active', 'expired', 'cancelled'] }).default('active'),
   createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
@@ -506,6 +510,7 @@ export const payments = pgTable('payments', (t) => ({
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   assignmentId: t.integer('assignment_id').references(() => studentFeeAssignments.id, { onDelete: 'set null' }),
   amount: t.integer('amount').notNull(),
+  discountAmount: t.integer('discount_amount').notNull().default(0),
   paymentDate: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   billingPeriod: t.text('billing_period'), // YYYY-MM fee period covered by this payment
   method: t.text({ enum: ['cash', 'bank_transfer', 'card', 'other'] }).default('cash'),

@@ -1,0 +1,3 @@
+import { and, eq } from 'drizzle-orm'
+import { db, tables } from '../../../../utils/database'
+export default defineEventHandler(async event => { const session = await getUserSession(event); if (!session?.user?.organizationId) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' }); const [entry] = await db.delete(tables.studentAchievements).where(and(eq(tables.studentAchievements.id, Number(getRouterParam(event, 'entryId'))), eq(tables.studentAchievements.tournamentId, Number(getRouterParam(event, 'id'))), eq(tables.studentAchievements.organizationId, session.user.organizationId))).returning(); if (!entry) throw createError({ statusCode: 404, statusMessage: 'Entry not found' }); return { success: true } })

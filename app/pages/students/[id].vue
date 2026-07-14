@@ -117,15 +117,18 @@
           <UCard>
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div><p class="text-sm font-semibold text-primary">SHAREABLE RECORD</p><h3 class="mt-1 font-semibold">Fee history statement</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Download a professional payment history and current balance to share with the student or guardian.</p></div>
-              <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="statementFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="statementTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-download" :loading="downloadingStatement" @click="downloadFeeStatement">Download PDF</UButton></div></div>
+              <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="statementFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="statementTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-eye" :loading="downloadingStatement" @click="downloadFeeStatement">Preview PDF</UButton></div></div>
             </div>
           </UCard>
           <UCard>
-            <template #header><div class="flex items-center justify-between"><h3 class="font-semibold">Fee assignments</h3><UButton :to="`/fees?id=${studentId}`" size="sm" color="primary">Manage</UButton></div></template>
+            <template #header><div><h3 class="font-semibold">Fee plan & recurring discount</h3><p class="mt-1 text-sm text-slate-500">Set the student’s plan and approved recurring discount here.</p></div></template>
+            <form class="mb-5 grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-slate-800" @submit.prevent="saveFeeAssignment">
+              <UFormField label="Fee plan" required><USelect v-model="feeAssignmentForm.feePlanId" :items="feePlanOptions" :disabled="!!editingAssignmentId" class="min-w-52" :ui="{ content: 'min-w-52' }" required /></UFormField><UFormField label="Start date" required><UInput v-model="feeAssignmentForm.startDate" type="date" required /></UFormField><UFormField label="Recurring discount"><UInput v-model.number="feeAssignmentForm.discount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField><UFormField label="Discount reason" :required="feeAssignmentForm.discount > 0"><UInput v-model="feeAssignmentForm.discountReason" placeholder="Required when discounted" /></UFormField><div class="flex gap-2 sm:col-span-2 lg:col-span-4"><UButton type="submit" :loading="savingFeeAssignment">{{ editingAssignmentId ? 'Save fee terms' : 'Assign fee plan' }}</UButton><UButton v-if="editingAssignmentId" type="button" color="neutral" variant="ghost" @click="resetFeeAssignmentForm">Cancel</UButton></div>
+            </form>
             <div v-if="feeAssignments.length" class="overflow-x-auto">
               <table class="min-w-full text-sm">
-                <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400 dark:border-slate-800"><tr><th class="px-3 py-3">Plan</th><th class="px-3 py-3">Net amount</th><th class="px-3 py-3">Outstanding</th><th class="px-3 py-3">Status</th></tr></thead>
-                <tbody><tr v-for="assignment in feeAssignments" :key="assignment.id" class="border-b border-slate-100 last:border-0 dark:border-slate-800"><td class="px-3 py-4 font-medium">{{ assignment.feePlan?.name }}</td><td class="px-3 py-4">{{ formatCurrency(assignment.netAmount) }}</td><td class="px-3 py-4" :class="assignment.outstanding > 0 ? 'font-medium text-amber-600 dark:text-amber-400' : ''">{{ formatCurrency(assignment.outstanding) }}</td><td class="px-3 py-4"><UBadge :color="assignment.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ assignment.status }}</UBadge></td></tr></tbody>
+                <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400 dark:border-slate-800"><tr><th class="px-3 py-3">Plan</th><th class="px-3 py-3">Discount</th><th class="px-3 py-3">Net amount</th><th class="px-3 py-3">Outstanding</th><th class="px-3 py-3">Status</th><th></th></tr></thead>
+                <tbody><tr v-for="assignment in feeAssignments" :key="assignment.id" class="border-b border-slate-100 last:border-0 dark:border-slate-800"><td class="px-3 py-4 font-medium">{{ assignment.feePlan?.name }}</td><td class="px-3 py-4"><p>{{ formatCurrency(assignment.discount || 0) }}</p><p class="mt-1 text-xs text-slate-400">{{ assignment.discountReason || '—' }}</p></td><td class="px-3 py-4">{{ formatCurrency(assignment.netAmount) }}</td><td class="px-3 py-4" :class="assignment.outstanding > 0 ? 'font-medium text-amber-600 dark:text-amber-400' : ''">{{ formatCurrency(assignment.outstanding) }}</td><td class="px-3 py-4"><UBadge :color="assignment.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ assignment.status }}</UBadge></td><td><UButton size="xs" variant="ghost" @click="editFeeAssignment(assignment)">Edit</UButton></td></tr></tbody>
               </table>
             </div>
             <EmptyState v-else icon="i-lucide-wallet-cards" message="No fee plan is assigned to this student." />
@@ -250,13 +253,17 @@ const tabs = [
 
 const { data: student, pending, error, refresh: refreshStudent } = await useFetch<any>(`/api/students/${studentId}`)
 const { data: attendanceData } = await useAsyncData(`student-${studentId}-attendance`, () => $fetch<any>(`/api/students/${studentId}/attendance`))
-const { data: feeAssignmentData } = await useAsyncData(`student-${studentId}-fee-assignments`, () => $fetch<any[]>(`/api/students/${studentId}/fee-assignments`))
+const { data: feeAssignmentData, refresh: refreshFeeAssignments } = await useAsyncData(`student-${studentId}-fee-assignments`, () => $fetch<any[]>(`/api/students/${studentId}/fee-assignments`))
 const { data: paymentData } = await useAsyncData(`student-${studentId}-payments`, () => $fetch<any[]>(`/api/students/${studentId}/payments`))
 const { data: guardianData, refresh: refreshGuardians } = await useAsyncData(`student-${studentId}-guardians`, () => $fetch<any[]>(`/api/students/${studentId}/guardians`))
 const { data: documentData, refresh: refreshDocuments } = await useAsyncData(`student-${studentId}-documents`, () => $fetch<any[]>(`/api/students/${studentId}/documents`))
 const { data: gradingData, refresh: refreshGradings } = await useAsyncData(`student-${studentId}-gradings`, () => $fetch<any[]>(`/api/students/${studentId}/gradings`))
 const { data: achievementData, refresh: refreshAchievements } = await useAsyncData(`student-${studentId}-achievements`, () => $fetch<any[]>(`/api/students/${studentId}/achievements`))
 const { data: beltRankData } = await useFetch<any[]>('/api/belt-ranks')
+const { data: feePlanData } = await useFetch<any[]>('/api/fee-plans')
+const savingFeeAssignment = ref(false)
+const editingAssignmentId = ref<number | null>(null)
+const feeAssignmentForm = reactive({ feePlanId: null as number | null, startDate: new Date().toISOString().slice(0, 10), discount: 0, discountReason: '' })
 
 const attendance = computed(() => attendanceData.value || { records: [] })
 const feeAssignments = computed(() => feeAssignmentData.value || [])
@@ -266,8 +273,13 @@ const documents = computed(() => documentData.value || [])
 const gradings = computed(() => gradingData.value || [])
 const achievements = computed(() => achievementData.value || [])
 const beltRankOptions = computed(() => (beltRankData.value || []).map(rank => ({ label: rank.name, value: rank.id })))
+const feePlanOptions = computed(() => (feePlanData.value || []).filter((plan: any) => plan.isActive).map((plan: any) => ({ label: `${plan.name} (${formatCurrency(plan.amount)})`, value: plan.id })))
 const studentName = computed(() => student.value ? `${student.value.firstName} ${student.value.lastName}` : '')
 const initials = computed(() => studentName.value.split(' ').map((name: string) => name[0]).join('').slice(0, 2))
+
+function resetFeeAssignmentForm() { Object.assign(feeAssignmentForm, { feePlanId: null, startDate: new Date().toISOString().slice(0, 10), discount: 0, discountReason: '' }); editingAssignmentId.value = null }
+function editFeeAssignment(assignment: any) { editingAssignmentId.value = assignment.id; Object.assign(feeAssignmentForm, { feePlanId: assignment.feePlanId, startDate: new Date(assignment.startDate).toISOString().slice(0, 10), discount: (assignment.discount || 0) / 100, discountReason: assignment.discountReason || '' }) }
+async function saveFeeAssignment() { if (!editingAssignmentId.value && !feeAssignmentForm.feePlanId) return; if (feeAssignmentForm.discount > 0 && !feeAssignmentForm.discountReason.trim()) { toast.add({ color: 'warning', title: 'Enter a discount reason' }); return }; savingFeeAssignment.value = true; try { const body = editingAssignmentId.value ? { discount: Math.round(feeAssignmentForm.discount * 100), discountReason: feeAssignmentForm.discountReason || null } : { feePlanId: feeAssignmentForm.feePlanId, startDate: feeAssignmentForm.startDate, discount: Math.round(feeAssignmentForm.discount * 100), discountReason: feeAssignmentForm.discountReason || undefined }; await $fetch(editingAssignmentId.value ? `/api/students/${studentId}/fee-assignments/${editingAssignmentId.value}` : `/api/students/${studentId}/fee-assignments`, { method: editingAssignmentId.value ? 'PATCH' : 'POST', body }); await refreshFeeAssignments(); resetFeeAssignmentForm(); toast.add({ color: 'success', title: 'Fee terms saved' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not save fee terms', description: error.data?.statusMessage || error.message }) } finally { savingFeeAssignment.value = false } }
 
 function formatDate(value?: number | string | null) {
   return value ? new Date(value).toLocaleDateString() : 'Not provided'
@@ -283,6 +295,7 @@ function attendanceColor(status: string) {
 
 async function downloadFeeStatement() {
   if (downloadingStatement.value) return
+  const preview = window.open('', '_blank')
   downloadingStatement.value = true
   try {
     const params = new URLSearchParams()
@@ -292,14 +305,11 @@ async function downloadFeeStatement() {
     if (!response.ok) throw new Error((await response.text()) || 'Failed to generate fee statement')
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `fee_statement_${studentName.value.replaceAll(' ', '_')}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    if (preview) preview.location.href = url
+    else window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   } catch (error: any) {
+    preview?.close()
     toast.add({ color: 'error', title: 'Could not download fee statement', description: error.message })
   } finally {
     downloadingStatement.value = false
@@ -308,20 +318,18 @@ async function downloadFeeStatement() {
 
 async function downloadAttendanceReport() {
   if (downloadingAttendanceReport.value) return
+  const preview = window.open('', '_blank')
   downloadingAttendanceReport.value = true
   try {
     const response = await fetch(`/api/reports/attendance/student/${studentId}`)
     if (!response.ok) throw new Error((await response.text()) || 'Failed to generate attendance report')
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = `attendance_${studentName.value.replaceAll(' ', '_')}.pdf`
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    setTimeout(() => URL.revokeObjectURL(url), 5000)
+    if (preview) preview.location.href = url
+    else window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   } catch (error: any) {
+    preview?.close()
     toast.add({ color: 'error', title: 'Could not download attendance report', description: error.message })
   } finally {
     downloadingAttendanceReport.value = false

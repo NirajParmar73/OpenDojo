@@ -22,6 +22,12 @@
         <UFormField label="Date of birth">
           <UInput v-model="newStudent.dateOfBirth" type="date" />
         </UFormField>
+        <UFormField label="Date joined" required>
+          <UInput v-model="newStudent.joinedAt" type="date" required />
+        </UFormField>
+        <UCheckbox v-if="newStudent.dojoId" v-model="newStudent.autoAssignDefaultFeePlan" label="Assign this dojo's default fee plan" class="self-end" />
+        <UFormField v-if="newStudent.dojoId && newStudent.autoAssignDefaultFeePlan" label="Recurring discount"><UInput v-model.number="newStudent.initialDiscount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField>
+        <UFormField v-if="newStudent.dojoId && newStudent.autoAssignDefaultFeePlan && newStudent.initialDiscount" label="Discount reason" required><UInput v-model="newStudent.discountReason" placeholder="e.g. Sibling discount" required /></UFormField>
         <UFormField label="Gender"><USelect v-model="newStudent.gender" :items="genderOptions" placeholder="Optional" /></UFormField>
         <UFormField label="Emergency contact"><UInput v-model="newStudent.emergencyContact" /></UFormField>
         <UFormField label="Emergency phone"><UInput v-model="newStudent.emergencyPhone" /></UFormField>
@@ -64,6 +70,8 @@
                 </div>
                 <p class="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{{ student.dojo?.name || 'No dojo assigned' }}</p>
                 <p class="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{{ student.email || student.phone || 'No contact details' }}</p>
+                <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Born: {{ formatDate(student.dateOfBirth) }}<span v-if="student.dateOfBirth"> · {{ ageLabel(student.dateOfBirth) }}</span></p>
+                <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Joined: {{ formatDate(student.joinedAt) }}</p>
               </div>
             </div>
             <div class="mt-4 flex gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
@@ -76,17 +84,19 @@
         </div>
 
         <div class="hidden overflow-x-auto md:block">
-          <table class="min-w-full text-sm">
+          <table class="min-w-[1120px] text-sm">
             <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400 dark:border-slate-800">
-              <tr><th class="px-3 py-3">Student</th><th class="px-3 py-3">Dojo</th><th class="px-3 py-3">Rank</th><th class="px-3 py-3">Contact</th><th class="px-3 py-3">Status</th><th class="px-3 py-3 text-right">Actions</th></tr>
+              <tr><th class="sticky left-0 z-20 bg-slate-50 px-3 py-3 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.45)] dark:bg-slate-950">Student</th><th class="px-3 py-3">Dojo</th><th class="px-3 py-3">Rank</th><th class="px-3 py-3">Contact</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Date of birth / age</th><th class="px-3 py-3">Date joined</th><th class="px-3 py-3 text-right">Actions</th></tr>
             </thead>
             <tbody>
               <tr v-for="student in filteredStudents" :key="student.id" class="border-b border-slate-100 last:border-0 dark:border-slate-800">
-                <td class="px-3 py-4"><div class="flex items-center gap-3"><StudentAvatar :student="student" size="sm" /><NuxtLink :to="`/students/${student.id}`" class="font-medium hover:text-primary">{{ student.firstName }} {{ student.lastName }}</NuxtLink></div></td>
+                <td class="sticky left-0 z-10 bg-white px-3 py-4 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.45)] dark:bg-slate-900"><div class="flex items-center gap-3"><StudentAvatar :student="student" size="sm" /><NuxtLink :to="`/students/${student.id}`" class="font-medium hover:text-primary">{{ student.firstName }} {{ student.lastName }}</NuxtLink></div></td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ student.dojo?.name || '—' }}</td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ student.currentBeltRank?.name || '—' }}</td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300"><p>{{ student.email || '—' }}</p><p class="mt-1 text-xs text-slate-400">{{ student.phone || '' }}</p></td>
                 <td class="px-3 py-4"><UBadge :color="student.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ student.status }}</UBadge></td>
+                <td class="px-3 py-4 text-slate-600 dark:text-slate-300"><p>{{ formatDate(student.dateOfBirth) }}</p><p v-if="student.dateOfBirth" class="mt-1 text-xs text-slate-400">{{ ageLabel(student.dateOfBirth) }}</p></td>
+                <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ formatDate(student.joinedAt) }}</td>
                 <td class="px-3 py-4"><div class="flex justify-end gap-1"><UButton :to="`/fees?id=${student.id}`" size="xs" color="primary" variant="soft">Record fee</UButton><UButton :to="`/students/${student.id}`" size="xs" color="neutral" variant="ghost">Profile</UButton><UButton :to="`/students/${student.id}/edit`" size="xs" color="neutral" variant="ghost">Edit</UButton><UButton size="xs" color="error" variant="ghost" @click="archiveStudent(student)">Archive</UButton></div></td>
               </tr>
             </tbody>
@@ -125,7 +135,8 @@ const genderOptions = [
   { label: 'Other', value: 'other' },
 ]
 
-const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, email: '', phone: '', dateOfBirth: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '' })
+const today = new Date().toISOString().slice(0, 10)
+const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, autoAssignDefaultFeePlan: true, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '' })
 
 const dojoOptions = computed(() => dojos.value.map(dojo => ({ label: dojo.name, value: dojo.id })))
 const filteredStudents = computed(() => {
@@ -138,8 +149,23 @@ const filteredStudents = computed(() => {
 })
 
 function resetCreateForm() {
-  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, email: '', phone: '', dateOfBirth: '', gender: undefined, emergencyContact: '', emergencyPhone: '' })
+  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), autoAssignDefaultFeePlan: true, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '' })
   showCreate.value = false
+}
+
+function formatDate(value?: string | null) {
+  if (!value) return '—'
+  return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value))
+}
+
+function ageLabel(dateOfBirth: string) {
+  const birthDate = new Date(dateOfBirth)
+  const today = new Date()
+  let age = today.getUTCFullYear() - birthDate.getUTCFullYear()
+  const birthdayHasPassed = today.getUTCMonth() > birthDate.getUTCMonth()
+    || (today.getUTCMonth() === birthDate.getUTCMonth() && today.getUTCDate() >= birthDate.getUTCDate())
+  if (!birthdayHasPassed) age -= 1
+  return `${Math.max(0, age)} years old`
 }
 
 function toggleCreateForm() {
@@ -165,7 +191,7 @@ async function createStudent() {
   try {
     const response = await $fetch('/api/students', {
       method: 'POST',
-      body: { ...newStudent, email: newStudent.email || null, phone: newStudent.phone || null, dateOfBirth: newStudent.dateOfBirth || null, gender: newStudent.gender || null, emergencyContact: newStudent.emergencyContact || null, emergencyPhone: newStudent.emergencyPhone || null },
+      body: { ...newStudent, initialDiscount: Math.round((newStudent.initialDiscount || 0) * 100), discountReason: newStudent.discountReason || undefined, email: newStudent.email || null, phone: newStudent.phone || null, dateOfBirth: newStudent.dateOfBirth || null, gender: newStudent.gender || null, emergencyContact: newStudent.emergencyContact || null, emergencyPhone: newStudent.emergencyPhone || null },
     }) as any
     students.value.unshift(response.student)
     resetCreateForm()

@@ -19,7 +19,7 @@
         </UFormField>
       </div>
       <div class="mt-5 flex justify-end">
-        <UButton :disabled="!studentId" icon="i-lucide-file-down" @click="download">Download report</UButton>
+        <UButton :disabled="!studentId" icon="i-lucide-eye" @click="download">Preview report</UButton>
       </div>
     </UCard>
   </div>
@@ -75,17 +75,17 @@ watch(selectedDojoId, () => { studentId.value = null })
 
 async function download() {
   if (!studentId.value) return
+  const preview = window.open('', '_blank')
   try {
     const response = await fetch(`/api/students/${studentId.value}/progress-report`)
     if (!response.ok) throw new Error('Could not generate progress report')
     const blob = await response.blob()
     const url = URL.createObjectURL(blob)
-    const link = document.createElement('a')
-    link.href = url
-    link.download = 'student_progress_report.pdf'
-    link.click()
-    URL.revokeObjectURL(url)
+    if (preview) preview.location.href = url
+    else window.open(url, '_blank')
+    setTimeout(() => URL.revokeObjectURL(url), 60_000)
   } catch (error: any) {
+    preview?.close()
     toast.add({ color: 'error', title: 'Could not download report', description: error.message })
   }
 }

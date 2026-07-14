@@ -9,6 +9,7 @@ const updateDojoSchema = z.object({
   address: z.string().optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
+  defaultFeePlanId: z.number().int().positive().nullable().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -44,6 +45,10 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Invalid node ID' })
     }
     await assertNodeManagementAccess(session.user.id, session.user.organizationId!, body.nodeId)
+  }
+  if (body.defaultFeePlanId) {
+    const plan = await db.query.feePlans.findFirst({ where: and(eq(tables.feePlans.id, body.defaultFeePlanId), eq(tables.feePlans.organizationId, session.user.organizationId!)) })
+    if (!plan) throw createError({ statusCode: 400, statusMessage: 'Invalid default fee plan' })
   }
 
   const [updated] = await db.update(tables.dojos)

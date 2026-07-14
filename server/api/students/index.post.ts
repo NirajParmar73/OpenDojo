@@ -12,6 +12,7 @@ const createStudentSchema = z.object({
   email: z.string().email().optional().nullable(),
   phone: z.string().optional().nullable(),
   dateOfBirth: z.string().optional().nullable(),
+  joinedAt: z.string().date().optional(),
   gender: z.enum(['male', 'female', 'other']).optional().nullable(),
   address: z.string().optional().nullable(),
   emergencyContact: z.string().optional().nullable(),
@@ -21,7 +22,10 @@ const createStudentSchema = z.object({
   // ✅ new fields
   avatar: z.string().nullable().optional(),
   currentBeltRankId: z.number().int().positive().nullable().optional(),
-})
+  autoAssignDefaultFeePlan: z.boolean().default(true),
+  initialDiscount: z.number().int().nonnegative().default(0),
+  discountReason: z.string().trim().max(500).optional(),
+}).refine(body => body.initialDiscount === 0 || !!body.discountReason, { message: 'A discount reason is required', path: ['discountReason'] })
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -81,11 +85,29 @@ export default defineEventHandler(async (event) => {
   if (body.dateOfBirth) {
     data.dateOfBirth = new Date(body.dateOfBirth)
   }
+  if (body.joinedAt) {
+    data.joinedAt = new Date(`${body.joinedAt}T00:00:00.000Z`)
+  }
 
   const [student] = await db.insert(tables.students).values(data).returning() as any[]
 
   if (!student) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create student' })
+  }
+
+  if (body.autoAssignDefaultFeePlan && student.dojoId) {
+    const dojo = await db.query.dojos.findFirst({ where: eq(tables.dojos.id, student.dojoId) })
+    if (dojo?.defaultFeePlanId) {
+      await db.insert(tables.studentFeeAssignments).values({
+        studentId: student.id,
+        feePlanId: dojo.defaultFeePlanId,
+        startDate: student.joinedAt,
+        dueDay: Math.min(Math.max(new Date(student.joinedAt).getDate(), 1), 28),
+        discount: body.initialDiscount,
+        discountReason: body.initialDiscount ? body.discountReason : null,
+        status: 'active',
+      })
+    }
   }
 
   // Fetch the full student with relations (dojo, belt)

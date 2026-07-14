@@ -64,6 +64,13 @@
           </div>
           <UIcon name="i-lucide-chevron-right" class="h-4 w-4 text-slate-400" />
         </NuxtLink>
+        <button
+          class="mt-2 flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 transition hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-red-950/30 dark:hover:text-red-300"
+          @click="logout"
+        >
+          <UIcon name="i-lucide-log-out" class="h-4 w-4" />
+          Sign out
+        </button>
       </div>
     </aside>
 
@@ -144,6 +151,8 @@ const allNavigation = [
     items: [
       { label: 'Dojos & schedules', to: '/dojos', icon: 'i-lucide-building-2' },
       { label: 'Attendance', to: '/attendance', icon: 'i-lucide-calendar-check-2' },
+      { label: 'Tournaments', to: '/tournaments', icon: 'i-lucide-trophy' },
+      { label: 'Tournament results', to: '/tournament-results', icon: 'i-lucide-medal' },
     ],
   },
   {
@@ -151,6 +160,7 @@ const allNavigation = [
     items: [
       { label: 'Record payment', to: '/fees', icon: 'i-lucide-circle-dollar-sign' },
       { label: 'Collections overview', to: '/finance', icon: 'i-lucide-chart-no-axes-combined' },
+      { label: 'Pending fees', to: '/finance/pending-fees', icon: 'i-lucide-clock-alert' },
       { label: 'Expenses', to: '/finance/expenses', icon: 'i-lucide-receipt-indian-rupee' },
       { label: 'Fee plans', to: '/settings/finance/fee-plans', icon: 'i-lucide-wallet-cards' },
     ],
@@ -172,12 +182,23 @@ const allNavigation = [
     ],
   },
 ]
-const navigation = computed(() => allNavigation.map(section => {
+const navigation = computed(() => {
+  // A platform-owner session is intentionally kept out of customer workspace
+  // operations. Organization members retain the full dojo navigation below.
+  const items = user.value?.isPlatformAdmin
+    ? [
+        { label: 'Platform', items: [{ label: 'Platform console', to: '/platform', icon: 'i-lucide-shield-check' }] },
+        { label: 'Account', items: [{ label: 'Your profile', to: '/profile', icon: 'i-lucide-user-round' }] },
+      ]
+    : allNavigation
+  return items.map(section => {
   if (section.label === 'Organization' && user.value?.role !== 'owner') return { ...section, items: section.items.filter(item => ['/settings/hierarchy/nodes', '/settings/affiliations', '/settings/audit-log'].includes(item.to)) }
   return section
-}).filter(section => section.items.length > 0))
+  }).filter(section => section.items.length > 0)
+})
 
 const pageMeta: Record<string, { title: string, section: string }> = {
+  '/platform': { title: 'Platform console', section: 'Platform' },
   '/': { title: 'Dashboard', section: 'Workspace' },
   '/profile': { title: 'Your profile', section: 'Account' },
   '/students': { title: 'Students', section: 'People' },
@@ -185,6 +206,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/users/instructors': { title: 'Instructors', section: 'People' },
   '/dojos': { title: 'Dojos & schedules', section: 'Operations' },
   '/attendance': { title: 'Attendance', section: 'Operations' },
+  '/tournaments': { title: 'Tournament management', section: 'Operations' },
   '/reports/attendance': { title: 'Attendance reports', section: 'Insights' },
   '/reports': { title: 'Reports', section: 'Insights' },
   '/reports/finance': { title: 'Revenue & expense report', section: 'Insights' },
@@ -195,6 +217,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/settings/finance/fee-plans': { title: 'Fee plans', section: 'Finance' },
   '/fees': { title: 'Record payment', section: 'Finance' },
   '/finance': { title: 'Collections overview', section: 'Finance' },
+  '/finance/pending-fees': { title: 'Pending fees', section: 'Finance' },
   '/finance/expenses': { title: 'Expenses', section: 'Finance' },
   '/settings/hierarchy/nodes': { title: 'Hierarchy', section: 'Organization' },
   '/settings/hierarchy/levels': { title: 'Hierarchy levels', section: 'Organization' },

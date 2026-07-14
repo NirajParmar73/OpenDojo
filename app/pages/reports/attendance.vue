@@ -29,7 +29,7 @@
         </div>
 
         <UButton type="submit" :loading="generating" color="primary">
-          Generate & Download PDF
+          Preview PDF
         </UButton>
       </form>
     </UCard>
@@ -110,6 +110,7 @@ async function generateReport() {
   }
 
   generating.value = true
+  const preview = window.open('', '_blank')
   downloadUrl.value = ''
   try {
     const params = new URLSearchParams()
@@ -124,8 +125,11 @@ async function generateReport() {
     }
     const blob = await response.blob()
     downloadUrl.value = URL.createObjectURL(blob)
-    toast.add({ color: 'success', title: 'Report ready to download' })
+    if (preview) preview.location.href = downloadUrl.value
+    else window.open(downloadUrl.value, '_blank')
+    toast.add({ color: 'success', title: 'Report ready to preview' })
   } catch (error: any) {
+    preview?.close()
     toast.add({ color: 'error', title: 'Generation failed', description: error.message })
   } finally {
     generating.value = false
@@ -134,18 +138,7 @@ async function generateReport() {
 
 function downloadReport() {
   if (downloadUrl.value) {
-    const a = document.createElement('a')
-    a.href = downloadUrl.value
-    const student = students.value.find((s: any) => s.id === selectedStudentId.value)
-    const name = student ? `${student.firstName}_${student.lastName}` : 'report'
-    a.download = `attendance_${name}.pdf`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    setTimeout(() => {
-      URL.revokeObjectURL(downloadUrl.value)
-      downloadUrl.value = ''
-    }, 5000)
+    window.open(downloadUrl.value, '_blank')
   }
 }
 

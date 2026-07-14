@@ -19,6 +19,7 @@
         <UFormField label="Email"><UInput v-model="form.email" type="email" /></UFormField>
         <UFormField label="Phone"><UInput v-model="form.phone" /></UFormField>
         <UFormField label="Date of birth"><UInput v-model="form.dateOfBirth" type="date" /></UFormField>
+        <UFormField label="Date joined" required><UInput v-model="form.joinedAt" type="date" required /></UFormField>
         <UFormField label="Gender"><USelect v-model="form.gender" :items="genderOptions" placeholder="Not specified" /></UFormField>
         <UFormField label="Address" class="md:col-span-2"><UInput v-model="form.address" /></UFormField>
         <UFormField label="Emergency contact"><UInput v-model="form.emergencyContact" /></UFormField>
@@ -38,7 +39,7 @@ const router = useRouter()
 const toast = useToast()
 const studentId = Number(route.params.id)
 const saving = ref(false)
-const form = reactive({ firstName: '', lastName: '', dojoId: null as number | null, status: 'active', email: '', phone: '', dateOfBirth: '', gender: undefined as string | undefined, address: '', emergencyContact: '', emergencyPhone: '', medicalNotes: '' })
+const form = reactive({ firstName: '', lastName: '', dojoId: null as number | null, status: 'active', email: '', phone: '', dateOfBirth: '', joinedAt: '', gender: undefined as string | undefined, address: '', emergencyContact: '', emergencyPhone: '', medicalNotes: '' })
 const statusOptions = [{ label: 'Active', value: 'active' }, { label: 'Inactive', value: 'inactive' }, { label: 'Archived', value: 'archived' }]
 const genderOptions = [{ label: 'Male', value: 'male' }, { label: 'Female', value: 'female' }, { label: 'Other', value: 'other' }]
 
@@ -56,6 +57,7 @@ watchEffect(() => {
     email: student.value.email || '',
     phone: student.value.phone || '',
     dateOfBirth: student.value.dateOfBirth ? new Date(student.value.dateOfBirth).toISOString().slice(0, 10) : '',
+    joinedAt: student.value.joinedAt ? new Date(student.value.joinedAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
     gender: student.value.gender || undefined,
     address: student.value.address || '',
     emergencyContact: student.value.emergencyContact || '',

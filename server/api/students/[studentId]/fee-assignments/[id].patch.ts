@@ -7,6 +7,7 @@ const updateAssignmentSchema = z.object({
   endDate: z.string().optional().nullable(),
   dueDay: z.number().int().min(1).max(28).optional(),
   discount: z.number().int().min(0).optional(),
+  discountReason: z.string().trim().max(500).nullable().optional(),
   status: z.enum(['active', 'expired', 'cancelled']).optional(),
 })
 
@@ -58,6 +59,7 @@ export default defineEventHandler(async (event) => {
   if (body.endDate !== undefined) updateData.endDate = body.endDate ? new Date(body.endDate) : null
   if (body.dueDay !== undefined) updateData.dueDay = body.dueDay
   if (body.discount !== undefined) updateData.discount = body.discount
+  if (body.discountReason !== undefined) updateData.discountReason = body.discountReason
   if (body.status !== undefined) updateData.status = body.status
   updateData.updatedAt = new Date()
 

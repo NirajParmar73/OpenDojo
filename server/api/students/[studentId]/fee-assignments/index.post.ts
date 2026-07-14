@@ -9,7 +9,8 @@ const createAssignmentSchema = z.object({
   endDate: z.string().optional().nullable(),
   dueDay: z.number().int().min(1).max(28).default(1),
   discount: z.number().int().min(0).default(0),
-})
+  discountReason: z.string().trim().max(500).optional(),
+}).refine(body => body.discount === 0 || !!body.discountReason, { message: 'A discount reason is required', path: ['discountReason'] })
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -61,6 +62,7 @@ export default defineEventHandler(async (event) => {
     endDate: body.endDate ? new Date(body.endDate) : null,
     dueDay: body.dueDay,
     discount: body.discount,
+    discountReason: body.discount ? body.discountReason : null,
     status: 'active',
   }).returning() as any[]
 

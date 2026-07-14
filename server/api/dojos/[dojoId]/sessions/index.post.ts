@@ -55,7 +55,9 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // If instructorId provided, verify it belongs to organization and has instructor role
+  // The dojo roster is the source of truth for who can teach a class here.
+  // A person can be an organization admin (or hierarchy head) and still be an
+  // assigned instructor for a specific dojo.
   if (body.instructorId) {
     const instructor = await db.query.users.findFirst({
       where: and(
@@ -66,8 +68,15 @@ export default defineEventHandler(async (event) => {
     if (!instructor) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid instructor' })
     }
-    if (!['owner', 'instructor', 'dojo_head'].includes(instructor.role)) {
-      throw createError({ statusCode: 400, statusMessage: 'User is not an instructor' })
+    const rosterAssignment = await db.query.dojoInstructors.findFirst({
+      where: and(
+        eq(tables.dojoInstructors.dojoId, Number(dojoId)),
+        eq(tables.dojoInstructors.userId, body.instructorId),
+        eq(tables.dojoInstructors.isActive, 1)
+      ),
+    })
+    if (!rosterAssignment && instructor.role !== 'owner') {
+      throw createError({ statusCode: 400, statusMessage: 'Select an active instructor assigned to this dojo' })
     }
   }
 
