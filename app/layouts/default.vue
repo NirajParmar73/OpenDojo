@@ -168,7 +168,7 @@ const allNavigation = [
   },
   {
     label: 'Insights',
-    items: [{ label: 'Reports', to: '/reports', icon: 'i-lucide-file-chart-column' }, { label: 'Student progress', to: '/reports/student-progress', icon: 'i-lucide-file-badge' }, { label: 'Attendance reports', to: '/reports/attendance', icon: 'i-lucide-chart-no-axes-column-increasing' }, { label: 'Tournament achievements', to: '/reports/tournaments', icon: 'i-lucide-trophy' }, { label: 'Revenue & expenses', to: '/reports/finance', icon: 'i-lucide-chart-no-axes-combined' }],
+    items: [{ label: 'Reports', to: '/reports', icon: 'i-lucide-file-chart-column' }, { label: 'Student progress', to: '/reports/student-progress', icon: 'i-lucide-file-badge' }, { label: 'Attendance reports', to: '/reports/attendance', icon: 'i-lucide-chart-no-axes-column-increasing' }, { label: 'Tournament achievements', to: '/reports/tournaments', icon: 'i-lucide-trophy' }, { label: 'Certificates awarded', to: '/certificates', icon: 'i-lucide-file-badge-2' }, { label: 'Revenue & expenses', to: '/reports/finance', icon: 'i-lucide-chart-no-axes-combined' }],
   },
   {
     label: 'Organization',
@@ -194,6 +194,7 @@ const navigation = computed(() => {
     : allNavigation
   return items.map(section => {
   if (section.label === 'Organization' && user.value?.role !== 'owner') return { ...section, items: section.items.filter(item => ['/settings/hierarchy/nodes', '/settings/affiliations', '/settings/audit-log'].includes(item.to)) }
+  if (section.label === 'Insights' && !['owner', 'admin'].includes(user.value?.role || '')) return { ...section, items: section.items.filter(item => item.to !== '/certificates') }
   return section
   }).filter(section => section.items.length > 0)
 })
@@ -213,6 +214,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/reports/finance': { title: 'Revenue & expense report', section: 'Insights' },
   '/reports/student-progress': { title: 'Student progress report', section: 'Insights' },
   '/reports/tournaments': { title: 'Tournament achievement reports', section: 'Insights' },
+  '/certificates': { title: 'Certificates awarded', section: 'Insights' },
   '/settings': { title: 'Organization settings', section: 'Organization' },
   '/settings/subscription': { title: 'Plan & billing', section: 'Organization' },
   '/settings/finance/fee-plans': { title: 'Fee plans', section: 'Finance' },

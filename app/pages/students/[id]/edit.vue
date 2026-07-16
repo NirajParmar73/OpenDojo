@@ -28,6 +28,16 @@
         <div class="flex justify-end gap-3 pt-2 md:col-span-2"><UButton :to="`/students/${studentId}`" color="neutral" variant="ghost">Cancel</UButton><UButton type="submit" color="primary" :loading="saving">Save changes</UButton></div>
       </form>
     </UCard>
+
+    <UCard v-if="!pending && !error" class="mt-6">
+      <template #header><div><h3 class="font-semibold">Fee setup</h3><p class="mt-1 text-sm text-slate-500">Assign a new fee plan or recurring discount. Existing terms remain in the student profile history.</p></div></template>
+      <form class="grid gap-4 md:grid-cols-2" @submit.prevent="assignFeePlan"><UFormField label="Fee plan" required><USelect v-model="feeForm.feePlanId" :items="feePlanOptions" placeholder="Select a fee plan" required /></UFormField><UFormField label="Effective date" required><UInput v-model="feeForm.startDate" type="date" required /></UFormField><UFormField label="Recurring discount"><UInput v-model.number="feeForm.discount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField><UFormField label="Discount reason" :required="feeForm.discount > 0"><UInput v-model="feeForm.discountReason" placeholder="Required for a discount" /></UFormField><div class="md:col-span-2"><UButton type="submit" color="primary" :loading="savingFee">Assign fee plan</UButton></div></form>
+    </UCard>
+
+    <UCard v-if="!pending && !error && ['owner', 'admin'].includes(user?.role || '')" class="mt-6">
+      <template #header><div><h3 class="font-semibold">Portal access</h3><p class="mt-1 text-sm text-slate-500">Create or reset credentials to share privately with the student. An email address is not required.</p></div></template>
+      <form class="grid gap-4 md:grid-cols-2" @submit.prevent="savePortalAccess"><UFormField label="Portal username" required><UInput v-model="portalForm.username" placeholder="e.g. akshay.patel" required /></UFormField><UFormField label="Temporary password" required><UInput v-model="portalForm.temporaryPassword" type="password" placeholder="At least 8 characters" required /></UFormField><UCheckbox v-model="portalForm.isActive" label="Portal access is active" class="md:col-span-2" /><div class="md:col-span-2"><UButton type="submit" color="primary" :loading="savingPortal">Save portal access</UButton></div></form>
+    </UCard>
   </div>
 </template>
 
@@ -37,15 +47,22 @@ definePageMeta({ middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { user } = useUserSession()
 const studentId = Number(route.params.id)
 const saving = ref(false)
+const savingFee = ref(false)
+const savingPortal = ref(false)
 const form = reactive({ firstName: '', lastName: '', dojoId: null as number | null, status: 'active', email: '', phone: '', dateOfBirth: '', joinedAt: '', gender: undefined as string | undefined, address: '', emergencyContact: '', emergencyPhone: '', medicalNotes: '' })
 const statusOptions = [{ label: 'Active', value: 'active' }, { label: 'Inactive', value: 'inactive' }, { label: 'Archived', value: 'archived' }]
 const genderOptions = [{ label: 'Male', value: 'male' }, { label: 'Female', value: 'female' }, { label: 'Other', value: 'other' }]
 
 const { data: student, pending, error } = await useFetch<any>(`/api/students/${studentId}`)
 const { data: dojos } = await useFetch<any[]>('/api/dojos')
+const { data: feePlans } = await useFetch<any[]>('/api/fee-plans')
 const dojoOptions = computed(() => (dojos.value || []).map(dojo => ({ label: dojo.name, value: dojo.id })))
+const feePlanOptions = computed(() => (feePlans.value || []).filter(plan => !plan.dojoId || plan.dojoId === form.dojoId).map(plan => ({ label: plan.name, value: plan.id })))
+const feeForm = reactive({ feePlanId: null as number | null, startDate: new Date().toISOString().slice(0, 10), discount: 0, discountReason: '' })
+const portalForm = reactive({ username: '', temporaryPassword: '', isActive: true })
 
 watchEffect(() => {
   if (!student.value) return
@@ -65,6 +82,18 @@ watchEffect(() => {
     medicalNotes: student.value.medicalNotes || '',
   })
 })
+
+async function assignFeePlan() {
+  if (!feeForm.feePlanId) return
+  if (feeForm.discount > 0 && !feeForm.discountReason.trim()) { toast.add({ color: 'warning', title: 'Enter a discount reason' }); return }
+  savingFee.value = true
+  try { await $fetch(`/api/students/${studentId}/fee-assignments`, { method: 'POST', body: { feePlanId: feeForm.feePlanId, startDate: feeForm.startDate, discount: Math.round(feeForm.discount * 100), discountReason: feeForm.discountReason || undefined } }); toast.add({ color: 'success', title: 'Fee plan assigned' }); Object.assign(feeForm, { feePlanId: null, startDate: new Date().toISOString().slice(0, 10), discount: 0, discountReason: '' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not assign fee plan', description: error.data?.statusMessage || error.message }) } finally { savingFee.value = false }
+}
+
+async function savePortalAccess() {
+  savingPortal.value = true
+  try { await $fetch(`/api/students/${studentId}/portal-account`, { method: 'POST', body: portalForm }); portalForm.temporaryPassword = ''; toast.add({ color: 'success', title: 'Portal access saved' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not save portal access', description: error.data?.statusMessage || error.message }) } finally { savingPortal.value = false }
+}
 
 async function save() {
   saving.value = true

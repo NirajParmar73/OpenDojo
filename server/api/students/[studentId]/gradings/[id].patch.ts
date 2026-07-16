@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { db, tables } from '../../../../utils/database'
 import { allowedDocumentTypes, saveUploadedFile } from '../../../../utils/upload'
 import { writeAuditLog } from '../../../../utils/audit'
+import { syncCurrentBeltRank } from '../../../../utils/gradings'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -42,8 +43,7 @@ export default defineEventHandler(async (event) => {
     updatedAt: new Date(),
   }).where(eq(tables.studentGradings.id, gradingId))
 
-  const latest = await db.query.studentGradings.findFirst({ where: eq(tables.studentGradings.studentId, studentId), orderBy: (item, { desc }) => [desc(item.awardedDate)] })
-  await db.update(tables.students).set({ currentBeltRankId: latest?.beltRankId || null, updatedAt: new Date() }).where(eq(tables.students.id, studentId))
+  await syncCurrentBeltRank(studentId)
   await writeAuditLog({ organizationId: session.user.organizationId, actorUserId: session.user.id, action: 'grading.updated', entityType: 'student_grading', entityId: gradingId, targetLabel: `${student.firstName} ${student.lastName} — ${rank.name}`, scope: student.dojoId ? { type: 'dojo', id: student.dojoId } : { type: 'organization' } })
 
   return { success: true }

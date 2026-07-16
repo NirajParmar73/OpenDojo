@@ -2,6 +2,7 @@ import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { allowedDocumentTypes, saveUploadedFile } from '../../../../utils/upload'
 import { writeAuditLog } from '../../../../utils/audit'
+import { syncCurrentBeltRank } from '../../../../utils/gradings'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -107,10 +108,7 @@ export default defineEventHandler(async (event) => {
     details: certificateNumber?.trim() ? `Certificate no. ${certificateNumber.trim()}` : null,
   })
 
-  // Update student's current belt rank
-  await db.update(tables.students)
-    .set({ currentBeltRankId: Number(beltRankId), updatedAt: new Date() })
-    .where(eq(tables.students.id, Number(studentId)))
+  await syncCurrentBeltRank(Number(studentId))
 
   return { success: true, grading }
 })

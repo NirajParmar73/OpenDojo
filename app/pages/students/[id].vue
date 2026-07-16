@@ -1,9 +1,9 @@
 <template>
-  <NuxtPage v-if="isEditRoute" />
+  <NuxtPage v-if="isChildRoute" />
   <div v-else class="mx-auto max-w-7xl">
     <div class="mb-6 flex items-center justify-between gap-3">
       <UButton to="/students" color="neutral" variant="ghost" icon="i-lucide-arrow-left">All students</UButton>
-      <div class="flex gap-2"><UButton :href="`/api/students/${studentId}/progress-report`" target="_blank" color="neutral" variant="soft" icon="i-lucide-file-down">Progress report</UButton><UButton :to="`/fees?id=${studentId}`" color="primary" variant="soft" icon="i-lucide-wallet-cards">Manage fees</UButton></div>
+      <div class="flex gap-2"><UButton v-if="['owner', 'admin'].includes(user?.role || '')" :to="`/students/${studentId}/portal-access`" color="neutral" variant="soft" icon="i-lucide-key-round">Portal access</UButton><UButton :href="`/api/students/${studentId}/progress-report`" target="_blank" color="neutral" variant="soft" icon="i-lucide-file-down">Progress report</UButton><UButton :to="`/fees?id=${studentId}`" color="primary" variant="soft" icon="i-lucide-wallet-cards">Manage fees</UButton></div>
     </div>
 
     <div v-if="pending" class="grid gap-5 lg:grid-cols-[280px_1fr]">
@@ -213,7 +213,8 @@
 definePageMeta({ middleware: 'auth' })
 
 const route = useRoute()
-const isEditRoute = computed(() => route.path.endsWith('/edit'))
+const { user } = useUserSession()
+const isChildRoute = computed(() => route.path !== `/students/${route.params.id}`)
 const toast = useToast()
 const studentId = Number(route.params.id)
 const activeTab = ref('overview')
@@ -271,6 +272,10 @@ const payments = computed(() => paymentData.value || [])
 const guardians = computed(() => guardianData.value || [])
 const documents = computed(() => documentData.value || [])
 const gradings = computed(() => gradingData.value || [])
+onMounted(() => {
+  refreshGradings()
+  refreshStudent()
+})
 const achievements = computed(() => achievementData.value || [])
 const beltRankOptions = computed(() => (beltRankData.value || []).map(rank => ({ label: rank.name, value: rank.id })))
 const feePlanOptions = computed(() => (feePlanData.value || []).filter((plan: any) => plan.isActive).map((plan: any) => ({ label: `${plan.name} (${formatCurrency(plan.amount)})`, value: plan.id })))

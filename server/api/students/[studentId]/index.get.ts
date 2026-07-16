@@ -1,6 +1,7 @@
 import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { isDojoAccessible } from '../../../utils/permissions'
+import { syncCurrentBeltRank } from '../../../utils/gradings'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -40,5 +41,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'Access denied' })
   }
 
-  return student
+  const currentBeltRankId = await syncCurrentBeltRank(Number(studentId))
+  if (currentBeltRankId === student.currentBeltRankId) return student
+  const currentBeltRank = currentBeltRankId
+    ? await db.query.beltRanks.findFirst({ where: eq(tables.beltRanks.id, currentBeltRankId) })
+    : null
+  return { ...student, currentBeltRankId, currentBeltRank }
 })

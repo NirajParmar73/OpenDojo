@@ -206,6 +206,18 @@ export const governingBodies = pgTable('governing_bodies', (t) => ({
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// Portal accounts are intentionally separate from staff users. They are created
+// by an administrator and each one is permanently linked to one student.
+export const studentPortalAccounts = pgTable('student_portal_accounts', (t) => ({
+  id: t.serial('id').primaryKey(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull().unique(),
+  username: t.text().notNull().unique(),
+  passwordHash: t.text('password_hash').notNull(),
+  isActive: t.integer('is_active').notNull().default(1),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
 // Immutable organization activity trail. Scope makes every event visible only
 // to owners or staff responsible for the relevant hierarchy territory / dojo.
 export const auditLogs = pgTable('audit_logs', (t) => ({
@@ -402,6 +414,7 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   achievements: many(studentAchievements),
   attendance: many(attendance),
   documents: many(documents),
+  portalAccounts: many(studentPortalAccounts),
   
 }))
 
@@ -587,6 +600,10 @@ export const documentsRelations = relations(documents, ({ one }) => ({
     fields: [documents.userId],
     references: [users.id],
   }),
+}))
+
+export const studentPortalAccountsRelations = relations(studentPortalAccounts, ({ one }) => ({
+  student: one(students, { fields: [studentPortalAccounts.studentId], references: [students.id] }),
 }))
 
 export const studentAchievementsRelations = relations(studentAchievements, ({ one }) => ({
