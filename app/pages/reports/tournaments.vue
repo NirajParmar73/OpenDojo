@@ -19,6 +19,7 @@
         <div><p class="text-slate-500">Level</p><p class="mt-1 font-medium">{{ selectedTournament.level }}</p></div>
         <div><p class="text-slate-500">Venue</p><p class="mt-1 font-medium">{{ selectedTournament.venue || 'Not recorded' }}</p></div>
         <div><p class="text-slate-500">Visible participants</p><p class="mt-1 font-medium">{{ selectedTournament.participants }}</p></div>
+        <div><p class="text-slate-500">Age cut-off date</p><p class="mt-1 font-medium">{{ formatDate(selectedTournament.ageCutoffDate || selectedTournament.startDate) }}</p></div>
       </div>
     </UCard>
   </div>
@@ -27,13 +28,14 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-type Tournament = { id: number, name: string, level: string, venue: string | null, startDate: string, participants: number }
+type Tournament = { id: number, name: string, level: string, venue: string | null, startDate: string, ageCutoffDate: string | null, participants: number }
 const toast = useToast()
 const selectedTournamentId = ref<number | null>(null)
 const downloading = ref(false)
 const { data: tournaments } = await useFetch<Tournament[]>('/api/reports/tournaments')
 const tournamentOptions = computed(() => (tournaments.value || []).map(tournament => ({ label: `${tournament.name} — ${tournament.level} (${new Date(tournament.startDate).toLocaleDateString('en-IN')})`, value: tournament.id })))
 const selectedTournament = computed(() => (tournaments.value || []).find(tournament => tournament.id === selectedTournamentId.value))
+function formatDate(value: string) { return new Date(value).toLocaleDateString('en-IN') }
 
 async function download() {
   if (!selectedTournamentId.value) return

@@ -1,4 +1,4 @@
-CREATE TABLE "student_portal_accounts" (
+CREATE TABLE IF NOT EXISTS "student_portal_accounts" (
   "id" serial PRIMARY KEY NOT NULL,
   "student_id" integer NOT NULL UNIQUE REFERENCES "students"("id") ON DELETE cascade,
   "username" text NOT NULL UNIQUE,

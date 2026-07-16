@@ -26,12 +26,14 @@
       <div class="overflow-x-auto">
         <table class="min-w-[1050px] text-sm">
           <thead class="border-b border-slate-100 text-left text-xs uppercase text-slate-400 dark:border-slate-800">
-            <tr><th class="px-3 py-3">Student</th><th class="px-3 py-3">Event</th><th class="px-3 py-3">Belt division</th><th class="px-3 py-3">Result</th><th class="px-3 py-3">Place secured</th><th class="px-3 py-3">Medal</th><th></th></tr>
+            <tr><th class="px-3 py-3">Student</th><th class="px-3 py-3">Age</th><th class="px-3 py-3">Event</th><th class="px-3 py-3">Competition category</th><th class="px-3 py-3">Belt division</th><th class="px-3 py-3">Result</th><th class="px-3 py-3">Place secured</th><th class="px-3 py-3">Medal</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="entry in entries" :key="entry.id" class="border-b border-slate-100 last:border-0 dark:border-slate-800">
               <td class="px-3 py-3 font-medium">{{ entry.student?.firstName }} {{ entry.student?.lastName }}</td>
+              <td class="px-3 py-3">{{ ageAtTournament(entry.student?.dateOfBirth) || '—' }}</td>
               <td class="px-3 py-3 capitalize">{{ entry.eventType }}</td>
+              <td class="px-3 py-3">{{ entry.ageCategory || '—' }}</td>
               <td class="px-3 py-3">{{ entry.beltDivision === 'brown_black' ? 'Brown / Black' : 'Colour' }}</td>
               <td class="px-3 py-3"><UInput v-model="entry.result" placeholder="Pending" /></td>
               <td class="px-3 py-3"><USelect v-model="entry.placeSecured" :items="placeOptions" /></td>
@@ -77,6 +79,16 @@ function isChanged(entry: any) {
 
 function medalFor(place: number | null) {
   return place === 1 ? 'Gold' : place === 2 ? 'Silver' : place === 3 || place === 4 ? 'Bronze' : ''
+}
+
+function ageAtTournament(dateOfBirth?: string | null) {
+  if (!dateOfBirth) return ''
+  const tournament = (tournaments.value || []).find(item => item.id === tournamentId.value)
+  const birth = new Date(dateOfBirth)
+  const date = tournament?.ageCutoffDate ? new Date(tournament.ageCutoffDate) : tournament?.startDate ? new Date(tournament.startDate) : new Date()
+  let age = date.getFullYear() - birth.getFullYear()
+  if (date.getMonth() < birth.getMonth() || (date.getMonth() === birth.getMonth() && date.getDate() < birth.getDate())) age--
+  return `${age}`
 }
 
 async function persist(entry: any) {

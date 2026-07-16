@@ -16,7 +16,7 @@
       <form class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" @submit.prevent="createStudent">
         <UFormField label="First name" required><UInput v-model="newStudent.firstName" required /></UFormField>
         <UFormField label="Last name" required><UInput v-model="newStudent.lastName" required /></UFormField>
-        <UFormField label="Dojo"><USelect v-model="newStudent.dojoId" :items="dojoOptions" placeholder="Optional" /></UFormField>
+        <UFormField label="Dojo" required><USelect v-model="newStudent.dojoId" :items="dojoOptions" placeholder="Select a dojo" required /></UFormField>
         <UFormField label="Email address"><UInput v-model="newStudent.email" type="email" /></UFormField>
         <UFormField label="Phone number"><UInput v-model="newStudent.phone" /></UFormField>
         <UFormField label="Date of birth">
@@ -178,7 +178,12 @@ function ageLabel(dateOfBirth: string) {
   return `${Math.max(0, age)} years old`
 }
 
-function toggleCreateForm() {
+async function toggleCreateForm() {
+  if (!showCreate.value && !dojos.value.length) {
+    toast.add({ color: 'warning', title: 'Create a dojo before adding students', description: 'Set up your dojo, fees, instructor, and schedule first.' })
+    await navigateTo('/dojos')
+    return
+  }
   showCreate.value = !showCreate.value
 }
 
@@ -198,6 +203,10 @@ async function loadData() {
 }
 
 async function createStudent() {
+  if (!newStudent.dojoId) {
+    toast.add({ color: 'warning', title: 'Select a dojo before creating a student' })
+    return
+  }
   if (newStudent.assignFeePlan && newStudent.dojoId && !newStudent.feePlanId) {
     toast.add({ color: 'warning', title: 'Select a fee plan or turn off fee setup' })
     return

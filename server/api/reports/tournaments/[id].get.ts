@@ -56,7 +56,9 @@ export default defineEventHandler(async (event) => {
   doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(21).text('TOURNAMENT ACHIEVEMENT REPORT', 42, 32, { width: pageWidth, align: 'center' })
   doc.font('Helvetica').fontSize(11.5).text('Participation and medal summary for your permitted territory', 42, 62, { width: pageWidth, align: 'center' })
   doc.fillColor('#111827').font('Helvetica-Bold').fontSize(18).text(tournament.name, 42, 140, { width: pageWidth })
+  const ageCutoff = tournament.ageCutoffDate ? new Date(tournament.ageCutoffDate).toLocaleDateString('en-IN') : start
   doc.font('Helvetica').fontSize(11.5).fillColor('#475569').text(`${tournament.level} | ${tournament.venue || 'Venue not recorded'} | ${start}${end}`, 42, 166, { width: pageWidth })
+  doc.font('Helvetica').fontSize(9.5).fillColor('#64748b').text(`Age cut-off date: ${ageCutoff}`, 42, 184, { width: pageWidth })
 
   const stats = [
     ['Students', String(summary.participants), '#ede9fe', '#5b21b6'],
@@ -66,13 +68,13 @@ export default defineEventHandler(async (event) => {
   ]
   stats.forEach(([label, value, background, color], index) => {
     const x = 42 + index * (pageWidth / 4)
-    doc.roundedRect(x, 198, pageWidth / 4 - 9, 55, 7).fill(background)
-    doc.fillColor(color).font('Helvetica-Bold').fontSize(17).text(value, x + 12, 208)
-    doc.font('Helvetica').fontSize(9.5).text(label.toUpperCase(), x + 12, 231)
+    doc.roundedRect(x, 210, pageWidth / 4 - 9, 55, 7).fill(background)
+    doc.fillColor(color).font('Helvetica-Bold').fontSize(17).text(value, x + 12, 220)
+    doc.font('Helvetica').fontSize(9.5).text(label.toUpperCase(), x + 12, 243)
   })
 
-  let y = 281
-  const headers = [['Student', 42, 135], ['Age', 177, 33], ['Dojo', 210, 94], ['Event / category', 304, 115], ['Result', 419, 72], ['Medal', 491, 63]]
+  let y = 293
+  const headers = [['Student', 42, 135], ['Age', 177, 33], ['Dojo', 210, 94], ['Event / comp. category', 304, 115], ['Result', 419, 72], ['Medal', 491, 63]]
   const drawHeader = () => {
     doc.rect(42, y, pageWidth, 22).fill('#312e81')
     headers.forEach(([label, x, width]) => doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8.5).text(label, x as number + 6, y + 7, { width: width as number - 10 }))
@@ -87,7 +89,7 @@ export default defineEventHandler(async (event) => {
     const event = [record.eventType, record.ageCategory, record.weightCategory].filter(Boolean).join(' / ') || '—'
     const cells = [
       [`${record.student.firstName} ${record.student.lastName}`, 42, 135],
-      [yearsOld(record.student.dateOfBirth, tournament.startDate), 177, 33],
+      [yearsOld(record.student.dateOfBirth, tournament.ageCutoffDate || tournament.startDate), 177, 33],
       [record.student.dojo?.name || '—', 210, 94],
       [event, 304, 115],
       [record.result || '—', 419, 72],

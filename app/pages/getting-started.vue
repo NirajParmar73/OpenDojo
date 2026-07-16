@@ -26,16 +26,29 @@ const { data: programs } = await useFetch<any[]>('/api/organization/programs')
 const { data: belts } = await useFetch<any>('/api/belt-ranks')
 const { data: feePlans } = await useFetch<any[]>('/api/fee-plans')
 const { data: users } = await useFetch<any[]>('/api/users')
+const { data: dojos } = await useFetch<any[]>('/api/dojos')
+const { data: dojoSetup } = await useAsyncData('getting-started-dojo-setup', async () => {
+  const results = await Promise.all((dojos.value || []).map(async dojo => {
+    const [schedules, instructors] = await Promise.all([
+      $fetch<any[]>(`/api/dojos/${dojo.id}/schedules`).catch(() => []),
+      $fetch<any[]>(`/api/dojos/${dojo.id}/instructors`).catch(() => []),
+    ])
+    return { hasSchedule: schedules.length > 0, hasInstructor: instructors.length > 0 }
+  }))
+  return { hasSchedule: results.some(result => result.hasSchedule), hasInstructor: results.some(result => result.hasInstructor) }
+})
 const plan = computed(() => subscription.value?.plan || 'free')
 const isPaid = computed(() => plan.value !== 'free')
 const hierarchyTitle = computed(() => plan.value === 'state-pro' ? 'Build your State hierarchy' : plan.value === 'national' ? 'Build your federation hierarchy' : 'Organize your city hierarchy')
 const hierarchyDescription = computed(() => plan.value === 'state-pro' ? 'Add State, District, and City levels, then place each dojo under the correct city.' : plan.value === 'national' ? 'Create your state and regional structure before adding branches and assigning leaders.' : 'Add your city and branch structure before adding additional dojo locations.')
 const steps = computed(() => [
-  { title: 'Review your dojo details', description: 'Confirm your main location, address, and contact details.', to: '/dojos', done: (subscription.value?.usage.dojos || 0) > 0 },
+  { title: 'Create your dojo', description: 'Add the location where students will train before enrolling anyone.', to: '/dojos', done: (dojos.value?.length || 0) > 0 },
+  { title: 'Set up your fee structure', description: 'Create or confirm a fee plan that can be assigned to new students.', to: '/settings/finance/fee-plans', done: (feePlans.value?.length || 0) > 0 },
+  { title: 'Assign an instructor', description: 'Open your dojo schedules and assign an instructor to the dojo.', to: '/dojos', done: !!dojoSetup.value?.hasInstructor },
+  { title: 'Create a class schedule', description: 'Add the class day and time students will attend.', to: '/dojos', done: !!dojoSetup.value?.hasSchedule },
   { title: 'Check your martial-art program', description: 'Make sure the discipline and style match what you teach.', to: '/settings/programs', done: (programs.value?.length || 0) > 0 },
   { title: 'Review belt ranks', description: 'Your starter belt system is ready. Adjust ranks only if your school uses a different order.', to: '/settings/belts', done: (belts.value?.ranks?.length || belts.value?.length || 0) > 0 },
-  { title: 'Confirm your default fees', description: 'New students will receive this fee plan automatically.', to: '/settings/finance/fee-plans', done: (feePlans.value?.length || 0) > 0 },
-  { title: 'Add your first student', description: 'You are ready to enrol students and start recording attendance.', to: '/students', done: (subscription.value?.usage.students || 0) > 0 },
+  { title: 'Add your first student', description: (dojos.value?.length || 0) ? 'Enrol the student in a dojo and assign their fee plan.' : 'Create a dojo first; students cannot be enrolled without one.', to: (dojos.value?.length || 0) ? '/students' : '/dojos', done: (subscription.value?.usage.students || 0) > 0 },
   ...(isPaid.value ? [{ title: hierarchyTitle.value, description: hierarchyDescription.value, to: '/settings/hierarchy/nodes', done: (subscription.value?.usage.hierarchyNodes || 0) > 1 }, { title: 'Add locations and staff', description: 'Grow your organization by adding branches and assigning your team.', to: '/dojos', done: (users.value?.length || 0) > 1 }] : []),
 ])
 const completedSteps = computed(() => steps.value.filter(step => step.done).length)

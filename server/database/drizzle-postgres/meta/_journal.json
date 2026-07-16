@@ -50,6 +50,13 @@
       "when": 1784005000000,
       "tag": "0006_organization_subscription_lifecycle",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1784218741570,
+      "tag": "0007_tournament_age_cutoff_date",
+      "breakpoints": true
     }
   ]
 }

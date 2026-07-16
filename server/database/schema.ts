@@ -252,6 +252,7 @@ export const tournaments = pgTable('tournaments', (t) => ({
   venue: t.text(),
   startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
   endDate: t.timestamp('end_date', { withTimezone: true }),
+  ageCutoffDate: t.timestamp('age_cutoff_date', { withTimezone: true }),
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))

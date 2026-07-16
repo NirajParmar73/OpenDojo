@@ -41,5 +41,6 @@ const settingsItems = [
   { title: 'Martial arts & programs', description: 'Manage the disciplines and styles you teach.', to: '/settings/programs', icon: 'i-lucide-swords' },
   { title: 'Affiliations & memberships', description: 'Track governing bodies, memberships, and renewals.', to: '/settings/affiliations', icon: 'i-lucide-badge-check' },
   { title: 'Fee plans', description: 'Define recurring and one-time fee plans.', to: '/settings/finance/fee-plans', icon: 'i-lucide-wallet-cards' },
+  { title: 'Audit log', description: 'Review important changes made across your organization.', to: '/settings/audit-log', icon: 'i-lucide-scroll-text' },
 ]
 </script>

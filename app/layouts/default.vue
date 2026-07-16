@@ -136,8 +136,7 @@ const identityLabel = computed(() => {
 })
 
 const allNavigation = [
-  { label: 'Workspace', items: [{ label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' }] },
-  { label: 'Account', items: [{ label: 'Your profile', to: '/profile', icon: 'i-lucide-user-round' }] },
+  { label: 'Workspace', items: [{ label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' }, { label: 'Getting started', to: '/getting-started', icon: 'i-lucide-list-checks' }] },
   {
     label: 'People',
     items: [
@@ -151,7 +150,7 @@ const allNavigation = [
     items: [
       { label: 'Dojos & schedules', to: '/dojos', icon: 'i-lucide-building-2' },
       { label: 'Attendance', to: '/attendance', icon: 'i-lucide-calendar-check-2' },
-      { label: 'Tournaments', to: '/tournaments', icon: 'i-lucide-trophy' },
+      { label: 'Tournament setup', to: '/tournaments', icon: 'i-lucide-trophy' },
       { label: 'Tournament results', to: '/tournament-results', icon: 'i-lucide-medal' },
     ],
   },
@@ -163,24 +162,16 @@ const allNavigation = [
       { label: 'Collections overview', to: '/finance', icon: 'i-lucide-chart-no-axes-combined' },
       { label: 'Pending fees', to: '/finance/pending-fees', icon: 'i-lucide-clock-alert' },
       { label: 'Expenses', to: '/finance/expenses', icon: 'i-lucide-receipt-indian-rupee' },
-      { label: 'Fee plans', to: '/settings/finance/fee-plans', icon: 'i-lucide-wallet-cards' },
     ],
   },
   {
     label: 'Insights',
-    items: [{ label: 'Reports', to: '/reports', icon: 'i-lucide-file-chart-column' }, { label: 'Student progress', to: '/reports/student-progress', icon: 'i-lucide-file-badge' }, { label: 'Attendance reports', to: '/reports/attendance', icon: 'i-lucide-chart-no-axes-column-increasing' }, { label: 'Tournament achievements', to: '/reports/tournaments', icon: 'i-lucide-trophy' }, { label: 'Certificates awarded', to: '/certificates', icon: 'i-lucide-file-badge-2' }, { label: 'Revenue & expenses', to: '/reports/finance', icon: 'i-lucide-chart-no-axes-combined' }],
+    items: [{ label: 'Reports', to: '/reports', icon: 'i-lucide-file-chart-column' }, { label: 'Certificates awarded', to: '/certificates', icon: 'i-lucide-file-badge-2' }],
   },
   {
     label: 'Organization',
     items: [
-      { label: 'Getting started', to: '/getting-started', icon: 'i-lucide-list-checks' },
       { label: 'Settings', to: '/settings', icon: 'i-lucide-settings-2' },
-      { label: 'Plan & billing', to: '/settings/subscription', icon: 'i-lucide-credit-card' },
-      { label: 'Hierarchy', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
-      { label: 'Belt system', to: '/settings/belts', icon: 'i-lucide-award' },
-      { label: 'Martial arts & programs', to: '/settings/programs', icon: 'i-lucide-swords' },
-      { label: 'Affiliations & memberships', to: '/settings/affiliations', icon: 'i-lucide-badge-check' },
-      { label: 'Audit log', to: '/settings/audit-log', icon: 'i-lucide-scroll-text' },
     ],
   },
 ]
@@ -194,7 +185,8 @@ const navigation = computed(() => {
       ]
     : allNavigation
   return items.map(section => {
-  if (section.label === 'Organization' && user.value?.role !== 'owner') return { ...section, items: section.items.filter(item => ['/settings/hierarchy/nodes', '/settings/affiliations', '/settings/audit-log'].includes(item.to)) }
+  if (section.label === 'Workspace' && user.value?.role !== 'owner') return { ...section, items: section.items.filter(item => item.to !== '/getting-started') }
+  if (section.label === 'Organization' && !['owner', 'admin'].includes(user.value?.role || '')) return { ...section, items: [] }
   if (section.label === 'Insights' && !['owner', 'admin'].includes(user.value?.role || '')) return { ...section, items: section.items.filter(item => item.to !== '/certificates') }
   return section
   }).filter(section => section.items.length > 0)
@@ -211,6 +203,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/getting-started': { title: 'Getting started', section: 'Organization' },
   '/attendance': { title: 'Attendance', section: 'Operations' },
   '/tournaments': { title: 'Tournament management', section: 'Operations' },
+  '/tournament-results': { title: 'Tournament results', section: 'Operations' },
   '/reports/attendance': { title: 'Attendance reports', section: 'Insights' },
   '/reports': { title: 'Reports', section: 'Insights' },
   '/reports/finance': { title: 'Revenue & expense report', section: 'Insights' },

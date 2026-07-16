@@ -26,10 +26,10 @@ const toast = useToast()
 const startingTrial = ref<PlanKey | null>(null)
 const billingPeriod = ref<'monthly' | 'annual'>('annual')
 const paidPlans = [
-  { key: 'city-starter' as const, name: 'City Starter', monthly: 99, annual: 999, summary: 'For up to two locations in the same city.', features: ['75 students per location', 'Owner + staff, fees and grading'] },
-  { key: 'city-pro' as const, name: 'City Pro', monthly: 249, annual: 2499, summary: 'For unlimited city-level management.', features: ['Unlimited locations, students, and staff', 'Full city-level management'] },
-  { key: 'state-pro' as const, name: 'State Pro', monthly: 499, annual: 4999, summary: 'For operations across one state.', features: ['Unlimited cities and locations', 'Advanced reports'] },
-  { key: 'national' as const, name: 'National', monthly: 999, annual: 9999, summary: 'For federations operating nationwide.', features: ['Federation management', 'AI reports and white-label options'] },
+  { key: 'city-starter' as const, name: 'City Starter', monthly: 199, annual: 1990, summary: 'For up to two locations in the same city.', features: ['75 students per location', 'Owner + staff, fees and grading'] },
+  { key: 'city-pro' as const, name: 'City Pro', monthly: 399, annual: 3990, summary: 'For unlimited city-level management.', features: ['Unlimited locations, students, and staff', 'Full city-level management'] },
+  { key: 'state-pro' as const, name: 'State Pro', monthly: 699, annual: 6990, summary: 'For operations across one state.', features: ['Unlimited cities and locations', 'Advanced reports'] },
+  { key: 'national' as const, name: 'National', monthly: 1999, annual: 19990, summary: 'For federations operating nationwide.', features: ['Federation management', 'AI reports and white-label options'] },
 ]
 const planOrder: PlanKey[] = ['free', 'city-starter', 'city-pro', 'state-pro', 'national']
 const nextRecommendedPlan = computed<PlanKey | null>(() => planOrder[planOrder.indexOf(subscription.value?.plan || 'free') + 1] || null)

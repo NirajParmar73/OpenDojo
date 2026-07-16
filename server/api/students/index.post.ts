@@ -42,7 +42,13 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, createStudentSchema.parse)
   let selectedDojo: { defaultFeePlanId: number | null } | null = null
 
-  // Validate dojo if provided
+  // Students must belong to a dojo. This keeps enrolment aligned with the
+  // getting-started workflow and prevents unassigned student records.
+  if (!body.dojoId) {
+    throw createError({ statusCode: 400, statusMessage: 'Create and select a dojo before adding a student' })
+  }
+
+  // Validate dojo
   if (body.dojoId) {
     const dojo = await db.query.dojos.findFirst({
       where: eq(tables.dojos.id, body.dojoId),
@@ -52,8 +58,6 @@ export default defineEventHandler(async (event) => {
     }
     await assertDojoManagementAccess(session.user.id, orgId, body.dojoId)
     selectedDojo = dojo
-  } else if (session.user.role !== 'owner') {
-    throw createError({ statusCode: 403, statusMessage: 'Only the owner can create an unassigned student' })
   }
   await assertStudentLimit(orgId, body.dojoId)
 
