@@ -26,7 +26,7 @@ if (route.query.created === '1' && typeof route.query.email === 'string') state.
 async function onLogin(event: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
-    await $fetch('/api/auth/login', {
+    const response = await $fetch<{ workspaceUrl?: string }>('/api/auth/login', {
       method: 'POST',
       body: {
         email: event.data.email,
@@ -35,6 +35,10 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
     })
     // Refresh session data
     await fetch()
+    if (response.workspaceUrl && new URL(response.workspaceUrl).host !== window.location.host) {
+      window.location.assign(response.workspaceUrl)
+      return
+    }
     // Platform operators begin in the platform console; everyone else uses
     // their organization workspace dashboard.
     router.push(user.value?.isPlatformAdmin ? '/platform' : '/')

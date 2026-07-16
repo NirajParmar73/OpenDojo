@@ -44,7 +44,8 @@ async function next() {
     const fd = new FormData()
     for (const [key, value] of Object.entries(form)) fd.append(key, key === 'style' && value === 'custom' ? form.customStyle : value)
     if (logoFile.value) fd.append('logo', logoFile.value)
-    await $fetch('/api/onboarding', { method: 'POST', body: fd })
+    const response = await $fetch<any>('/api/onboarding', { method: 'POST', body: fd })
+    if (response.workspaceUrl) { window.location.assign(`${response.workspaceUrl}/auth/login?created=1&email=${encodeURIComponent(form.email)}`); return }
     await navigateTo({ path: '/auth/login', query: { created: '1', email: form.email } })
   } catch (error: any) { toast.add({ color: 'error', title: 'We could not create your workspace', description: error.data?.statusMessage || error.message }) } finally { loading.value = false }
 }

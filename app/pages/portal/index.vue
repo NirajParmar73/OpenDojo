@@ -15,7 +15,7 @@
   </div>
 </template>
 <script setup lang="ts">
-definePageMeta({ middleware: 'auth', layout: 'auth' })
+definePageMeta({ middleware: 'auth', layout: 'portal' })
 const { user } = useUserSession(); if (user.value?.role !== 'student') await navigateTo('/')
 const toast = useToast(); const tab = ref('profile'); const savingProfile = ref(false); const tabs = [{ label: 'Profile', value: 'profile' }, { label: 'Progress', value: 'progress' }, { label: 'Achievements', value: 'achievements' }, { label: 'Fees', value: 'fees' }, { label: 'Documents', value: 'documents' }]
 const { data, pending, error, refresh } = await useFetch<any>('/api/portal/me')

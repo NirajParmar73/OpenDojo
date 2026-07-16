@@ -41,6 +41,7 @@ export default defineNuxtConfig({
   runtimeConfig:{
     tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
     public: {
+      tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
       legalEntityName: process.env.NUXT_PUBLIC_LEGAL_ENTITY_NAME || 'OpenDojo',
       supportEmail: process.env.NUXT_PUBLIC_SUPPORT_EMAIL || 'support@your-domain.com',
       supportPhone: process.env.NUXT_PUBLIC_SUPPORT_PHONE || '',
@@ -53,6 +54,7 @@ export default defineNuxtConfig({
         maxAge: 60 * 24 * 7,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
+        domain: process.env.NUXT_SESSION_COOKIE_DOMAIN || undefined,
       }
     }
   },

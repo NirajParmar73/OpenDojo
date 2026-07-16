@@ -2,7 +2,7 @@
 import { db, tables } from '../../server/utils/database'
 import { eq } from 'drizzle-orm'
 import { saveUploadedFile } from '../../server/utils/upload'
-import { currentTenant } from '../utils/tenant'
+import { currentTenant, organizationSlug, reservedSubdomains, workspaceUrl } from '../utils/tenant'
 
 export default defineEventHandler(async (event) => {
   if (currentTenant(event)) throw createError({ statusCode: 403, statusMessage: 'New organizations must be created from the main OpenDojo site' })
@@ -42,7 +42,8 @@ export default defineEventHandler(async (event) => {
   }
 
   // Check slug uniqueness
-  const slug = orgName.toLowerCase().replace(/\s+/g, '-')
+  const slug = organizationSlug(orgName)
+  if (!slug || reservedSubdomains.has(slug)) throw createError({ statusCode: 400, statusMessage: 'Choose a different organization name for the workspace address' })
   const existingOrg = await db.query.organizations.findFirst({
     where: eq(tables.organizations.slug, slug),
   })
@@ -138,9 +139,11 @@ await setUserSession(event, {
 
   // New owners sign in explicitly after setup so they can confirm their account works.
   await clearUserSession(event)
+  const baseDomain = String(useRuntimeConfig(event).tenantBaseDomain || '')
   return {
     success: true,
     organization: { id: org.id, name: org.name, slug: org.slug, logo: org.logo },
     user: { id: user.id, name: user.name, email: user.email },
+    workspaceUrl: workspaceUrl(baseDomain, org.slug),
   }
 })

@@ -61,7 +61,11 @@ Check out the [deployment documentation](https://nuxt.com/docs/getting-started/d
 
 ## Multi-tenant production setup
 
-OpenDojo supports optional organization workspaces at `organization-slug.your-domain.com`. Configure wildcard DNS and set `NUXT_TENANT_BASE_DOMAIN=your-domain.com`. The global tenant middleware resolves the subdomain, rejects unknown organizations, and rejects sessions belonging to another organization. Keep the main app at `app.your-domain.com` (or the apex domain) for onboarding and sign-in discovery.
+OpenDojo supports optional organization workspaces at `organization-slug.your-domain.com`. Before production, configure wildcard DNS (`*.your-domain.com`) and a wildcard TLS certificate at your reverse proxy/hosting provider. Set `NUXT_TENANT_BASE_DOMAIN=your-domain.com` and `NUXT_SESSION_COOKIE_DOMAIN=.your-domain.com`; the latter is required so a staff session remains valid when login redirects to its workspace subdomain.
+
+The global tenant middleware resolves the subdomain, rejects unknown organizations, and rejects sessions belonging to another organization. Keep the main app at `app.your-domain.com` (or the apex domain) for onboarding and sign-in discovery. New organizations are given a sanitized, reserved-name-safe slug and are redirected to their workspace. Make sure your proxy forwards the original `Host` / `X-Forwarded-Host` header to Nuxt.
+
+Student access is invitation-only: administrators create or disable portal credentials from **Student profile → Portal access**. Students sign in only at `/portal/login` within their organization's workspace; the student layout intentionally has no organization-registration link.
 
 ## Renovate integration
 

@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq } from 'drizzle-orm'
-import { currentTenant } from '../../utils/tenant'
+import { currentTenant, workspaceUrl } from '../../utils/tenant'
 import { isPlatformAdminEmail } from '../../utils/platform-admin'
 // ✅ Import these from nuxt-auth-utils
 
@@ -35,12 +35,14 @@ export default defineEventHandler(async (event) => {
   // Fetch organization name and logo
   let orgName = null
   let orgLogo = null
+  let orgSlug = ''
   if (user.organizationId) {
     const org = await db.query.organizations.findFirst({
       where: eq(tables.organizations.id, user.organizationId),
     })
     orgName = org?.name ?? null
     orgLogo = org?.logo ?? null
+    orgSlug = org?.slug ?? ''
   }
 
   // ✅ Set session with all required fields
@@ -59,5 +61,6 @@ export default defineEventHandler(async (event) => {
     lastLoggedIn: new Date(),
   })
 
-  return { success: true }
+  const baseDomain = String(useRuntimeConfig(event).tenantBaseDomain || '')
+  return { success: true, workspaceUrl: orgSlug ? workspaceUrl(baseDomain, orgSlug) : '' }
 })
