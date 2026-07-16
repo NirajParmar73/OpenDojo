@@ -59,7 +59,7 @@
 
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth', 'platform-admin'] })
-type Plan = 'free' | 'starter' | 'growth' | 'professional' | 'enterprise'
+type Plan = 'free' | 'city-starter' | 'city-pro' | 'state-pro' | 'national'
 type Organization = { id: number, name: string, slug: string, subscriptionPlan: Plan, createdAt: string, users: number, students: number, dojos: number }
 type Overview = { totals: { organizations: number, users: number, students: number, dojos: number }, plans: Record<string, number>, revenue: { estimatedMrr: number, estimatedArr: number, payingWorkspaces: number, customEnterpriseWorkspaces: number }, recentOrganizations: Array<Pick<Organization, 'id' | 'name' | 'slug' | 'subscriptionPlan' | 'createdAt'>> }
 const { data: overview, refresh: refreshOverview } = await useFetch<Overview>('/api/platform/overview')
@@ -67,8 +67,8 @@ const { data: organizations, refresh: refreshOrganizations } = await useFetch<Or
 const search = ref('')
 const savingId = ref<number | null>(null)
 const toast = useToast()
-const planOrder: Plan[] = ['free', 'starter', 'growth', 'professional', 'enterprise']
-const planOptions = planOrder.map(value => ({ label: value.charAt(0).toUpperCase() + value.slice(1), value }))
+const planOrder: Plan[] = ['free', 'city-starter', 'city-pro', 'state-pro', 'national']
+const planOptions = planOrder.map(value => ({ label: ({ free: 'Free Forever', 'city-starter': 'City Starter', 'city-pro': 'City Pro', 'state-pro': 'State Pro', national: 'National' }[value]), value }))
 const loading = computed(() => !overview.value || !organizations.value)
 const cards = computed(() => [
   { label: 'Customer workspaces', value: overview.value?.totals.organizations || 0, icon: 'i-lucide-building-2' },

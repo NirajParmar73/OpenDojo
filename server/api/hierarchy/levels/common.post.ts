@@ -1,6 +1,7 @@
-import { eq } from 'drizzle-orm'
+import { eq, sql } from 'drizzle-orm'
 import { db, tables } from '../../../utils/database'
 import { writeAuditLog } from '../../../utils/audit'
+import { assertFederationManagementAccess } from '../../../utils/subscription'
 
 const commonLevels = ['State / Province', 'District', 'City / Town']
 
@@ -10,6 +11,7 @@ export default defineEventHandler(async (event) => {
   if (session.user.role !== 'owner') throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can add hierarchy levels.' })
 
   const organizationId = session.user.organizationId
+  await assertFederationManagementAccess(organizationId)
   const levels = await db.query.hierarchyLevels.findMany({
     where: eq(tables.hierarchyLevels.organizationId, organizationId),
     orderBy: (level, { asc }) => [asc(level.order)]
@@ -19,10 +21,13 @@ export default defineEventHandler(async (event) => {
 
   if (!missing.length) return { success: true, created: 0 }
 
+  await db.update(tables.hierarchyLevels)
+    .set({ order: sql`${tables.hierarchyLevels.order} + ${missing.length}`, updatedAt: new Date() })
+    .where(eq(tables.hierarchyLevels.organizationId, organizationId))
   await db.insert(tables.hierarchyLevels).values(missing.map((name, index) => ({
     organizationId,
     name,
-    order: levels.length + index + 1
+    order: index + 1
   })))
 
   await writeAuditLog({

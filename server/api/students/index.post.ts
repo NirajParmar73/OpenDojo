@@ -40,8 +40,6 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, createStudentSchema.parse)
-  await assertStudentLimit(orgId)
-
   let selectedDojo: { defaultFeePlanId: number | null } | null = null
 
   // Validate dojo if provided
@@ -57,6 +55,7 @@ export default defineEventHandler(async (event) => {
   } else if (session.user.role !== 'owner') {
     throw createError({ statusCode: 403, statusMessage: 'Only the owner can create an unassigned student' })
   }
+  await assertStudentLimit(orgId, body.dojoId)
 
   // Validate belt rank if provided
   if (body.currentBeltRankId) {

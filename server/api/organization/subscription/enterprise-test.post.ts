@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   if (!testPlanChanges) throw createError({ statusCode: 404, statusMessage: 'Not found' })
 
   const [organization] = await db.update(tables.organizations)
-    .set({ subscriptionPlan: 'enterprise', updatedAt: new Date() })
+    .set({ subscriptionPlan: 'national', updatedAt: new Date() })
     .where(eq(tables.organizations.id, session.user.organizationId))
     .returning({ id: tables.organizations.id, name: tables.organizations.name })
 
@@ -25,8 +25,8 @@ export default defineEventHandler(async (event) => {
     entityId: organization.id,
     targetLabel: organization.name,
     scope: { type: 'organization' },
-    details: 'Enterprise plan activated through the development test control.'
+    details: 'National plan activated through the development test control.'
   })
 
-  return { plan: 'enterprise' }
+  return { plan: 'national' }
 })

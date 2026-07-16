@@ -1,4 +1,4 @@
-import { count, desc, eq } from 'drizzle-orm'
+import { count, desc } from 'drizzle-orm'
 import { db, tables } from '../../utils/database'
 import { requirePlatformAdmin } from '../../utils/platform-admin'
 
@@ -24,10 +24,8 @@ export default defineEventHandler(async (event) => {
     return result
   }, {})
   // These reflect the public monthly list price, not collected payments.
-  // Enterprise is custom-priced and is kept out of the calculated total.
-  const monthlyPrice: Record<string, number> = { starter: 199, growth: 399, professional: 699 }
+  const monthlyPrice: Record<string, number> = { 'city-starter': 99, 'city-pro': 249, 'state-pro': 499, national: 999 }
   const estimatedMrr = planRows.reduce((total, organization) => total + (monthlyPrice[organization.subscriptionPlan] || 0), 0)
-  const customEnterpriseWorkspaces = plans.enterprise || 0
 
   return {
     totals: {
@@ -40,8 +38,8 @@ export default defineEventHandler(async (event) => {
     revenue: {
       estimatedMrr,
       estimatedArr: estimatedMrr * 12,
-      payingWorkspaces: Object.entries(plans).reduce((total, [plan, value]) => total + (plan === 'free' || plan === 'enterprise' ? 0 : value), 0),
-      customEnterpriseWorkspaces,
+      payingWorkspaces: Object.entries(plans).reduce((total, [plan, value]) => total + (plan === 'free' ? 0 : value), 0),
+      customEnterpriseWorkspaces: 0,
     },
     recentOrganizations,
   }

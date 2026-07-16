@@ -6,7 +6,7 @@
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 class="font-semibold">Add levels before adding child locations</h2>
-          <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Your main location is ready. Add State / Province, District, and City / Town levels to build a clear hierarchy underneath it.</p>
+          <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Your main location is ready. Add State / Province, District, and City / Town levels, then safely place the existing dojo beneath them.</p>
         </div>
         <UButton :loading="addingCommonLevels" icon="i-lucide-sparkles" @click="addCommonLevels">Add common levels</UButton>
       </div>
@@ -70,7 +70,7 @@
       <div v-if="editingNode" class="mt-4 border-t pt-4">
         <h4 class="font-semibold">Edit "{{ editingNode.name }}"</h4>
         <form @submit.prevent="updateNode" class="mt-2">
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
             <USelect
               v-model="editForm.levelId"
               :items="levelOptions"
@@ -78,6 +78,11 @@
               required
             />
             <UInput v-model="editForm.name" placeholder="Node name" required />
+            <USelect
+              v-model="editForm.parentId"
+              :items="parentOptions"
+              placeholder="Parent node"
+            />
             <UButton type="submit" :loading="updating">Update</UButton>
           </div>
           <UButton type="button" color="neutral" size="sm" class="mt-2" @click="cancelEdit">Cancel</UButton>
@@ -118,6 +123,7 @@ const editingNode = ref<any>(null)
 const editForm = reactive({
   levelId: undefined as number | undefined,
   name: '',
+  parentId: null as number | null,
 })
 
 const isOwner = computed(() => user.value?.role === 'owner')
@@ -132,6 +138,22 @@ const childLevelOptions = computed(() => {
 })
 const canManageChildren = (nodeId: number) => isOwner.value || permissions.value?.managedParentNodeIds.includes(nodeId) || false
 const canModify = (nodeId: number) => isOwner.value || permissions.value?.allowedNodeIds.includes(nodeId) || false
+const flatNodes = computed(() => {
+  const result: any[] = []
+  const visit = (items: any[]) => items.forEach((item) => { result.push(item); visit(item.children || []) })
+  visit(tree.value)
+  return result
+})
+const parentOptions = computed(() => {
+  if (!editingNode.value) return []
+  const currentLevel = levels.value.find(level => level.id === editForm.levelId)
+  return [
+    { label: 'No parent (root node)', value: null },
+    ...flatNodes.value
+      .filter(node => node.id !== editingNode.value.id && (levels.value.find(level => level.id === node.levelId)?.order || 0) < (currentLevel?.order || 0))
+      .map(node => ({ label: node.name, value: node.id })),
+  ]
+})
 
 // Load levels and nodes
 async function loadData() {
@@ -246,12 +268,14 @@ function openEdit(node: any) {
   editingNode.value = node
   editForm.levelId = node.levelId
   editForm.name = node.name
+  editForm.parentId = node.parentId
 }
 
 function cancelEdit() {
   editingNode.value = null
   editForm.levelId = undefined
   editForm.name = ''
+  editForm.parentId = null
 }
 
 async function updateNode() {
@@ -268,6 +292,7 @@ async function updateNode() {
       body: {
         levelId: editForm.levelId,
         name: editForm.name.trim(),
+        parentId: editForm.parentId,
       },
     })
     toast.add({ color: 'success', title: 'Node updated' })

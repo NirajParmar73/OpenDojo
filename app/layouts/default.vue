@@ -173,6 +173,7 @@ const allNavigation = [
   {
     label: 'Organization',
     items: [
+      { label: 'Getting started', to: '/getting-started', icon: 'i-lucide-list-checks' },
       { label: 'Settings', to: '/settings', icon: 'i-lucide-settings-2' },
       { label: 'Plan & billing', to: '/settings/subscription', icon: 'i-lucide-credit-card' },
       { label: 'Hierarchy', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
@@ -207,6 +208,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/users': { title: 'Staff & access', section: 'People' },
   '/users/instructors': { title: 'Instructors', section: 'People' },
   '/dojos': { title: 'Dojos & schedules', section: 'Operations' },
+  '/getting-started': { title: 'Getting started', section: 'Organization' },
   '/attendance': { title: 'Attendance', section: 'Operations' },
   '/tournaments': { title: 'Tournament management', section: 'Operations' },
   '/reports/attendance': { title: 'Attendance reports', section: 'Insights' },

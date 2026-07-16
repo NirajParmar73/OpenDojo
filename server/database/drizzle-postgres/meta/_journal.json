@@ -36,6 +36,20 @@
       "when": 1784003000000,
       "tag": "0004_tournament_entry_place_secured",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784004000000,
+      "tag": "0005_student_portal_accounts",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784005000000,
+      "tag": "0006_organization_subscription_lifecycle",
+      "breakpoints": true
     }
   ]
 }
