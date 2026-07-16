@@ -5,9 +5,9 @@ import { assertDojoManagementAccess, assertNodeManagementAccess } from '../../..
 
 const schema = z.object({
   category: z.string().trim().min(1).max(100), description: z.string().trim().min(1).max(1000), amount: z.number().int().positive(),
-  scopeType: z.enum(['organization', 'node', 'dojo']), scopeId: z.number().int().positive().nullable(), affiliationId: z.number().int().positive().nullable(),
-  payee: z.string().trim().max(255).nullable(), invoiceNumber: z.string().trim().max(255).nullable(), dueAt: z.string().date().nullable(),
-  status: z.enum(['draft', 'due', 'partially_paid', 'paid', 'overdue', 'cancelled']), paidAt: z.string().date().nullable(), paymentMethod: z.enum(['cash', 'bank_transfer', 'card', 'upi', 'other']).nullable(), notes: z.string().trim().max(5000).nullable(),
+  scopeType: z.enum(['organization', 'node', 'dojo']), scopeId: z.number().int().positive().nullable(), affiliationId: z.number().int().positive().nullable().optional().default(null),
+  payee: z.string().trim().max(255).nullable().optional().default(null), invoiceNumber: z.string().trim().max(255).nullable().optional().default(null), dueAt: z.string().date().nullable().optional().default(null),
+  status: z.enum(['draft', 'due', 'partially_paid', 'paid', 'overdue', 'cancelled']), paidAt: z.string().date().nullable().optional().default(null), paymentMethod: z.enum(['cash', 'bank_transfer', 'card', 'upi', 'other']).nullable().optional().default(null), notes: z.string().trim().max(5000).nullable().optional().default(null),
 }).refine(body => body.scopeType === 'organization' ? body.scopeId === null : body.scopeId !== null, { message: 'Select a valid scope' })
 
 export default defineEventHandler(async event => {

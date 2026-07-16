@@ -12,7 +12,7 @@
     </section>
 
     <UCard v-if="showCreate" class="mb-6">
-      <template #header><div><h3 class="font-semibold">Add a student</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Start with the essentials. Complete fees, guardians, documents, and gradings from the student profile.</p></div></template>
+      <template #header><div><h3 class="font-semibold">Add a student</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Start with the essentials, including an optional fee plan and recurring discount. You can update fee terms later from the student profile.</p></div></template>
       <form class="grid gap-4 md:grid-cols-2 xl:grid-cols-3" @submit.prevent="createStudent">
         <UFormField label="First name" required><UInput v-model="newStudent.firstName" required /></UFormField>
         <UFormField label="Last name" required><UInput v-model="newStudent.lastName" required /></UFormField>
@@ -25,9 +25,10 @@
         <UFormField label="Date joined" required>
           <UInput v-model="newStudent.joinedAt" type="date" required />
         </UFormField>
-        <UCheckbox v-if="newStudent.dojoId" v-model="newStudent.autoAssignDefaultFeePlan" label="Assign this dojo's default fee plan" class="self-end" />
-        <UFormField v-if="newStudent.dojoId && newStudent.autoAssignDefaultFeePlan" label="Recurring discount"><UInput v-model.number="newStudent.initialDiscount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField>
-        <UFormField v-if="newStudent.dojoId && newStudent.autoAssignDefaultFeePlan && newStudent.initialDiscount" label="Discount reason" required><UInput v-model="newStudent.discountReason" placeholder="e.g. Sibling discount" required /></UFormField>
+        <UCheckbox v-if="newStudent.dojoId" v-model="newStudent.assignFeePlan" label="Set fee plan now" class="self-end" />
+        <UFormField v-if="newStudent.dojoId && newStudent.assignFeePlan" label="Fee plan" required><USelect v-model="newStudent.feePlanId" :items="availableFeePlanOptions" placeholder="Select a fee plan" required /></UFormField>
+        <UFormField v-if="newStudent.dojoId && newStudent.assignFeePlan" label="Recurring discount"><UInput v-model.number="newStudent.initialDiscount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField>
+        <UFormField v-if="newStudent.dojoId && newStudent.assignFeePlan && newStudent.initialDiscount" label="Discount reason" required><UInput v-model="newStudent.discountReason" placeholder="e.g. Sibling discount" required /></UFormField>
         <UFormField label="Gender"><USelect v-model="newStudent.gender" :items="genderOptions" placeholder="Optional" /></UFormField>
         <UFormField label="Emergency contact"><UInput v-model="newStudent.emergencyContact" /></UFormField>
         <UFormField label="Emergency phone"><UInput v-model="newStudent.emergencyPhone" /></UFormField>
@@ -47,6 +48,7 @@
           </div>
           <div class="flex flex-col gap-3 sm:flex-row">
             <UInput v-model="search" icon="i-lucide-search" placeholder="Search name, email, or phone" class="w-full sm:w-72" />
+            <USelect v-model="dojoFilter" :items="dojoFilterOptions" placeholder="All dojos" aria-label="Filter students by dojo" class="w-full sm:w-48" />
             <USelect v-model="statusFilter" :items="statusFilterOptions" class="w-full sm:w-36" />
           </div>
         </div>
@@ -114,13 +116,16 @@
 definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
+type FeePlan = { id: number, name: string, dojoId: number | null, dojo?: { name: string } | null }
 const students = ref<any[]>([])
 const dojos = ref<any[]>([])
+const feePlans = ref<FeePlan[]>([])
 const loading = ref(true)
 const loadError = ref('')
 const creating = ref(false)
 const showCreate = ref(false)
 const search = ref('')
+const dojoFilter = ref<number | 'all'>('all')
 const statusFilter = ref('all')
 
 const statusOptions = [
@@ -136,20 +141,25 @@ const genderOptions = [
 ]
 
 const today = new Date().toISOString().slice(0, 10)
-const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, autoAssignDefaultFeePlan: true, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '' })
+const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: null as number | null, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '' })
 
 const dojoOptions = computed(() => dojos.value.map(dojo => ({ label: dojo.name, value: dojo.id })))
+const availableFeePlanOptions = computed(() => feePlans.value
+  .filter(plan => !plan.dojoId || plan.dojoId === newStudent.dojoId)
+  .map(plan => ({ label: `${plan.name}${plan.dojo?.name ? ` — ${plan.dojo.name}` : ''}`, value: plan.id })))
+const dojoFilterOptions = computed(() => [{ label: 'All dojos', value: 'all' }, ...dojoOptions.value])
 const filteredStudents = computed(() => {
   const query = search.value.trim().toLowerCase()
   return students.value.filter((student) => {
     const matchesStatus = statusFilter.value === 'all' || student.status === statusFilter.value
+    const matchesDojo = dojoFilter.value === 'all' || student.dojoId === dojoFilter.value
     const haystack = `${student.firstName} ${student.lastName} ${student.email || ''} ${student.phone || ''}`.toLowerCase()
-    return matchesStatus && (!query || haystack.includes(query))
+    return matchesStatus && matchesDojo && (!query || haystack.includes(query))
   })
 })
 
 function resetCreateForm() {
-  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), autoAssignDefaultFeePlan: true, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '' })
+  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: null, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '' })
   showCreate.value = false
 }
 
@@ -176,9 +186,10 @@ async function loadData() {
   loading.value = true
   loadError.value = ''
   try {
-    const [studentData, dojoData] = await Promise.all([$fetch('/api/students'), $fetch('/api/dojos')])
+    const [studentData, dojoData, feePlanData] = await Promise.all([$fetch('/api/students'), $fetch('/api/dojos'), $fetch('/api/fee-plans')])
     students.value = studentData as any[]
     dojos.value = dojoData as any[]
+    feePlans.value = feePlanData as FeePlan[]
   } catch (error: any) {
     loadError.value = error.data?.statusMessage || error.message || 'Please try again.'
   } finally {
@@ -187,11 +198,15 @@ async function loadData() {
 }
 
 async function createStudent() {
+  if (newStudent.assignFeePlan && newStudent.dojoId && !newStudent.feePlanId) {
+    toast.add({ color: 'warning', title: 'Select a fee plan or turn off fee setup' })
+    return
+  }
   creating.value = true
   try {
     const response = await $fetch('/api/students', {
       method: 'POST',
-      body: { ...newStudent, initialDiscount: Math.round((newStudent.initialDiscount || 0) * 100), discountReason: newStudent.discountReason || undefined, email: newStudent.email || null, phone: newStudent.phone || null, dateOfBirth: newStudent.dateOfBirth || null, gender: newStudent.gender || null, emergencyContact: newStudent.emergencyContact || null, emergencyPhone: newStudent.emergencyPhone || null },
+      body: { ...newStudent, feePlanId: newStudent.assignFeePlan ? newStudent.feePlanId : null, initialDiscount: Math.round((newStudent.initialDiscount || 0) * 100), discountReason: newStudent.discountReason || undefined, email: newStudent.email || null, phone: newStudent.phone || null, dateOfBirth: newStudent.dateOfBirth || null, gender: newStudent.gender || null, emergencyContact: newStudent.emergencyContact || null, emergencyPhone: newStudent.emergencyPhone || null },
     }) as any
     students.value.unshift(response.student)
     resetCreateForm()
@@ -202,6 +217,12 @@ async function createStudent() {
     creating.value = false
   }
 }
+
+watch(() => newStudent.dojoId, (dojoId) => {
+  const dojo = dojos.value.find(item => item.id === dojoId)
+  const defaultPlanIsAvailable = dojo?.defaultFeePlanId && availableFeePlanOptions.value.some(plan => plan.value === dojo.defaultFeePlanId)
+  newStudent.feePlanId = defaultPlanIsAvailable ? dojo.defaultFeePlanId : null
+})
 
 async function archiveStudent(student: any) {
   if (!confirm(`Archive ${student.firstName} ${student.lastName}?`)) return

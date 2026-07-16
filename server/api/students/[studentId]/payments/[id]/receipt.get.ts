@@ -49,7 +49,9 @@ export default defineEventHandler(async (event) => {
 
   // Format amount with currency
   const currency = organization?.currency || 'INR'
-  const symbol = currency === 'INR' ? '₹' : currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency
+  // Helvetica cannot encode the Rupee glyph reliably in a PDF, so use a
+  // currency code for INR instead of producing a stray superscript character.
+  const amountLabel = currency === 'INR' ? `INR ${(payment.amount / 100).toFixed(2)}` : `${currency === 'USD' ? '$' : currency === 'EUR' ? '€' : currency}${(payment.amount / 100).toFixed(2)}`
 
   // --- PDF Generation ---
   const doc = new PDFDocument({ margin: 50, size: 'A4' })
@@ -105,7 +107,7 @@ export default defineEventHandler(async (event) => {
   doc.fontSize(12).font('Helvetica-Bold').text('Payment Details', 50, yPos)
   yPos += 18
   doc.fontSize(11).font('Helvetica')
-  doc.text(`Amount: ${symbol}${(payment.amount / 100).toFixed(2)}`, 50, yPos)
+  doc.text(`Amount: ${amountLabel}`, 50, yPos)
   yPos += 16
   doc.text(`Method: ${payment.method}`, 50, yPos)
   yPos += 16
@@ -128,8 +130,10 @@ export default defineEventHandler(async (event) => {
   }
 
   // Footer
-  yPos = doc.page.height - 40
-  doc.fontSize(9).font('Helvetica')
+  // Stay inside the bottom margin so this legacy receipt route cannot append a
+  // blank page while drawing its footer.
+  yPos = doc.page.height - 82
+  doc.fontSize(10).font('Helvetica')
   doc.text(`Generated on ${new Date().toLocaleString()}`, 0, yPos, { align: 'center' })
 
   doc.end()

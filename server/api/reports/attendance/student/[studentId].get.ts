@@ -79,12 +79,12 @@ export default defineEventHandler(async (event) => {
   doc.font('Helvetica').fontSize(12).fillColor(colors.primary).text('ATTENDANCE REPORT', contentX, y, { width: contentWidth, align: 'center', characterSpacing: 1.1 })
   y += 21
   const period = from || to ? `${from ? new Date(`${from}T00:00:00`).toLocaleDateString('en-IN') : 'Beginning'} – ${to ? new Date(`${to}T00:00:00`).toLocaleDateString('en-IN') : 'Today'}` : 'All attendance records'
-  doc.fontSize(9).fillColor(colors.muted).text(period, contentX, y, { width: contentWidth, align: 'center' })
+  doc.fontSize(10.5).fillColor(colors.muted).text(period, contentX, y, { width: contentWidth, align: 'center' })
   y += 28
 
   doc.roundedRect(contentX, y, contentWidth, 55, 7).fill('#eef2ff')
   doc.font('Helvetica-Bold').fontSize(11).fillColor(colors.slate).text(`${student.firstName} ${student.lastName}`, contentX + 16, y + 13)
-  doc.font('Helvetica').fontSize(9).fillColor(colors.muted).text(`Dojo: ${student.dojo?.name || 'Not assigned'}`, contentX + 16, y + 30)
+  doc.font('Helvetica').fontSize(10.5).fillColor(colors.muted).text(`Dojo: ${student.dojo?.name || 'Not assigned'}`, contentX + 16, y + 30)
   y += 75
 
   const stats = [
@@ -101,7 +101,7 @@ export default defineEventHandler(async (event) => {
     const x = contentX + index * (statWidth + 5)
     doc.roundedRect(x, y, statWidth, 50, 6).fill(stat.color)
     doc.font('Helvetica-Bold').fontSize(14).fillColor(stat.text).text(String(stat.value), x, y + 11, { width: statWidth, align: 'center' })
-    doc.font('Helvetica').fontSize(7.5).fillColor(colors.muted).text(stat.label.toUpperCase(), x, y + 30, { width: statWidth, align: 'center' })
+    doc.font('Helvetica').fontSize(8.5).fillColor(colors.muted).text(stat.label.toUpperCase(), x, y + 30, { width: statWidth, align: 'center' })
   }
   y += 74
 
@@ -110,7 +110,7 @@ export default defineEventHandler(async (event) => {
   const drawTableHeader = () => {
     doc.roundedRect(contentX, y, contentWidth, 24, 5).fill(colors.slate)
     const labels = ['Date', 'Start', 'Class', 'Dojo', 'Instructor', 'Status', 'Notes']
-    doc.font('Helvetica-Bold').fontSize(7.5).fillColor('#ffffff')
+    doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#ffffff')
     labels.forEach((label, index) => doc.text(label, columns[index]!, y + 8, { width: widths[index]!, align: index === 5 ? 'center' : 'left' }))
     y += 30
   }
@@ -126,7 +126,7 @@ export default defineEventHandler(async (event) => {
       if (index % 2 === 0) doc.rect(contentX, y - 4, contentWidth, 20).fill('#f8fafc')
       const status = record.status || 'present'
       const statusColor = status === 'present' ? colors.present : status === 'late' ? colors.late : status === 'absent' ? colors.absent : colors.excused
-      doc.font('Helvetica').fontSize(7.5).fillColor(colors.slate)
+      doc.font('Helvetica').fontSize(8.5).fillColor(colors.slate)
       doc.text(new Date(record.session?.date).toLocaleDateString('en-IN'), columns[0]!, y, { width: widths[0]! })
       doc.text(record.session?.startTime || '—', columns[1]!, y, { width: widths[1]! })
       doc.text(record.session?.name || 'Class', columns[2]!, y, { width: widths[2]! })
@@ -146,7 +146,7 @@ export default defineEventHandler(async (event) => {
     y + 41,
     { width: contentWidth - 28, lineBreak: false }
   )
-  doc.font('Helvetica').fontSize(8).fillColor(colors.muted).text(`Generated ${new Date().toLocaleString('en-IN')}`, contentX, doc.page.height - 70, { width: contentWidth, align: 'center', lineBreak: false })
+  doc.font('Helvetica').fontSize(9).fillColor(colors.muted).text(`Generated ${new Date().toLocaleString('en-IN')}`, contentX, doc.page.height - 70, { width: contentWidth, align: 'center', lineBreak: false })
   doc.end()
   return pdf
 })

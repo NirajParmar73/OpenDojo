@@ -159,6 +159,7 @@ const allNavigation = [
     label: 'Finance',
     items: [
       { label: 'Record payment', to: '/fees', icon: 'i-lucide-circle-dollar-sign' },
+      { label: 'Recent receipts', to: '/receipts', icon: 'i-lucide-receipt-text' },
       { label: 'Collections overview', to: '/finance', icon: 'i-lucide-chart-no-axes-combined' },
       { label: 'Pending fees', to: '/finance/pending-fees', icon: 'i-lucide-clock-alert' },
       { label: 'Expenses', to: '/finance/expenses', icon: 'i-lucide-receipt-indian-rupee' },
@@ -216,6 +217,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/settings/subscription': { title: 'Plan & billing', section: 'Organization' },
   '/settings/finance/fee-plans': { title: 'Fee plans', section: 'Finance' },
   '/fees': { title: 'Record payment', section: 'Finance' },
+  '/receipts': { title: 'Recent receipts', section: 'Finance' },
   '/finance': { title: 'Collections overview', section: 'Finance' },
   '/finance/pending-fees': { title: 'Pending fees', section: 'Finance' },
   '/finance/expenses': { title: 'Expenses', section: 'Finance' },

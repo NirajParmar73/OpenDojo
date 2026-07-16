@@ -4,28 +4,36 @@
 
     <UCard class="mb-6">
       <h2 class="text-lg font-semibold mb-1">Territory summary</h2><p class="mb-4 text-sm text-slate-500">Only hierarchy entities and dojos assigned to you can be selected.</p>
-      <div class="grid grid-cols-1 gap-4 md:grid-cols-3"><USelect v-model="scopeType" :items="scopeTypes" /><USelect v-model="selectedScopeId" :items="scopeOptions" placeholder="All accessible entities" /><UButton :loading="loadingSummary" @click="loadSummary">View summary</UButton></div>
+      <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
+        <UFormField label="Scope type">
+          <USelect v-model="scopeType" :items="scopeTypes" />
+        </UFormField>
+        <UFormField label="Territory">
+          <USelect v-model="selectedScopeId" :items="scopeOptions" placeholder="All accessible entities" />
+        </UFormField>
+        <div class="self-end"><UButton :loading="loadingSummary" @click="loadSummary">View summary</UButton></div>
+      </div>
       <div v-if="summary" class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5"><div v-for="item in summaryItems" :key="item.label" class="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800"><p class="text-xs text-slate-500">{{ item.label }}</p><p class="mt-1 text-xl font-semibold">{{ item.value }}</p></div></div>
     </UCard>
 
     <UCard>
       <form @submit.prevent="generateReport">
-        <UFormGroup label="Student" class="mb-4">
+        <UFormField label="Student" class="mb-4">
           <USelect
             v-model="selectedStudentId"
             :items="studentOptions"
             placeholder="Select a student"
             required
           />
-        </UFormGroup>
+        </UFormField>
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-          <UFormGroup label="Attendance from">
-            <UInput v-model="dateFrom" type="date" />
-          </UFormGroup>
-          <UFormGroup label="Attendance to">
-            <UInput v-model="dateTo" type="date" />
-          </UFormGroup>
+          <UFormField label="Attendance from">
+            <UInput v-model="dateFrom" type="date" aria-label="Attendance from date" />
+          </UFormField>
+          <UFormField label="Attendance to">
+            <UInput v-model="dateTo" type="date" aria-label="Attendance to date" />
+          </UFormField>
         </div>
 
         <UButton type="submit" :loading="generating" color="primary">

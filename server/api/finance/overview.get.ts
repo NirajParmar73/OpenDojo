@@ -84,14 +84,38 @@ export default defineEventHandler(async (event) => {
   }) as any[]
   const organizationPayments = payments.filter(payment => payment.student?.organizationId === organizationId && (accessibleDojoIds === null || (payment.student.dojoId !== null && accessibleDojoIds.includes(payment.student.dojoId))) && (!selectedDojoId || payment.student.dojoId === selectedDojoId))
   const expenses = await db.query.expenses.findMany({ where: eq(tables.expenses.organizationId, organizationId) })
-  const scopedExpenses = expenses.filter(expense => expense.status === 'paid' && (
-    expense.scopeType === 'organization'
-      ? accessibleDojoIds === null && selectedDojoId === null
-      : expense.scopeType === 'dojo'
-        ? (!selectedDojoId || expense.scopeId === selectedDojoId) && (accessibleDojoIds === null || accessibleDojoIds.includes(expense.scopeId!))
-        : accessibleDojoIds === null || managementScope.managedParentNodeIds.includes(expense.scopeId!)
-  ))
+  const scopedExpenses = expenses.filter(expense => {
+    if (expense.status !== 'paid') return false
+    // A dojo filter is intentionally strict: shared organization or hierarchy
+    // costs cannot be accurately assigned to one dojo without an allocation rule.
+    if (selectedDojoId) return expense.scopeType === 'dojo' && expense.scopeId === selectedDojoId
+    if (expense.scopeType === 'organization') return accessibleDojoIds === null
+    if (expense.scopeType === 'dojo') return accessibleDojoIds === null || accessibleDojoIds.includes(expense.scopeId!)
+    return accessibleDojoIds === null || managementScope.managedParentNodeIds.includes(expense.scopeId!)
+  })
   const paidExpenses = scopedExpenses.reduce((sum, expense) => sum + expense.amount + expense.taxAmount, 0)
+  const allDojos = await db.query.dojos.findMany({ where: eq(tables.dojos.organizationId, organizationId) })
+  const scopedDojos = allDojos.filter(dojo => (accessibleDojoIds === null || accessibleDojoIds.includes(dojo.id)) && (!selectedDojoId || dojo.id === selectedDojoId))
+  const revenueByDojo = new Map<number, number>()
+  for (const payment of organizationPayments) {
+    const dojoId = payment.student?.dojoId
+    if (dojoId) revenueByDojo.set(dojoId, (revenueByDojo.get(dojoId) || 0) + payment.amount)
+  }
+  const expensesByDojo = new Map<number, number>()
+  for (const expense of scopedExpenses) {
+    if (expense.scopeType === 'dojo' && expense.scopeId) {
+      const amount = expense.amount + expense.taxAmount
+      expensesByDojo.set(expense.scopeId, (expensesByDojo.get(expense.scopeId) || 0) + amount)
+    }
+  }
+  const dojoBreakdown = scopedDojos
+    .map(dojo => {
+      const revenue = revenueByDojo.get(dojo.id) || 0
+      const paidExpenses = expensesByDojo.get(dojo.id) || 0
+      return { dojoId: dojo.id, dojoName: dojo.name, revenue, paidExpenses, netRevenue: revenue - paidExpenses }
+    })
+    .sort((a, b) => b.netRevenue - a.netRevenue || a.dojoName.localeCompare(b.dojoName))
+  const directDojoExpenses = dojoBreakdown.reduce((sum, dojo) => sum + dojo.paidExpenses, 0)
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const collectedThisMonth = organizationPayments
     .filter(payment => new Date(payment.paymentDate) >= monthStart && new Date(payment.paymentDate) < nextMonthStart)
@@ -129,10 +153,12 @@ export default defineEventHandler(async (event) => {
       allTimeRevenue: organizationPayments.reduce((sum, payment) => sum + payment.amount, 0),
       paidExpenses,
       netRevenue: organizationPayments.reduce((sum, payment) => sum + payment.amount, 0) - paidExpenses,
+      sharedExpenses: paidExpenses - directDojoExpenses,
       paymentCount: organizationPayments.length,
     },
     records,
     paymentMethods,
     revenueTrend,
+    dojoBreakdown,
   }
 })

@@ -68,21 +68,24 @@
 
                     <!-- Add schedule form -->
                     <form @submit.prevent="addSchedule(dojo.id)" class="grid grid-cols-1 md:grid-cols-5 gap-3 mb-4">
-                      <USelect
-                        v-model="scheduleForm.dayOfWeek"
-                        :items="dayOptions"
-                        placeholder="Day"
-                        required
-                      />
-                      <UInput v-model="scheduleForm.startTime" type="time" placeholder="Start" required />
-                      <UInput v-model="scheduleForm.endTime" type="time" placeholder="End" required />
-                      <UInput v-model="scheduleForm.name" placeholder="Class name" required />
-                      <USelect v-model="scheduleForm.programId" :items="programOptions" placeholder="Program (optional)" />
-                      <USelect
-                        v-model="scheduleForm.instructorId"
-                        :items="instructorOptions"
-                        placeholder="Instructor (optional)"
-                      />
+                      <UFormField label="Day" required>
+                        <USelect v-model="scheduleForm.dayOfWeek" :items="dayOptions" placeholder="Select a day" required />
+                      </UFormField>
+                      <UFormField label="Starts at" required>
+                        <UInput v-model="scheduleForm.startTime" type="time" required />
+                      </UFormField>
+                      <UFormField label="Ends at" required>
+                        <UInput v-model="scheduleForm.endTime" type="time" required />
+                      </UFormField>
+                      <UFormField label="Class name" required>
+                        <UInput v-model="scheduleForm.name" required />
+                      </UFormField>
+                      <UFormField label="Program">
+                        <USelect v-model="scheduleForm.programId" :items="programOptions" placeholder="Optional" />
+                      </UFormField>
+                      <UFormField label="Instructor">
+                        <USelect v-model="scheduleForm.instructorId" :items="instructorOptions" placeholder="Optional" />
+                      </UFormField>
                       <UButton type="submit" size="sm" :loading="addingSchedule">Add</UButton>
                     </form>
 
@@ -105,20 +108,21 @@
                     <div v-if="editingSchedule" class="mt-4 border-t pt-4">
                       <h5 class="font-medium mb-2">Edit Schedule</h5>
                       <form @submit.prevent="updateSchedule(dojo.id)" class="grid grid-cols-1 md:grid-cols-5 gap-3">
-                        <USelect
-                          v-model="editScheduleForm.dayOfWeek"
-                          :items="dayOptions"
-                          placeholder="Day"
-                          required
-                        />
-                        <UInput v-model="editScheduleForm.startTime" type="time" placeholder="Start" required />
-                        <UInput v-model="editScheduleForm.endTime" type="time" placeholder="End" required />
-                        <UInput v-model="editScheduleForm.name" placeholder="Class name" required />
-                        <USelect
-                          v-model="editScheduleForm.instructorId"
-                          :items="instructorOptions"
-                          placeholder="Instructor (optional)"
-                        />
+                        <UFormField label="Day" required>
+                          <USelect v-model="editScheduleForm.dayOfWeek" :items="dayOptions" placeholder="Select a day" required />
+                        </UFormField>
+                        <UFormField label="Starts at" required>
+                          <UInput v-model="editScheduleForm.startTime" type="time" required />
+                        </UFormField>
+                        <UFormField label="Ends at" required>
+                          <UInput v-model="editScheduleForm.endTime" type="time" required />
+                        </UFormField>
+                        <UFormField label="Class name" required>
+                          <UInput v-model="editScheduleForm.name" required />
+                        </UFormField>
+                        <UFormField label="Instructor">
+                          <USelect v-model="editScheduleForm.instructorId" :items="instructorOptions" placeholder="Optional" />
+                        </UFormField>
                         <UButton type="submit" size="sm" :loading="updatingSchedule">Update</UButton>
                         <UButton type="button" color="neutral" size="sm" @click="cancelEditSchedule">Cancel</UButton>
                       </form>

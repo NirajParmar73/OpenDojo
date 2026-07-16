@@ -20,6 +20,14 @@ export default defineEventHandler(async event => {
   const total = attendance.length
   const present = attendance.filter(record => record.status === 'present' || record.status === 'late').length
   const rate = total ? Math.round((present / total) * 100) : 0
+  // A grading may be entered later for an earlier date. Use the highest belt
+  // order recorded for the student instead of the cached rank on the student,
+  // which could otherwise show a lower belt in the report.
+  const highestGrading = gradings.reduce<typeof gradings[number] | undefined>((highest, grading) => {
+    if (!highest || (grading.beltRank?.order ?? -Infinity) > (highest.beltRank?.order ?? -Infinity)) return grading
+    return highest
+  }, undefined)
+  const currentRank = highestGrading?.beltRank?.name || student.currentBeltRank?.name || 'Not assigned'
   const doc = new PDFDocument({ margin: 48, size: 'A4' })
   const chunks: Buffer[] = []
   doc.on('data', chunk => chunks.push(chunk))
@@ -38,8 +46,8 @@ export default defineEventHandler(async event => {
   doc.font('Helvetica').fontSize(9).fillColor('#4b5563').text(`Dojo: ${student.dojo?.name || 'Not assigned'}   •   Member since: ${student.joinedAt.toLocaleDateString('en-IN')}`, 64, y + 40)
   y += 94
   const statWidth = (pageWidth - 108) / 3
-  const stats = [{ label: 'CURRENT RANK', value: student.currentBeltRank?.name || 'Not assigned', color: '#ede9fe' }, { label: 'ATTENDANCE RATE', value: `${rate}%`, color: '#dcfce7' }, { label: 'SESSIONS RECORDED', value: String(total), color: '#e0f2fe' }]
-  stats.forEach((stat, index) => { const x = 48 + index * (statWidth + 6); doc.roundedRect(x, y, statWidth, 54, 7).fill(stat.color); doc.font('Helvetica-Bold').fontSize(8).fillColor('#64748b').text(stat.label, x + 10, y + 10); doc.fontSize(13).fillColor('#0f172a').text(stat.value, x + 10, y + 27, { width: statWidth - 20 }) })
+  const stats = [{ label: 'CURRENT RANK', value: currentRank, color: '#ede9fe' }, { label: 'ATTENDANCE RATE', value: `${rate}%`, color: '#dcfce7' }, { label: 'SESSIONS RECORDED', value: String(total), color: '#e0f2fe' }]
+  stats.forEach((stat, index) => { const x = 48 + index * (statWidth + 6); doc.roundedRect(x, y, statWidth, 54, 7).fill(stat.color); doc.font('Helvetica-Bold').fontSize(9.5).fillColor('#64748b').text(stat.label, x + 10, y + 10); doc.fontSize(14).fillColor('#0f172a').text(stat.value, x + 10, y + 27, { width: statWidth - 20 }) })
   y += 78
   doc.font('Helvetica-Bold').fontSize(13).fillColor('#111827').text('Attendance summary', 48, y)
   y += 19
@@ -49,7 +57,7 @@ export default defineEventHandler(async event => {
   y += 20
   if (!gradings.length) doc.font('Helvetica').fontSize(10).text('No gradings have been recorded yet.')
   for (const grading of gradings) { doc.roundedRect(48, y - 2, pageWidth - 96, 22, 4).fill('#f8fafc'); doc.font('Helvetica').fontSize(10).fillColor('#334155').text(`${grading.awardedDate.toLocaleDateString('en-IN')}  —  ${grading.beltRank?.name || 'Rank'}${grading.examiner ? ` (Examiner: ${grading.examiner})` : ''}${grading.certificateNumber ? ` | Certificate no. ${grading.certificateNumber}` : ''}`, 58, y + 4); y += 27 }
-  doc.moveDown(2).fontSize(8).fillColor('#6b7280').text(`Generated on ${new Date().toLocaleDateString('en-IN')} · This report is shareable with the student or guardian.`, { align: 'center' })
+  doc.moveDown(2).fontSize(9.5).fillColor('#6b7280').text(`Generated on ${new Date().toLocaleDateString('en-IN')} · This report is shareable with the student or guardian.`, { align: 'center' })
   const bufferPromise = new Promise<Buffer>((resolve, reject) => { doc.on('end', () => resolve(Buffer.concat(chunks))); doc.on('error', reject) })
   doc.end()
   const buffer = await bufferPromise

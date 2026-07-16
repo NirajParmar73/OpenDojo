@@ -59,13 +59,13 @@ export default defineEventHandler(async (event) => {
   doc.font('Helvetica').fontSize(12).fillColor('#4b5563').text('FEE STATEMENT', 50, y, { width, align: 'center', characterSpacing: 1 })
   y += 25
   const period = from || to ? `${from ? from.toLocaleDateString('en-IN') : 'Beginning'} – ${to ? to.toLocaleDateString('en-IN') : 'Today'}` : 'All payments'
-  doc.fontSize(9).fillColor('#6b7280').text(`Statement period: ${period}`, 50, y, { width, align: 'center' })
+  doc.fontSize(10.5).fillColor('#6b7280').text(`Statement period: ${period}`, 50, y, { width, align: 'center' })
   y += 28
   doc.strokeColor('#d1d5db').moveTo(50, y).lineTo(50 + width, y).stroke()
   y += 20
-  doc.font('Helvetica-Bold').fontSize(11).fillColor('#111827').text('Student details', 50, y)
+  doc.font('Helvetica-Bold').fontSize(12.5).fillColor('#111827').text('Student details', 50, y)
   y += 18
-  doc.font('Helvetica').fontSize(10).text(`Student: ${student.firstName} ${student.lastName}`, 50, y); y += 15
+  doc.font('Helvetica').fontSize(11.5).text(`Student: ${student.firstName} ${student.lastName}`, 50, y); y += 17
   doc.text(`Dojo: ${student.dojo?.name || 'Not assigned'}`, 50, y); y += 25
   doc.roundedRect(50, y, width, 54, 6).fill('#f3f4f6')
   doc.font('Helvetica-Bold').fontSize(10).fillColor('#374151').text('Received in selected period', 68, y + 12)
@@ -73,11 +73,11 @@ export default defineEventHandler(async (event) => {
   doc.fontSize(14).fillColor('#111827').text(formatAmount(totalReceived, currency), 68, y + 27)
   doc.text(formatAmount(totalOutstanding, currency), 330, y + 27)
   y += 82
-  doc.font('Helvetica-Bold').fontSize(11).fillColor('#111827').text('Payment history', 50, y)
+  doc.font('Helvetica-Bold').fontSize(12.5).fillColor('#111827').text('Payment history', 50, y)
   y += 20
   const columns = [50, 125, 230, 360, 455]
   const headers = ['Date', 'Fee period', 'Fee plan', 'Method', 'Amount']
-  doc.fontSize(8).fillColor('#6b7280')
+  doc.fontSize(9.5).fillColor('#6b7280')
   headers.forEach((header, index) => doc.text(header, columns[index]!, y, { width: index === 4 ? 85 : 100, align: index === 4 ? 'right' : 'left' }))
   y += 13
   doc.strokeColor('#d1d5db').moveTo(50, y).lineTo(50 + width, y).stroke(); y += 8
@@ -87,16 +87,16 @@ export default defineEventHandler(async (event) => {
     for (const payment of filteredPayments) {
       if (y > doc.page.height - 85) { doc.addPage(); y = 55 }
       const feePeriod = payment.billingPeriod ? new Date(`${payment.billingPeriod}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : new Date(payment.paymentDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
-      doc.font('Helvetica').fontSize(8.5).fillColor('#111827')
+      doc.font('Helvetica').fontSize(10).fillColor('#111827')
       doc.text(new Date(payment.paymentDate).toLocaleDateString('en-IN'), columns[0]!, y, { width: 70 })
       doc.text(feePeriod, columns[1]!, y, { width: 95 })
       doc.text(payment.assignment?.feePlan?.name || 'General payment', columns[2]!, y, { width: 120 })
       doc.text(String(payment.method || 'cash').replaceAll('_', ' '), columns[3]!, y, { width: 80 })
       doc.text(formatAmount(payment.amount, currency), columns[4]!, y, { width: 85, align: 'right' })
-      y += 18
+      y += 21
     }
   }
-  doc.font('Helvetica').fontSize(8).fillColor('#6b7280').text(`Generated ${new Date().toLocaleString('en-IN')}`, 50, doc.page.height - 70, { width, align: 'center', lineBreak: false })
+  doc.font('Helvetica').fontSize(9).fillColor('#6b7280').text(`Generated ${new Date().toLocaleString('en-IN')}`, 50, doc.page.height - 70, { width, align: 'center', lineBreak: false })
   doc.end()
   return pdf
 })

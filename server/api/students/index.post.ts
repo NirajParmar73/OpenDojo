@@ -22,6 +22,7 @@ const createStudentSchema = z.object({
   // ✅ new fields
   avatar: z.string().nullable().optional(),
   currentBeltRankId: z.number().int().positive().nullable().optional(),
+  feePlanId: z.number().int().positive().nullable().optional(),
   autoAssignDefaultFeePlan: z.boolean().default(true),
   initialDiscount: z.number().int().nonnegative().default(0),
   discountReason: z.string().trim().max(500).optional(),
@@ -41,6 +42,8 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, createStudentSchema.parse)
   await assertStudentLimit(orgId)
 
+  let selectedDojo: { defaultFeePlanId: number | null } | null = null
+
   // Validate dojo if provided
   if (body.dojoId) {
     const dojo = await db.query.dojos.findFirst({
@@ -50,6 +53,7 @@ export default defineEventHandler(async (event) => {
       throw createError({ statusCode: 400, statusMessage: 'Invalid dojo' })
     }
     await assertDojoManagementAccess(session.user.id, orgId, body.dojoId)
+    selectedDojo = dojo
   } else if (session.user.role !== 'owner') {
     throw createError({ statusCode: 403, statusMessage: 'Only the owner can create an unassigned student' })
   }
@@ -85,6 +89,16 @@ export default defineEventHandler(async (event) => {
   if (body.dateOfBirth) {
     data.dateOfBirth = new Date(body.dateOfBirth)
   }
+
+  const feePlanId = body.feePlanId === undefined && body.autoAssignDefaultFeePlan
+    ? selectedDojo?.defaultFeePlanId
+    : body.feePlanId
+  if (feePlanId) {
+    const feePlan = await db.query.feePlans.findFirst({ where: eq(tables.feePlans.id, feePlanId) })
+    if (!feePlan || feePlan.organizationId !== orgId || (feePlan.dojoId && feePlan.dojoId !== body.dojoId)) {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid fee plan' })
+    }
+  }
   if (body.joinedAt) {
     data.joinedAt = new Date(`${body.joinedAt}T00:00:00.000Z`)
   }
@@ -95,19 +109,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create student' })
   }
 
-  if (body.autoAssignDefaultFeePlan && student.dojoId) {
-    const dojo = await db.query.dojos.findFirst({ where: eq(tables.dojos.id, student.dojoId) })
-    if (dojo?.defaultFeePlanId) {
-      await db.insert(tables.studentFeeAssignments).values({
-        studentId: student.id,
-        feePlanId: dojo.defaultFeePlanId,
-        startDate: student.joinedAt,
-        dueDay: Math.min(Math.max(new Date(student.joinedAt).getDate(), 1), 28),
-        discount: body.initialDiscount,
-        discountReason: body.initialDiscount ? body.discountReason : null,
-        status: 'active',
-      })
-    }
+  if (feePlanId) {
+    await db.insert(tables.studentFeeAssignments).values({
+      studentId: student.id,
+      feePlanId,
+      startDate: student.joinedAt,
+      dueDay: Math.min(Math.max(new Date(student.joinedAt).getDate(), 1), 28),
+      discount: body.initialDiscount,
+      discountReason: body.initialDiscount ? body.discountReason : null,
+      status: 'active',
+    })
   }
 
   // Fetch the full student with relations (dojo, belt)
