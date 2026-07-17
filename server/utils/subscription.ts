@@ -5,7 +5,7 @@ export const subscriptionPlans = ['free', 'city-starter', 'city-pro', 'state-pro
 export type SubscriptionPlan = typeof subscriptionPlans[number]
 export const billingPeriods = ['monthly', 'annual'] as const
 export type BillingPeriod = typeof billingPeriods[number]
-export const subscriptionStatuses = ['free', 'trialing', 'active', 'cancelled', 'expired'] as const
+export const subscriptionStatuses = ['free', 'trialing', 'active', 'cancelled', 'expired', 'suspended'] as const
 export type SubscriptionStatus = typeof subscriptionStatuses[number]
 
 const planLimits: Record<SubscriptionPlan, { students: number | null, studentsPerDojo: number | null, dojos: number | null, instructorsPerDojo: number | null }> = {

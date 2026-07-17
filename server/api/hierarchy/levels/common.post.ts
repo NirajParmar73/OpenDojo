@@ -3,7 +3,7 @@ import { db, tables } from '../../../utils/database'
 import { writeAuditLog } from '../../../utils/audit'
 import { assertFederationManagementAccess } from '../../../utils/subscription'
 
-const commonLevels = ['State / Province', 'District', 'City / Town']
+const commonLevels = ['Country', 'State / Province', 'District', 'City / Town', 'Branch']
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

@@ -43,6 +43,9 @@ export default defineEventHandler(async (event) => {
     orgName = org?.name ?? null
     orgLogo = org?.logo ?? null
     orgSlug = org?.slug ?? ''
+    if (org?.subscriptionStatus === 'suspended' && !isPlatformAdminEmail(user.email)) {
+      throw createError({ statusCode: 403, statusMessage: 'This organization has been suspended. Contact support.' })
+    }
   }
 
   // ✅ Set session with all required fields

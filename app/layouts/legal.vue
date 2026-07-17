@@ -1,10 +1,7 @@
 <template>
   <div class="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-50">
     <header class="mx-auto flex w-full max-w-5xl items-center justify-between px-5 py-6 sm:px-8">
-      <NuxtLink to="/" class="flex items-center gap-3">
-        <span class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-lg font-bold text-white">O</span>
-        <span><span class="block font-semibold">OpenDojo</span><span class="block text-xs text-slate-500 dark:text-slate-400">Dojo operations</span></span>
-      </NuxtLink>
+      <PlatformBrand />
       <NuxtLink to="/auth/login" class="text-sm font-medium text-primary hover:underline">Sign in</NuxtLink>
     </header>
     <main class="mx-auto w-full max-w-4xl px-5 pb-16 pt-8 sm:px-8 sm:pt-12"><slot /></main>

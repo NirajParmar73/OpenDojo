@@ -18,9 +18,7 @@
           :alt="`${orgName} logo`"
           class="h-10 w-10 rounded-xl object-cover shadow-sm"
         >
-        <div v-else class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary text-lg font-bold text-white shadow-sm">
-          {{ orgName.charAt(0) }}
-        </div>
+        <img v-else src="/brand/opendojos-mark.png" alt="OpenDojos" class="h-10 w-10 rounded-xl object-cover shadow-sm">
         <div class="min-w-0">
           <p class="truncate font-semibold tracking-tight">{{ orgName }}</p>
           <p class="text-xs text-slate-500 dark:text-slate-400">Dojo operations</p>

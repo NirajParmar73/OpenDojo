@@ -5,26 +5,37 @@
     <UCard v-if="isOwner && levels.length < 2" class="mb-6 border-primary/30 bg-primary/5">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="font-semibold">Add levels before adding child locations</h2>
-          <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">Your main location is ready. Add State / Province, District, and City / Town levels, then safely place the existing dojo beneath them.</p>
+          <h2 class="font-semibold">Add hierarchy types when you need them</h2>
+          <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">A single dojo can stay simple. For a wider organization, add Country, State, City, Branch, or your own custom type before adding those locations.</p>
         </div>
-        <UButton :loading="addingCommonLevels" icon="i-lucide-sparkles" @click="addCommonLevels">Add common levels</UButton>
+        <UButton :loading="addingCommonLevels" icon="i-lucide-sparkles" @click="addCommonLevels">Add starter types</UButton>
       </div>
+    </UCard>
+
+    <UCard v-if="isOwner" class="mb-6">
+      <h2 class="text-lg font-semibold">1. Define a hierarchy type</h2>
+      <p class="mt-1 text-sm text-gray-500">Types describe the structure, such as <strong>Country</strong>, <strong>State</strong>, or a custom type. A new type starts at the top; you can adjust its order later on the Hierarchy Types page.</p>
+      <form class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]" @submit.prevent="createCustomLevel">
+        <UInput v-model="newLevelName" placeholder="Custom type, e.g. Region or Zone" />
+        <UButton type="submit" :loading="creatingLevel">Add custom type</UButton>
+      </form>
+      <div class="mt-3 flex flex-wrap gap-2"><UButton v-for="preset in levelPresets" :key="preset" size="xs" variant="outline" :disabled="hasLevel(preset)" @click="addPresetLevel(preset)">+ {{ preset }}</UButton></div>
     </UCard>
 
     <!-- Add Root Node -->
     <UCard v-if="isOwner" class="mb-6">
-      <h3 class="text-lg font-semibold mb-3">Add Root Node</h3>
+      <h3 class="text-lg font-semibold mb-1">2. Add a top-level location</h3>
+      <p class="mb-3 text-sm text-gray-500">Choose its type first, then enter its real name. Example: <strong>Country</strong> → <strong>India</strong>.</p>
       <form @submit.prevent="createRootNode">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <USelect
             v-model="newRoot.levelId"
             :items="rootLevelOptions"
-            placeholder="Select level"
+            placeholder="Choose hierarchy type"
             required
           />
-          <UInput v-model="newRoot.name" placeholder="Node name" required />
-          <UButton type="submit" :loading="creatingRoot">Add Root</UButton>
+          <UInput v-model="newRoot.name" placeholder="Location name, e.g. India" required />
+          <UButton type="submit" :loading="creatingRoot">Add location</UButton>
         </div>
       </form>
     </UCard>
@@ -32,7 +43,7 @@
     <!-- Tree View -->
     <UCard>
       <h2 class="text-lg font-semibold mb-4">Your Hierarchy</h2>
-      <div v-if="tree.length === 0" class="text-gray-500">No nodes yet. Add a root node above.</div>
+      <div v-if="tree.length === 0" class="text-gray-500">No locations yet. Add a top-level location above.</div>
       <div v-else>
         <!-- ✅ Force re-render with :key="tree.length" -->
         <HierarchyTreeNode
@@ -50,17 +61,17 @@
 
       <!-- Inline Add Child Form -->
       <div v-if="addingChildParent" class="mt-4 border-t pt-4">
-        <h4 class="font-semibold">Add child under "{{ addingChildParent.name }}"</h4>
+        <h4 class="font-semibold">Add location under "{{ addingChildParent.name }}"</h4>
         <form @submit.prevent="createChildNode" class="mt-2">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <USelect
               v-model="newChild.levelId"
               :items="childLevelOptions"
-              placeholder="Select level"
+              placeholder="Choose hierarchy type"
               required
             />
-            <UInput v-model="newChild.name" placeholder="Child node name" required />
-            <UButton type="submit" :loading="creatingChild">Add Child</UButton>
+            <UInput v-model="newChild.name" placeholder="Location name" required />
+            <UButton type="submit" :loading="creatingChild">Add location</UButton>
           </div>
           <UButton type="button" color="neutral" size="sm" class="mt-2" @click="cancelAddChild">Cancel</UButton>
         </form>
@@ -107,6 +118,9 @@ const creatingRoot = ref(false)
 const creatingChild = ref(false)
 const updating = ref(false)
 const addingCommonLevels = ref(false)
+const creatingLevel = ref(false)
+const newLevelName = ref('')
+const levelPresets = ['Country', 'State / Province', 'District', 'City / Town', 'Branch']
 
 const newRoot = reactive({
   levelId: undefined as number | undefined,
@@ -127,6 +141,7 @@ const editForm = reactive({
 })
 
 const isOwner = computed(() => user.value?.role === 'owner')
+const hasLevel = (name: string) => levels.value.some(level => level.name.trim().toLowerCase() === name.toLowerCase())
 const rootLevelOptions = computed(() => {
   const firstOrder = Math.min(...levels.value.map(level => level.order))
   return levelOptions.value.filter(option => levels.value.find(level => level.id === option.value)?.order === firstOrder)
@@ -219,6 +234,34 @@ async function addCommonLevels() {
   } finally {
     addingCommonLevels.value = false
   }
+}
+
+async function createCustomLevel() {
+  const name = newLevelName.value.trim()
+  if (!name) {
+    toast.add({ color: 'warning', title: 'Enter a hierarchy type' })
+    return
+  }
+  if (hasLevel(name)) {
+    toast.add({ color: 'warning', title: 'This hierarchy type already exists' })
+    return
+  }
+  creatingLevel.value = true
+  try {
+    await $fetch('/api/hierarchy/levels', { method: 'POST', body: { name, order: 1 } })
+    newLevelName.value = ''
+    toast.add({ color: 'success', title: 'Hierarchy type added' })
+    await loadData()
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not add hierarchy type', description: error.data?.statusMessage || error.message })
+  } finally {
+    creatingLevel.value = false
+  }
+}
+
+async function addPresetLevel(name: string) {
+  newLevelName.value = name
+  await createCustomLevel()
 }
 
 function openAddChild(parent: any) {

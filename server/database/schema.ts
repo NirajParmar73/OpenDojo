@@ -216,6 +216,18 @@ export const governingBodies = pgTable('governing_bodies', (t) => ({
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// Platform-owned records deliberately do not belong to a customer organization.
+// They remain available after a tenant is permanently deleted.
+export const platformAuditLogs = pgTable('platform_audit_logs', (t) => ({
+  id: t.serial('id').primaryKey(),
+  actorUserId: t.integer('actor_user_id').references(() => users.id, { onDelete: 'set null' }),
+  action: t.text().notNull(),
+  organizationId: t.integer('organization_id'),
+  organizationName: t.text('organization_name').notNull(),
+  details: t.text(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+}))
+
 // Portal accounts are intentionally separate from staff users. They are created
 // by an administrator and each one is permanently linked to one student.
 export const studentPortalAccounts = pgTable('student_portal_accounts', (t) => ({

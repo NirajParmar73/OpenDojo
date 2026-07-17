@@ -17,6 +17,7 @@ export default defineEventHandler(async (event) => {
   return part ? part.data.toString() : null
 }
   const orgName = getField('organizationName')
+  const workspaceSlug = getField('workspaceSlug')
   const dojoName = getField('dojoName')
   const dojoAddress = getField('dojoAddress')
   const feeName = getField('feeName')
@@ -64,13 +65,13 @@ export default defineEventHandler(async (event) => {
   }
 
   // Check slug uniqueness
-  const slug = organizationSlug(orgName)
-  if (!slug || reservedSubdomains.has(slug)) throw createError({ statusCode: 400, statusMessage: 'Choose a different organization name for the workspace address' })
+  const slug = organizationSlug(workspaceSlug || orgName)
+  if (!slug || reservedSubdomains.has(slug)) throw createError({ statusCode: 400, statusMessage: 'Choose a different workspace address' })
   const existingOrg = await db.query.organizations.findFirst({
     where: eq(tables.organizations.slug, slug),
   })
   if (existingOrg) {
-    throw createError({ statusCode: 409, statusMessage: 'Organization name already taken' })
+    throw createError({ statusCode: 409, statusMessage: 'That workspace address is already taken' })
   }
 
   // Save logo if uploaded
@@ -108,7 +109,9 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create organization' })
   }
 
-  const [level] = await db.insert(tables.hierarchyLevels).values({ organizationId: org.id, name: 'Main location', order: 1 }).returning()
+  // A single-dojo organization starts with a clear, meaningful hierarchy type.
+  // Owners can add Country, State, Branch, or custom levels later if needed.
+  const [level] = await db.insert(tables.hierarchyLevels).values({ organizationId: org.id, name: 'Dojo', order: 1 }).returning()
   const [node] = await db.insert(tables.hierarchyNodes).values({ organizationId: org.id, levelId: level!.id, name: dojoName }).returning()
   const [dojo] = await db.insert(tables.dojos).values({ organizationId: org.id, nodeId: node!.id, name: dojoName, address: dojoAddress || null }).returning()
 

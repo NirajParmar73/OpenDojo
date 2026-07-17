@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { db, tables } from '../../../../server/utils/database'
-import { eq } from 'drizzle-orm'
+import { and, eq, gte, sql } from 'drizzle-orm'
 
 const createLevelSchema = z.object({
   name: z.string().min(1),
-  order: z.number().int().optional(),
+  order: z.number().int().positive().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -25,7 +25,13 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, createLevelSchema.parse)
 
   let order = body.order
-  if (!order) {
+  if (order) {
+    // A type deliberately inserted at the top (for example Country) pushes
+    // existing types down while keeping their relative ordering intact.
+    await db.update(tables.hierarchyLevels)
+      .set({ order: sql`${tables.hierarchyLevels.order} + 1`, updatedAt: new Date() })
+      .where(and(eq(tables.hierarchyLevels.organizationId, orgId), gte(tables.hierarchyLevels.order, order)))
+  } else {
     const maxOrder = await db.query.hierarchyLevels.findFirst({
       where: eq(tables.hierarchyLevels.organizationId, orgId),
       orderBy: (levels, { desc }) => [desc(levels.order)],

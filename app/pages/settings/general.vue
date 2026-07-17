@@ -9,6 +9,12 @@
       </div>
 
       <div class="mb-4">
+        <label class="block text-sm font-medium">Workspace subdomain</label>
+        <UInput v-model="form.slug" class="w-full" placeholder="gojukai" autocapitalize="none" />
+        <p class="mt-1 text-xs text-gray-500">Choose a short, unique address using letters, numbers, and hyphens. Changing it updates your workspace URL.</p>
+      </div>
+
+      <div class="mb-4">
         <label class="block text-sm font-medium">Currency</label>
         <USelect
           v-model="form.currency"
@@ -56,12 +62,14 @@ const currencyOptions = [
 
 const org = reactive({
   name: '',
+  slug: '',
   logo: null as string | null,
   currency: 'INR',
 })
 
 const form = reactive({
   name: '',
+  slug: '',
   currency: 'INR',
 })
 
@@ -71,9 +79,11 @@ onMounted(async () => {
   try {
     const data = await $fetch('/api/organization/settings')
     org.name = data.name
+    org.slug = data.slug
     org.logo = data.logo
     org.currency = data.currency || 'INR'
     form.name = data.name
+    form.slug = data.slug
     form.currency = data.currency || 'INR'
   } catch (error: any) {
     toast.add({
@@ -95,6 +105,7 @@ async function saveSettings() {
   try {
     const fd = new FormData()
     fd.append('name', form.name)
+    fd.append('slug', form.slug)
     fd.append('currency', form.currency)
     if (logoFile.value) {
       fd.append('logo', logoFile.value)
@@ -107,6 +118,7 @@ async function saveSettings() {
     await fetch() // refresh session
     message.value = 'Settings updated successfully!'
     org.name = form.name
+    org.slug = form.slug
     org.currency = form.currency
     if (user.value?.organizationLogo) {
       org.logo = user.value.organizationLogo

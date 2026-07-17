@@ -1,6 +1,7 @@
 import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
 import { saveUploadedFile } from '../../utils/upload'
+import { organizationSlug, reservedSubdomains } from '../../utils/tenant'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -27,11 +28,19 @@ export default defineEventHandler(async (event) => {
   }
 
   const name = getField('name')
+  const requestedSlug = getField('slug')
   const currency = getField('currency')
   const logoFilePart = form.find((p) => p.name === 'logo' && p.filename)
 
   const updateData: any = {}
   if (name !== null) updateData.name = name
+  if (requestedSlug !== null) {
+    const slug = organizationSlug(requestedSlug)
+    if (!slug || reservedSubdomains.has(slug)) throw createError({ statusCode: 400, statusMessage: 'Choose a different workspace address' })
+    const conflict = await db.query.organizations.findFirst({ where: eq(tables.organizations.slug, slug), columns: { id: true } })
+    if (conflict && conflict.id !== session.user.organizationId) throw createError({ statusCode: 409, statusMessage: 'That workspace address is already taken' })
+    updateData.slug = slug
+  }
   if (currency !== null) updateData.currency = currency
   if (logoFilePart && logoFilePart.data) {
     try {
