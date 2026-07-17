@@ -2,7 +2,7 @@
   <div class="mx-auto max-w-6xl">
     <section class="rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-white to-violet-50 p-6 dark:via-slate-900 dark:to-violet-950/30 sm:p-8">
       <p class="text-sm font-semibold text-primary">PLAN & BILLING</p>
-      <div class="mt-2 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Your {{ planLabel(subscription?.plan) }} plan</h2><p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Choose a plan when you need more locations, students, staff, or broader management. We will confirm billing before changing your plan.</p></div><UButton :href="upgradeHref(nextRecommendedPlan)" icon="i-lucide-arrow-up-right" :disabled="!nextRecommendedPlan">{{ nextRecommendedPlan ? `Upgrade to ${planLabel(nextRecommendedPlan)}` : 'You have the highest plan' }}</UButton></div>
+      <div class="mt-2 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between"><div><h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Your {{ planLabel(subscription?.plan) }} plan</h2><p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">Choose a plan when you need more locations, students, staff, or broader management. We will confirm billing before changing your plan.</p></div><div class="flex flex-wrap gap-2"><UButton to="/settings/expand-structure" color="neutral" variant="outline" icon="i-lucide-git-branch">Set up upgraded structure</UButton><UButton icon="i-lucide-message-circle" :disabled="!nextRecommendedPlan" @click="showUpgradeInstructions">{{ nextRecommendedPlan ? `Contact us to upgrade to ${planLabel(nextRecommendedPlan)}` : 'You have the highest plan' }}</UButton></div></div>
     </section>
 
     <section v-if="subscription" class="mt-6 grid gap-4 sm:grid-cols-3">
@@ -41,6 +41,14 @@ const usageCards = computed(() => [
 function planLabel(plan?: PlanKey | null) { return plan ? ({ free: 'Free Forever', 'city-starter': 'City Starter', 'city-pro': 'City Pro', 'state-pro': 'State Pro', national: 'National' }[plan]) : 'Free Forever' }
 function limitLabel(limit?: number | null) { return limit === null || limit === undefined ? 'Unlimited' : String(limit) }
 function priceFor(plan: typeof paidPlans[number]) { return `₹${(billingPeriod.value === 'annual' ? plan.annual : plan.monthly).toLocaleString('en-IN')}` }
-function upgradeHref(plan: PlanKey | null) { if (!plan) return undefined; const subject = `OpenDojo 14-day trial: ${planLabel(plan)}`; const body = `Hello,\n\nI would like to start a 14-day, no-credit-card trial of the ${planLabel(plan)} plan on the ${billingPeriod.value} billing option.\n\nThank you.`; return `mailto:${supportEmail}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}` }
+function showUpgradeInstructions() {
+  if (!nextRecommendedPlan.value) return
+  toast.add({
+    color: 'primary',
+    title: `Upgrade to ${planLabel(nextRecommendedPlan.value)}`,
+    description: `Contact ${supportEmail} and mention your organization name. We will confirm the change before any billing begins.`,
+    duration: 10000,
+  })
+}
 async function startTrial(plan: Exclude<PlanKey, 'free'>) { startingTrial.value = plan; try { await $fetch('/api/organization/subscription/trial', { method: 'POST', body: { plan, billingPeriod: billingPeriod.value } }); await refresh(); toast.add({ title: 'Your 14-day trial has started', color: 'success' }) } catch (error: any) { toast.add({ title: 'Could not start the trial', description: error.data?.statusMessage || error.message, color: 'error' }) } finally { startingTrial.value = null } }
 </script>

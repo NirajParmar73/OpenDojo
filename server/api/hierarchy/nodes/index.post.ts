@@ -4,7 +4,7 @@ import { db, tables } from '../../../../server/utils/database'
 import { eq } from 'drizzle-orm'
 import { assertNodeManagementAccess } from '../../../utils/permissions'
 import { writeAuditLog } from '../../../utils/audit'
-import { assertFederationManagementAccess } from '../../../utils/subscription'
+import { assertFederationManagementAccess, assertHierarchyLevelAllowed } from '../../../utils/subscription'
 
 const createNodeSchema = z.object({
   levelId: z.number().int().positive(),
@@ -33,6 +33,9 @@ export default defineEventHandler(async (event) => {
   if (!level || level.organizationId !== orgId) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid level ID' })
   }
+  if (level.name.trim().toLowerCase() === 'dojo') {
+    throw createError({ statusCode: 400, statusMessage: 'Create dojos from Dojos & schedules so they are ready for schedules, students, and fees.' })
+  }
 
   // If parentId is provided, verify it belongs to the organization and is a valid parent
   if (body.parentId) {
@@ -50,6 +53,7 @@ export default defineEventHandler(async (event) => {
   } else if (session.user.role !== 'owner') {
     throw createError({ statusCode: 403, statusMessage: 'Only organization-wide administrators can create root hierarchy nodes' })
   }
+  await assertHierarchyLevelAllowed(orgId, level.name)
 
   // Create the node
   const [node] = await db.insert(tables.hierarchyNodes).values({

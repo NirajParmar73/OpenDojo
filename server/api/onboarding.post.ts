@@ -20,6 +20,11 @@ export default defineEventHandler(async (event) => {
   const workspaceSlug = getField('workspaceSlug')
   const dojoName = getField('dojoName')
   const dojoAddress = getField('dojoAddress')
+  const dojoCity = getField('dojoCity')
+  const dojoStateProvince = getField('dojoStateProvince')
+  const dojoCountry = getField('dojoCountry')
+  const districtName = getField('districtName')?.trim()
+  const branchName = getField('branchName')?.trim()
   const feeName = getField('feeName')
   const feeAmount = Number(getField('feeAmount'))
   const name = getField('name')
@@ -32,13 +37,14 @@ export default defineEventHandler(async (event) => {
   const staffField = getField('staff')
   const logoFilePart = form.find((p) => p.name === 'logo' && p.filename)
 
-  if (!orgName || !dojoName || !name || !email || !password || !martialArt || !style || !feeName || !Number.isInteger(feeAmount) || feeAmount < 1) {
+  if (!orgName?.trim() || !workspaceSlug?.trim() || !dojoName?.trim() || !dojoAddress?.trim() || !dojoCity?.trim() || !dojoStateProvince?.trim() || !dojoCountry?.trim() || !name?.trim() || !email?.trim() || !password || !martialArt?.trim() || !style?.trim() || !feeName?.trim() || !Number.isInteger(feeAmount) || feeAmount < 1) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
 
   if (password.length < 8) {
     throw createError({ statusCode: 400, statusMessage: 'Password must be at least 8 characters' })
   }
+  if (!/^\S+@\S+\.\S+$/.test(email)) throw createError({ statusCode: 400, statusMessage: 'Enter a valid owner email address' })
   const trialPlans = ['city-starter', 'city-pro', 'state-pro', 'national'] as const
   const trialPlan = trialPlans.includes(requestedTrialPlan as typeof trialPlans[number]) ? requestedTrialPlan as typeof trialPlans[number] : null
   if (requestedTrialPlan && !trialPlan) throw createError({ statusCode: 400, statusMessage: 'Invalid trial plan' })
@@ -93,8 +99,10 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Create organization
-  const [org] = await db.insert(tables.organizations).values({
+  // Provision all database records atomically; a failed setup cannot leave a
+  // partially-created organization behind.
+  const provisioned = await db.transaction(async tx => {
+  const [org] = await tx.insert(tables.organizations).values({
     name: orgName,
     slug,
     logo: logoPath,
@@ -109,13 +117,33 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create organization' })
   }
 
-  // A single-dojo organization starts with a clear, meaningful hierarchy type.
-  // Owners can add Country, State, Branch, or custom levels later if needed.
-  const [level] = await db.insert(tables.hierarchyLevels).values({ organizationId: org.id, name: 'Dojo', order: 1 }).returning()
-  const [node] = await db.insert(tables.hierarchyNodes).values({ organizationId: org.id, levelId: level!.id, name: dojoName }).returning()
-  const [dojo] = await db.insert(tables.dojos).values({ organizationId: org.id, nodeId: node!.id, name: dojoName, address: dojoAddress || null }).returning()
+  // State and National plans receive a ready-to-use hierarchy. City and Free
+  // workspaces remain intentionally simple with one internal dojo node.
+  const hierarchyNames = trialPlan === 'national'
+    ? ['Country', 'State / Province', 'District', 'City / Town', 'Branch', 'Dojo']
+    : trialPlan === 'state-pro'
+      ? ['State / Province', 'District', 'City / Town', 'Branch', 'Dojo']
+      : ['Dojo']
+  const levels = await tx.insert(tables.hierarchyLevels).values(hierarchyNames.map((name, index) => ({ organizationId: org.id, name, order: index + 1 }))).returning()
+  const levelByName = new Map(levels.map(level => [level.name, level]))
+  let parentId: number | null = null
+  const nodeLabels: Record<string, string | null> = {
+    Country: dojoCountry.trim(),
+    'State / Province': dojoStateProvince.trim(),
+    District: districtName || null,
+    'City / Town': dojoCity.trim(),
+    Branch: branchName || dojoName,
+  }
+  for (const levelName of hierarchyNames.filter(name => name !== 'Dojo')) {
+    const label = nodeLabels[levelName]
+    if (!label) continue
+    const [createdNode] = await tx.insert(tables.hierarchyNodes).values({ organizationId: org.id, levelId: levelByName.get(levelName)!.id, parentId, name: label }).returning()
+    parentId = createdNode!.id
+  }
+  const [node] = await tx.insert(tables.hierarchyNodes).values({ organizationId: org.id, levelId: levelByName.get('Dojo')!.id, parentId, name: dojoName }).returning()
+  const [dojo] = await tx.insert(tables.dojos).values({ organizationId: org.id, nodeId: node!.id, name: dojoName, address: dojoAddress || null, city: dojoCity.trim(), stateProvince: dojoStateProvince.trim(), country: dojoCountry.trim() }).returning()
 
-  const [program] = await db.insert(tables.organizationPrograms).values({
+  const [program] = await tx.insert(tables.organizationPrograms).values({
     organizationId: org.id,
     martialArt,
     style,
@@ -123,28 +151,29 @@ export default defineEventHandler(async (event) => {
     isPrimary: 1,
   }).returning()
 
-  // Create default belt system for the organization
-try {
-  const [beltSystem] = await db.insert(tables.beltSystems).values({
+  // Only create a rank system where the selected discipline normally uses one.
+  // Combat sports and custom arts start without arbitrary coloured belts.
+  const rankTemplates: Record<string, string[] | undefined> = {
+    bjj: ['White', 'Blue', 'Purple', 'Brown', 'Black'], judo: ['White', 'Yellow', 'Orange', 'Green', 'Blue', 'Brown', 'Black'], karate: ['White', 'Yellow', 'Orange', 'Green', 'Blue', 'Purple', 'Brown', 'Black'], taekwondo: ['White', 'Yellow', 'Green', 'Blue', 'Red', 'Black'], hapkido: ['White', 'Yellow', 'Green', 'Blue', 'Red', 'Black'], aikido: ['White', 'Yellow', 'Green', 'Blue', 'Brown', 'Black'], kendo: ['6th Kyu', '5th Kyu', '4th Kyu', '3rd Kyu', '2nd Kyu', '1st Kyu', '1st Dan'], iaido: ['6th Kyu', '5th Kyu', '4th Kyu', '3rd Kyu', '2nd Kyu', '1st Kyu', '1st Dan'], tang_soo_do: ['White', 'Orange', 'Green', 'Red', 'Blue', 'Black'],
+  }
+  const rankNames = rankTemplates[martialArt]
+  if (rankNames) {
+  const [beltSystem] = await tx.insert(tables.beltSystems).values({
     organizationId: org.id,
     programId: program?.id,
     name: 'Default Belt System',
   }).returning()
-  const rankNames = martialArt === 'bjj' ? ['White', 'Blue', 'Purple', 'Brown', 'Black'] : ['White', 'Yellow', 'Orange', 'Green', 'Blue', 'Purple', 'Brown', 'Black']
-  if (beltSystem) await db.insert(tables.beltRanks).values(rankNames.map((rank, index) => ({ systemId: beltSystem.id, name: `${rank} Belt`, level: rank.toLowerCase(), order: index + 1, type: rank === 'Black' ? 'dan' : 'kyu', danNumber: rank === 'Black' ? 1 : null, color: rank.toLowerCase() })))
-} catch (error) {
-  console.warn('Failed to create default belt system:', error)
-  // Continue, as we can create it later
-}
+  if (beltSystem) await tx.insert(tables.beltRanks).values(rankNames.map((rank, index) => ({ systemId: beltSystem.id, name: rank.includes('Kyu') || rank.includes('Dan') ? rank : `${rank} Belt`, level: rank.toLowerCase().replaceAll(' ', '_'), order: index + 1, type: rank.includes('Dan') || rank === 'Black' ? 'dan' : 'kyu', danNumber: rank.includes('Dan') || rank === 'Black' ? 1 : null, color: rank.toLowerCase().replaceAll(' belt', '') })))
+  }
 
   if (dojo) {
-    const [feePlan] = await db.insert(tables.feePlans).values({ organizationId: org.id, dojoId: dojo.id, name: feeName, amount: feeAmount * 100, frequency: 'monthly', description: 'Created during workspace setup', isActive: 1 }).returning()
-    if (feePlan) await db.update(tables.dojos).set({ defaultFeePlanId: feePlan.id, updatedAt: new Date() }).where(eq(tables.dojos.id, dojo.id))
+    const [feePlan] = await tx.insert(tables.feePlans).values({ organizationId: org.id, dojoId: dojo.id, name: feeName, amount: feeAmount * 100, frequency: 'monthly', description: 'Created during workspace setup', isActive: 1 }).returning()
+    if (feePlan) await tx.update(tables.dojos).set({ defaultFeePlanId: feePlan.id, updatedAt: new Date() }).where(eq(tables.dojos.id, dojo.id))
   }
 
   // Create user
   const hashed = await hashPassword(password)
-  const [user] = await db.insert(tables.users).values({
+  const [user] = await tx.insert(tables.users).values({
     name,
     email,
     passwordHash: hashed,
@@ -156,12 +185,19 @@ try {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create user' })
   }
 
+  // The workspace owner is ready to teach at the first dojo immediately.
+  if (dojo) await tx.insert(tables.dojoInstructors).values({ dojoId: dojo.id, userId: user.id, programId: program?.id || null, isPrimary: 1 })
+
   if (dojo) {
     for (const member of staff) {
-      const [staffUser] = await db.insert(tables.users).values({ name: member.name.trim(), email: member.email.trim(), passwordHash: await hashPassword(member.password), role: 'member', organizationId: org.id }).returning()
-      if (staffUser) await db.insert(tables.assignments).values({ userId: staffUser.id, role: member.assignmentRole, scopeType: 'dojo', scopeId: dojo.id })
+      const [staffUser] = await tx.insert(tables.users).values({ name: member.name.trim(), email: member.email.trim(), passwordHash: await hashPassword(member.password), role: 'member', organizationId: org.id }).returning()
+      if (staffUser) await tx.insert(tables.assignments).values({ userId: staffUser.id, role: member.assignmentRole, scopeType: 'dojo', scopeId: dojo.id })
     }
   }
+
+  return { org, user }
+  })
+  const { org, user } = provisioned
 
   // ✅ Set session with ALL required fields
   // After creating the user, set session

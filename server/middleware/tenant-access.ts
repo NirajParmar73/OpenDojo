@@ -12,6 +12,19 @@ export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user?.id) return
 
+  // Student portal sessions are backed by student_portal_accounts, not the
+  // staff users table. Validate them against their linked student first.
+  if (session.user.role === 'student') {
+    const studentId = Number((session.user as unknown as Record<string, unknown>).studentId)
+    const portalAccount = await db.query.studentPortalAccounts.findFirst({ where: eq(tables.studentPortalAccounts.id, session.user.id) })
+    const student = studentId ? await db.query.students.findFirst({ where: eq(tables.students.id, studentId), columns: { organizationId: true } }) : null
+    if (!portalAccount || !portalAccount.isActive || portalAccount.studentId !== studentId || !student || student.organizationId !== session.user.organizationId) {
+      await clearUserSession(event)
+      throw createError({ statusCode: 401, statusMessage: 'Your student portal access changed. Please sign in again.' })
+    }
+    return
+  }
+
   const user = await db.query.users.findFirst({ where: eq(tables.users.id, session.user.id) })
   if (!user || user.role !== session.user.role || user.organizationId !== session.user.organizationId) {
     await clearUserSession(event)

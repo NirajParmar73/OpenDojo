@@ -3,13 +3,15 @@
     <h1 class="text-2xl font-bold mb-6">Dojo Management</h1>
 
     <!-- Create Dojo Form -->
-    <UCard class="mb-6">
+    <UCard v-if="canCreateDojo" class="mb-6">
       <form @submit.prevent="createDojo">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div v-if="isCityPlan || needsAutomaticHierarchy" class="flex items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-sm text-slate-600 dark:text-slate-300">{{ isCityPlan ? 'City workspace location' : 'Starter hierarchy will be created automatically' }}</div>
           <USelect
+            v-else
             v-model="newDojo.nodeId"
             :items="nodeOptions"
-            placeholder="Select hierarchy node"
+            placeholder="Select city or branch"
             required
           />
           <UInput v-model="newDojo.name" placeholder="Dojo name" required />
@@ -17,10 +19,20 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
           <UInput v-model="newDojo.address" placeholder="Address (optional)" />
+          <UInput v-model="newDojo.city" :readonly="lockCity" placeholder="City" />
+          <UInput v-model="newDojo.stateProvince" :readonly="lockStateProvince" placeholder="State / province" />
+          <UInput v-model="newDojo.country" :readonly="lockCountry" placeholder="Country" />
           <UInput v-model="newDojo.phone" placeholder="Phone (optional)" />
           <UInput v-model="newDojo.email" placeholder="Email (optional)" />
         </div>
+        <p v-if="territoryMessage" class="mt-3 text-sm text-slate-500 dark:text-slate-400">{{ territoryMessage }}</p>
       </form>
+    </UCard>
+    <UCard v-else class="mb-6">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 class="text-lg font-semibold">{{ isFreePlan ? 'Need another dojo?' : 'You have reached your dojo limit' }}</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ isFreePlan ? 'Free Forever includes one dojo location. Upgrade to add locations and manage them from this workspace.' : 'City Starter includes up to two dojo locations in one city. Upgrade to City Pro for more locations.' }}</p></div>
+        <UButton to="/settings/subscription" icon="i-lucide-arrow-up-right">View upgrade options</UButton>
+      </div>
     </UCard>
 
     <!-- Dojo List -->
@@ -47,7 +59,7 @@
                 <td class="px-6 py-4">{{ dojo.phone || '-' }}</td>
                 <td class="px-6 py-4 whitespace-nowrap">
                   <UButton color="primary" variant="ghost" size="sm" @click="startEdit(dojo)">Edit</UButton>
-                  <UButton color="error" variant="ghost" size="sm" @click="deleteDojo(dojo.id)">Delete</UButton>
+                  <UButton v-if="!isFreePlan" color="error" variant="ghost" size="sm" @click="deleteDojo(dojo.id)">Delete</UButton>
                   <UButton color="secondary" variant="ghost" size="sm" @click="toggleSchedules(dojo.id)">
                     {{ expandedDojoId === dojo.id ? 'Hide Schedules' : 'Schedules' }}
                   </UButton>
@@ -143,16 +155,22 @@
         <h3 class="text-lg font-semibold mb-3">Edit Dojo</h3>
         <form @submit.prevent="updateDojo">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div v-if="isCityPlan" class="flex items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-sm text-slate-600 dark:text-slate-300">City workspace location</div>
             <USelect
+              v-else
               v-model="editDojoForm.nodeId"
-              :items="nodeOptions"
-              placeholder="Select hierarchy node"
+              :items="editNodeOptions"
+              placeholder="Select city or branch"
               required
             />
             <UInput v-model="editDojoForm.name" placeholder="Dojo name" required />
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
             <UInput v-model="editDojoForm.address" placeholder="Address" />
+            <UInput v-model="editDojoForm.city" :readonly="lockCity" placeholder="City" />
+            <UInput v-model="editDojoForm.stateProvince" :readonly="lockStateProvince" placeholder="State / province" />
+            <UInput v-model="editDojoForm.country" :readonly="lockCountry" placeholder="Country" />
+            <p v-if="territoryMessage" class="md:col-span-3 text-sm text-slate-500 dark:text-slate-400">{{ territoryMessage }}</p>
             <UInput v-model="editDojoForm.phone" placeholder="Phone" />
             <UInput v-model="editDojoForm.email" placeholder="Email" />
             <USelect v-model="editDojoForm.defaultFeePlanId" :items="feePlanOptions" placeholder="Default fee plan (optional)" />
@@ -171,7 +189,17 @@
 definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
+const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
+const isFreePlan = computed(() => subscription.value?.plan === 'free')
+const isCityStarter = computed(() => subscription.value?.plan === 'city-starter')
+const canCreateDojo = computed(() => !isFreePlan.value && (!isCityStarter.value || dojos.value.length < 2))
+const isCityPlan = computed(() => ['city-starter', 'city-pro'].includes(subscription.value?.plan || ''))
+const isStatePlan = computed(() => subscription.value?.plan === 'state-pro')
+const isNationalPlan = computed(() => subscription.value?.plan === 'national')
+const isAdvancedPlan = computed(() => ['state-pro', 'national'].includes(subscription.value?.plan || ''))
+const needsAutomaticHierarchy = computed(() => isAdvancedPlan.value && nodeOptions.value.length === 0)
 const dojos = ref<any[]>([])
+const levels = ref<any[]>([])
 const allNodes = ref<any[]>([])
 const flatNodes = ref<any[]>([])
 const instructors = ref<any[]>([])
@@ -188,12 +216,28 @@ const addingSchedule = ref(false)
 const updatingSchedule = ref(false)
 const assigningInstructor = ref(false)
 
+const territoryAnchor = computed(() => dojos.value[0] || null)
+const lockCity = computed(() => isCityPlan.value && !!territoryAnchor.value)
+const lockStateProvince = computed(() => (isCityPlan.value || isStatePlan.value) && !!territoryAnchor.value)
+const lockCountry = computed(() => (isCityPlan.value || isStatePlan.value || isNationalPlan.value) && !!territoryAnchor.value)
+const territoryMessage = computed(() => {
+  const anchor = territoryAnchor.value
+  if (!anchor) return null
+  if (isCityPlan.value) return `Locations in this plan must remain within ${anchor.city}, ${anchor.stateProvince}, ${anchor.country}.`
+  if (isStatePlan.value) return `Locations in this plan must remain within ${anchor.stateProvince}, ${anchor.country}.`
+  if (isNationalPlan.value) return `Locations in this plan must remain within ${anchor.country}.`
+  return null
+})
+
 // ----- Form states -----
 const newDojo = reactive({
   nodeId: null as number | null,
   name: '',
   programId: undefined as number | undefined,
   address: '',
+  city: '',
+  stateProvince: '',
+  country: '',
   phone: '',
   email: '',
   defaultFeePlanId: null as number | null,
@@ -204,9 +248,30 @@ const editDojoForm = reactive({
   nodeId: null as number | null,
   name: '',
   address: '',
+  city: '',
+  stateProvince: '',
+  country: '',
   phone: '',
   email: '',
 })
+
+type LocationFields = Pick<typeof newDojo, 'city' | 'stateProvince' | 'country'>
+function applyTerritoryDefaults(target: LocationFields = newDojo) {
+  const anchor = territoryAnchor.value
+  if (!anchor) return
+  if (isCityPlan.value) {
+    target.city = anchor.city || ''
+    target.stateProvince = anchor.stateProvince || ''
+    target.country = anchor.country || ''
+  } else if (isStatePlan.value) {
+    target.stateProvince = anchor.stateProvince || ''
+    target.country = anchor.country || ''
+  } else if (isNationalPlan.value) {
+    target.country = anchor.country || ''
+  }
+}
+
+watch([isCityPlan, isStatePlan, isNationalPlan, territoryAnchor], () => applyTerritoryDefaults())
 
 const scheduleForm = reactive({
   dayOfWeek: undefined as number | undefined,  // ✅ changed from null
@@ -285,10 +350,24 @@ function getNodePath(nodeId: number): string {
 }
 
 const nodeOptions = computed(() => {
-  return flatNodes.value.map((node: any) => ({
+  return flatNodes.value.filter((node: any) => {
+    if (!isAdvancedPlan.value) return true
+    const level = levels.value.find((item: any) => Number(item.id) === Number(node.levelId))
+    return ['City / Town', 'Branch'].includes(level?.name)
+  }).map((node: any) => ({
     label: getNodePath(node.id),
     value: node.id,
   }))
+})
+const editNodeOptions = computed(() => {
+  const currentNodeId = editingDojo.value?.nodeId
+  if (!currentNodeId || nodeOptions.value.some(option => Number(option.value) === Number(currentNodeId))) {
+    return nodeOptions.value
+  }
+
+  // Operational dojos live on their own Dojo node. Keep that current value
+  // visible in the edit form, while the other choices remain valid locations.
+  return [{ label: getNodePath(currentNodeId), value: currentNodeId }, ...nodeOptions.value]
 })
 const feePlanOptions = computed(() => [{ label: 'No default fee plan', value: null }, ...feePlans.value.filter((plan: any) => plan.isActive).map((plan: any) => ({ label: plan.name, value: plan.id }))])
 
@@ -300,14 +379,17 @@ function getDayName(day: number): string {
 // ----- Load data -----
 async function loadData() {
   try {
-    const [dojosData, nodesData, instructorsData, programsData, feePlansData] = await Promise.all([
+    const [dojosData, nodesData, levelsData, instructorsData, programsData, feePlansData] = await Promise.all([
       $fetch('/api/dojos'),
       $fetch('/api/hierarchy/nodes'),
+      $fetch('/api/hierarchy/levels'),
       $fetch('/api/users'), // we'll filter instructors on frontend
       $fetch('/api/organization/programs'),
       $fetch('/api/fee-plans'),
     ])
     dojos.value = dojosData
+    applyTerritoryDefaults()
+    levels.value = levelsData
     allNodes.value = nodesData
     flatNodes.value = flattenTree(nodesData)
     nodePathMap.value = buildNodePathMap(flatNodes.value)
@@ -329,8 +411,8 @@ async function loadData() {
 
 // ----- Dojo CRUD -----
 async function createDojo() {
-  if (!newDojo.nodeId || !newDojo.name.trim()) {
-    toast.add({ color: 'warning', title: 'Node and name are required' })
+  if ((!isCityPlan.value && !needsAutomaticHierarchy.value && !newDojo.nodeId) || !newDojo.name.trim()) {
+    toast.add({ color: 'warning', title: (isCityPlan.value || needsAutomaticHierarchy.value) ? 'Dojo name is required' : 'Node and name are required' })
     return
   }
 
@@ -339,15 +421,19 @@ async function createDojo() {
     await $fetch('/api/dojos', {
       method: 'POST',
       body: {
-        nodeId: newDojo.nodeId,
+        nodeId: (isCityPlan.value || needsAutomaticHierarchy.value) ? undefined : newDojo.nodeId,
         name: newDojo.name.trim(),
         address: newDojo.address || undefined,
+        city: newDojo.city || undefined,
+        stateProvince: newDojo.stateProvince || undefined,
+        country: newDojo.country || undefined,
         phone: newDojo.phone || undefined,
         email: newDojo.email || undefined,
       },
     })
     toast.add({ color: 'success', title: 'Dojo created' })
-    Object.assign(newDojo, { nodeId: null, name: '', address: '', phone: '', email: '' })
+    Object.assign(newDojo, { nodeId: null, name: '', address: '', city: '', stateProvince: '', country: '', phone: '', email: '' })
+    applyTerritoryDefaults()
     await loadData()
   } catch (error: any) {
     toast.add({ color: 'error', title: 'Creation failed', description: error.data?.statusMessage || error.message })
@@ -361,9 +447,13 @@ function startEdit(dojo: any) {
   editDojoForm.nodeId = dojo.nodeId
   editDojoForm.name = dojo.name
   editDojoForm.address = dojo.address || ''
+  editDojoForm.city = dojo.city || ''
+  editDojoForm.stateProvince = dojo.stateProvince || ''
+  editDojoForm.country = dojo.country || ''
   editDojoForm.phone = dojo.phone || ''
   editDojoForm.email = dojo.email || ''
   editDojoForm.defaultFeePlanId = dojo.defaultFeePlanId || null
+  applyTerritoryDefaults(editDojoForm)
 }
 
 function cancelEditDojo() {
@@ -385,6 +475,9 @@ async function updateDojo() {
         nodeId: editDojoForm.nodeId,
         name: editDojoForm.name.trim(),
         address: editDojoForm.address || undefined,
+        city: editDojoForm.city || undefined,
+        stateProvince: editDojoForm.stateProvince || undefined,
+        country: editDojoForm.country || undefined,
         phone: editDojoForm.phone || undefined,
         email: editDojoForm.email || undefined,
         defaultFeePlanId: editDojoForm.defaultFeePlanId,

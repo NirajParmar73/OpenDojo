@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm'
 import { db, tables } from '../../../utils/database'
 import { writeAuditLog } from '../../../utils/audit'
-import { assertFederationManagementAccess } from '../../../utils/subscription'
+import { assertFederationManagementAccess, getAllowedHierarchyLevelNames } from '../../../utils/subscription'
 
 const commonLevels = ['Country', 'State / Province', 'District', 'City / Town', 'Branch']
 
@@ -17,7 +17,9 @@ export default defineEventHandler(async (event) => {
     orderBy: (level, { asc }) => [asc(level.order)]
   })
   const existingNames = new Set(levels.map(level => level.name.trim().toLowerCase()))
-  const missing = commonLevels.filter(name => !existingNames.has(name.toLowerCase()))
+  const allowed = await getAllowedHierarchyLevelNames(organizationId)
+  const planLevels = allowed === null ? commonLevels : commonLevels.filter(name => allowed.includes(name))
+  const missing = planLevels.filter(name => !existingNames.has(name.toLowerCase()))
 
   if (!missing.length) return { success: true, created: 0 }
 

@@ -13,7 +13,7 @@
       <span class="text-xs text-gray-400">(Level: {{ levelName }})</span>
 
       <button
-        v-if="canManageChildren(node.id)"
+        v-if="canManageChildren(node.id) && canAddChildren(node)"
         class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
         @click="$emit('addChild', node)"
       >
@@ -43,6 +43,7 @@
         :node="child"
         :levels="levels"
         :can-manage-children="canManageChildren"
+        :can-add-children="canAddChildren"
         :can-modify="canModify"
         @addChild="$emit('addChild', $event)"
         @edit="$emit('edit', $event)"
@@ -62,6 +63,7 @@ const props = defineProps<{
   }
   levels: any[]
   canManageChildren: (nodeId: number) => boolean
+  canAddChildren: (node: { id: number, levelId: number }) => boolean
   canModify: (nodeId: number) => boolean
 }>()
 

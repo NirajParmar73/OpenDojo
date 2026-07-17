@@ -2,17 +2,17 @@
   <div class="max-w-4xl mx-auto p-6">
     <h1 class="text-2xl font-bold mb-6">Hierarchy Nodes</h1>
 
-    <UCard v-if="isOwner && levels.length < 2" class="mb-6 border-primary/30 bg-primary/5">
+    <UCard v-if="isOwner && canAddHierarchy && levels.length < 2" class="mb-6 border-primary/30 bg-primary/5">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 class="font-semibold">Add hierarchy types when you need them</h2>
-          <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">A single dojo can stay simple. For a wider organization, add Country, State, City, Branch, or your own custom type before adding those locations.</p>
+          <h2 class="font-semibold">{{ hierarchyHeading }}</h2>
+          <p class="mt-1 text-sm text-gray-600 dark:text-gray-300">{{ hierarchyGuidance }}</p>
         </div>
-        <UButton :loading="addingCommonLevels" icon="i-lucide-sparkles" @click="addCommonLevels">Add starter types</UButton>
+        <UButton :loading="addingCommonLevels" icon="i-lucide-sparkles" @click="addCommonLevels">Add available types</UButton>
       </div>
     </UCard>
 
-    <UCard v-if="isOwner" class="mb-6">
+    <UCard v-if="isOwner && canCreateCustomTypes" class="mb-6">
       <h2 class="text-lg font-semibold">1. Define a hierarchy type</h2>
       <p class="mt-1 text-sm text-gray-500">Types describe the structure, such as <strong>Country</strong>, <strong>State</strong>, or a custom type. A new type starts at the top; you can adjust its order later on the Hierarchy Types page.</p>
       <form class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]" @submit.prevent="createCustomLevel">
@@ -23,7 +23,7 @@
     </UCard>
 
     <!-- Add Root Node -->
-    <UCard v-if="isOwner" class="mb-6">
+    <UCard v-if="isOwner && canAddHierarchy && tree.length === 0" class="mb-6">
       <h3 class="text-lg font-semibold mb-1">2. Add a top-level location</h3>
       <p class="mb-3 text-sm text-gray-500">Choose its type first, then enter its real name. Example: <strong>Country</strong> → <strong>India</strong>.</p>
       <form @submit.prevent="createRootNode">
@@ -52,6 +52,7 @@
           :node="node"
           :levels="levels"
           :can-manage-children="canManageChildren"
+          :can-add-children="canAddChildren"
           :can-modify="canModify"
           @add-child="openAddChild"
           @edit="openEdit"
@@ -108,6 +109,7 @@ definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
 const { user } = useUserSession()
+const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
 const { data: permissions } = await useFetch<{ allowedNodeIds: number[], managedParentNodeIds: number[] }>('/api/users/me/permissions')
 const levels = ref<any[]>([])
 const nodes = ref<any[]>([])
@@ -120,7 +122,13 @@ const updating = ref(false)
 const addingCommonLevels = ref(false)
 const creatingLevel = ref(false)
 const newLevelName = ref('')
-const levelPresets = ['Country', 'State / Province', 'District', 'City / Town', 'Branch']
+const allLevelPresets = ['Country', 'State / Province', 'District', 'City / Town', 'Branch']
+const allowedPresetNames = computed<string[] | null>(() => ({ 'city-starter': [], 'city-pro': [], 'state-pro': ['State / Province', 'District', 'City / Town', 'Branch'], national: null }[subscription.value?.plan || 'free'] ?? []))
+const levelPresets = computed(() => allowedPresetNames.value === null ? allLevelPresets : allLevelPresets.filter(name => allowedPresetNames.value?.includes(name)))
+const canCreateCustomTypes = computed(() => subscription.value?.plan === 'national')
+const canAddHierarchy = computed(() => allowedPresetNames.value === null || allowedPresetNames.value.length > 0)
+const hierarchyHeading = computed(() => subscription.value?.plan === 'state-pro' ? 'Build your in-state structure' : ['city-starter', 'city-pro'].includes(subscription.value?.plan || '') ? 'Keep your city workspace simple' : 'Add hierarchy types when you need them')
+const hierarchyGuidance = computed(() => subscription.value?.plan === 'state-pro' ? 'State Pro supports State, District, City/Town, and Branch. Country-level structure is available on National.' : ['city-starter', 'city-pro'].includes(subscription.value?.plan || '') ? 'Your locations are already limited to one city, so no extra hierarchy is needed. Add and manage locations from Dojos & schedules.' : 'A single dojo can stay simple. For a wider organization, add Country, State, City, Branch, or your own custom type before adding those locations.')
 
 const newRoot = reactive({
   levelId: undefined as number | undefined,
@@ -144,15 +152,29 @@ const isOwner = computed(() => user.value?.role === 'owner')
 const hasLevel = (name: string) => levels.value.some(level => level.name.trim().toLowerCase() === name.toLowerCase())
 const rootLevelOptions = computed(() => {
   const firstOrder = Math.min(...levels.value.map(level => level.order))
-  return levelOptions.value.filter(option => levels.value.find(level => level.id === option.value)?.order === firstOrder)
+  return levelOptions.value.filter(option => levels.value.find(level => level.id === option.value)?.order === firstOrder).filter(isLevelAllowed)
 })
 const childLevelOptions = computed(() => {
   const parentLevel = levels.value.find(level => level.id === addingChildParent.value?.levelId)
   if (!parentLevel) return []
-  return levelOptions.value.filter(option => (levels.value.find(level => level.id === option.value)?.order || 0) > parentLevel.order)
+  return levelOptions.value.filter(option => (levels.value.find(level => level.id === option.value)?.order || 0) > parentLevel.order).filter(isLevelAllowed)
 })
 const canManageChildren = (nodeId: number) => isOwner.value || permissions.value?.managedParentNodeIds.includes(nodeId) || false
 const canModify = (nodeId: number) => isOwner.value || permissions.value?.allowedNodeIds.includes(nodeId) || false
+const isLevelAllowed = (option: { value: number }) => {
+  const level = levels.value.find(item => Number(item.id) === Number(option.value))
+  // A dojo is an operational record, with schedules and other data. It is
+  // created only from Dojos & schedules, never as a standalone tree node.
+  if (!level || level.name.trim().toLowerCase() === 'dojo') return false
+  return allowedPresetNames.value === null || allowedPresetNames.value.includes(level.name)
+}
+const canAddChildren = (node: any) => {
+  const parentLevel = levels.value.find(level => Number(level.id) === Number(node.levelId))
+  return !!parentLevel && levelOptions.value.some(option => {
+    const level = levels.value.find(item => Number(item.id) === Number(option.value))
+    return !!level && level.order > parentLevel.order && isLevelAllowed(option)
+  })
+}
 const flatNodes = computed(() => {
   const result: any[] = []
   const visit = (items: any[]) => items.forEach((item) => { result.push(item); visit(item.children || []) })
@@ -178,7 +200,7 @@ async function loadData() {
       $fetch('/api/hierarchy/nodes'),
     ])
     levels.value = levelsData
-    levelOptions.value = levelsData.map((l: any) => ({ label: l.name, value: l.id }))
+    levelOptions.value = levelsData.map((l: any) => ({ label: l.name, value: l.id })).filter(isLevelAllowed)
     
     // ✅ The API already returns nested tree, so use it directly
     tree.value = nodesData

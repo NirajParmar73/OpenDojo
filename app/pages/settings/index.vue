@@ -36,6 +36,7 @@ definePageMeta({ middleware: ['auth', 'admin'] })
 const settingsItems = [
   { title: 'General settings', description: 'Organization name, logo, and currency.', to: '/settings/general', icon: 'i-lucide-landmark' },
   { title: 'Plan & billing', description: 'Review plan limits and request an upgrade.', to: '/settings/subscription', icon: 'i-lucide-credit-card' },
+  { title: 'Upgrade setup', description: 'Safely expand your hierarchy after a plan upgrade.', to: '/settings/expand-structure', icon: 'i-lucide-git-branch' },
   { title: 'Hierarchy', description: 'Model regions, branches, and dojo structure.', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
   { title: 'Belt system', description: 'Manage ranks, colours, and progression.', to: '/settings/belts', icon: 'i-lucide-award' },
   { title: 'Martial arts & programs', description: 'Manage the disciplines and styles you teach.', to: '/settings/programs', icon: 'i-lucide-swords' },

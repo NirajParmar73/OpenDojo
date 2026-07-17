@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../../server/utils/database'
 import { and, eq, gte, sql } from 'drizzle-orm'
+import { assertHierarchyLevelAllowed } from '../../../utils/subscription'
 
 const createLevelSchema = z.object({
   name: z.string().min(1),
@@ -23,6 +24,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, createLevelSchema.parse)
+  await assertHierarchyLevelAllowed(orgId, body.name)
 
   let order = body.order
   if (order) {

@@ -3,7 +3,7 @@ import { and, eq } from 'drizzle-orm'
 import { db, tables } from '../../../../server/utils/database'
 import { assertHierarchyNodeModificationAccess } from '../../../utils/permissions'
 import { writeAuditLog } from '../../../utils/audit'
-import { assertFederationManagementAccess } from '../../../utils/subscription'
+import { assertFederationManagementAccess, assertHierarchyLevelAllowed } from '../../../utils/subscription'
 
 const updateNodeSchema = z.object({
   name: z.string().min(1).optional(),
@@ -25,6 +25,10 @@ export default defineEventHandler(async (event) => {
   const targetLevelId = body.levelId || node.levelId
   const targetLevel = await db.query.hierarchyLevels.findFirst({ where: and(eq(tables.hierarchyLevels.id, targetLevelId), eq(tables.hierarchyLevels.organizationId, orgId)) })
   if (!targetLevel) throw createError({ statusCode: 400, statusMessage: 'Invalid hierarchy level' })
+  if (body.levelId && targetLevel.name.trim().toLowerCase() === 'dojo' && node.levelId !== targetLevel.id) {
+    throw createError({ statusCode: 400, statusMessage: 'Create dojos from Dojos & schedules so they are ready for schedules, students, and fees.' })
+  }
+  await assertHierarchyLevelAllowed(orgId, targetLevel.name)
 
   const targetParentId = body.parentId === undefined ? node.parentId : body.parentId
   if (body.parentId !== undefined) await assertFederationManagementAccess(orgId)

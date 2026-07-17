@@ -1,6 +1,7 @@
 import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { assertDojoManagementAccess } from '../../../utils/permissions'
+import { getSubscription } from '../../../utils/subscription'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -24,6 +25,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
   await assertDojoManagementAccess(session.user.id, session.user.organizationId!, existing.id)
+  const subscription = await getSubscription(session.user.organizationId!)
+  if (subscription.plan === 'free') {
+    throw createError({ statusCode: 402, statusMessage: 'Free Forever includes one dojo. Upgrade before removing or replacing your initial location.' })
+  }
 
   const [deleted] = await db.delete(tables.dojos)
     .where(eq(tables.dojos.id, Number(dojoId)))

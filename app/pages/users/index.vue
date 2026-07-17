@@ -3,7 +3,7 @@
     <h1 class="text-2xl font-bold mb-6">User Management</h1>
 
     <!-- Create User Form (only if user has permissions) -->
-    <UCard class="mb-6" v-if="canCreateUsers">
+    <UCard class="mb-6" v-if="canCreateUsers && !isFreePlan">
       <h3 class="text-lg font-semibold mb-3">Add User</h3>
       <form @submit.prevent="createUser">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -43,6 +43,13 @@
         </div>
         <UButton type="submit" class="mt-4" :loading="creating">Create User</UButton>
       </form>
+    </UCard>
+
+    <UCard v-else-if="isFreePlan" class="mb-6">
+      <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div><h2 class="text-lg font-semibold">Need staff access?</h2><p class="mt-1 text-sm text-gray-500">Free Forever includes one owner account. Upgrade to invite instructors and other staff.</p></div>
+        <UButton to="/settings/subscription" icon="i-lucide-arrow-up-right">View upgrade options</UButton>
+      </div>
     </UCard>
 
     <!-- No permissions message -->
@@ -117,6 +124,8 @@
 definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
+const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
+const isFreePlan = computed(() => subscription.value?.plan === 'free')
 const users = ref<any[]>([])
 const nodes = ref<any[]>([])
 const flatNodes = ref<any[]>([])

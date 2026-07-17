@@ -39,15 +39,15 @@ const { data: dojoSetup } = await useAsyncData('getting-started-dojo-setup', asy
 })
 const plan = computed(() => subscription.value?.plan || 'free')
 const isPaid = computed(() => plan.value !== 'free')
-const hierarchyTitle = computed(() => plan.value === 'state-pro' ? 'Build your State hierarchy' : plan.value === 'national' ? 'Build your federation hierarchy' : 'Organize your city hierarchy')
-const hierarchyDescription = computed(() => plan.value === 'state-pro' ? 'Add State, District, and City levels, then place each dojo under the correct city.' : plan.value === 'national' ? 'Create your state and regional structure before adding branches and assigning leaders.' : 'Add your city and branch structure before adding additional dojo locations.')
+const hierarchyTitle = computed(() => plan.value === 'state-pro' ? 'Review your State hierarchy' : plan.value === 'national' ? 'Review your federation hierarchy' : 'Organize your city hierarchy')
+const hierarchyDescription = computed(() => plan.value === 'state-pro' ? 'Your starter State and City structure is ready. Add districts or branches only when you need them.' : plan.value === 'national' ? 'Your Country, State, and City structure is ready. Expand it as you add regions and branches.' : 'Add your city and branch structure before adding additional dojo locations.')
 const steps = computed(() => [
-  { title: 'Create your dojo', description: 'Add the location where students will train before enrolling anyone.', to: '/dojos', done: (dojos.value?.length || 0) > 0 },
+  { title: 'Review your dojo', description: 'Check the location details created during setup before enrolling students.', to: '/dojos', done: (dojos.value?.length || 0) > 0 },
   { title: 'Set up your fee structure', description: 'Create or confirm a fee plan that can be assigned to new students.', to: '/settings/finance/fee-plans', done: (feePlans.value?.length || 0) > 0 },
-  { title: 'Assign an instructor', description: 'Open your dojo schedules and assign an instructor to the dojo.', to: '/dojos', done: !!dojoSetup.value?.hasInstructor },
+  { title: 'Confirm your instructor', description: 'You are assigned to the first dojo. Add another instructor if someone else will teach.', to: '/dojos', done: !!dojoSetup.value?.hasInstructor },
   { title: 'Create a class schedule', description: 'Add the class day and time students will attend.', to: '/dojos', done: !!dojoSetup.value?.hasSchedule },
   { title: 'Check your martial-art program', description: 'Make sure the discipline and style match what you teach.', to: '/settings/programs', done: (programs.value?.length || 0) > 0 },
-  { title: 'Review belt ranks', description: 'Your starter belt system is ready. Adjust ranks only if your school uses a different order.', to: '/settings/belts', done: (belts.value?.ranks?.length || belts.value?.length || 0) > 0 },
+  ...(['karate', 'taekwondo', 'judo', 'bjj', 'hapkido', 'aikido', 'kendo', 'iaido', 'tang_soo_do'].includes(programs.value?.[0]?.martialArt) ? [{ title: 'Review belt ranks', description: 'Your starter belt system is ready. Adjust ranks only if your school uses a different order.', to: '/settings/belts', done: (belts.value?.ranks?.length || belts.value?.length || 0) > 0 }] : []),
   { title: 'Add your first student', description: (dojos.value?.length || 0) ? 'Enrol the student in a dojo and assign their fee plan.' : 'Create a dojo first; students cannot be enrolled without one.', to: (dojos.value?.length || 0) ? '/students' : '/dojos', done: (subscription.value?.usage.students || 0) > 0 },
   ...(isPaid.value ? [{ title: hierarchyTitle.value, description: hierarchyDescription.value, to: '/settings/hierarchy/nodes', done: (subscription.value?.usage.hierarchyNodes || 0) > 1 }, { title: 'Add locations and staff', description: 'Grow your organization by adding branches and assigning your team.', to: '/dojos', done: (users.value?.length || 0) > 1 }] : []),
 ])

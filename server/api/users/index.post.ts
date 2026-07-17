@@ -2,11 +2,12 @@ import { z } from 'zod'
 import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
 import { getAllowedAssignmentsForCreator } from '../../utils/permissions'
+import { assertStaffAccountLimit } from '../../utils/subscription'
 
 const createUserSchema = z.object({
   name: z.string().min(1),
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(8),
   role: z.enum(['admin', 'member']).default('member'),
   danDegree: z.string().optional().nullable(),
   assignments: z.array(z.object({
@@ -43,6 +44,7 @@ export default defineEventHandler(async (event) => {
 
   // 2. Parse and validate the request body
   const body = await readValidatedBody(event, createUserSchema.parse)
+  await assertStaffAccountLimit(orgId)
 
   if (body.role === 'admin' && session.user.role !== 'owner') {
     throw createError({ statusCode: 403, statusMessage: 'Only an owner can create an admin user' })

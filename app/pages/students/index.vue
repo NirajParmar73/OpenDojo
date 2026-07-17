@@ -6,10 +6,12 @@
         <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Student directory</h2>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Find students quickly, update essential details, and open their full record.</p>
       </div>
-      <UButton color="primary" icon="i-lucide-user-plus" size="lg" @click="toggleCreateForm">
-        {{ showCreate ? 'Close form' : 'Add student' }}
+      <UButton color="primary" icon="i-lucide-user-plus" size="lg" :disabled="cityStarterAtCapacity" @click="toggleCreateForm">
+        {{ cityStarterAtCapacity ? 'Student limit reached' : (showCreate ? 'Close form' : 'Add student') }}
       </UButton>
     </section>
+
+    <UAlert v-if="cityStarterAtCapacity" class="mb-6" color="warning" title="City Starter student limit reached" description="Each City Starter dojo can have up to 75 students. Upgrade to City Pro to continue enrolling students." :actions="[{ label: 'View upgrade options', to: '/settings/subscription', color: 'primary' }]" />
 
     <UCard v-if="showCreate" class="mb-6">
       <template #header><div><h3 class="font-semibold">Add a student</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Start with the essentials, including an optional fee plan and recurring discount. You can update fee terms later from the student profile.</p></div></template>
@@ -116,6 +118,7 @@
 definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
+const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
 type FeePlan = { id: number, name: string, dojoId: number | null, dojo?: { name: string } | null }
 const students = ref<any[]>([])
 const dojos = ref<any[]>([])
@@ -143,7 +146,10 @@ const genderOptions = [
 const today = new Date().toISOString().slice(0, 10)
 const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: null as number | null, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '' })
 
-const dojoOptions = computed(() => dojos.value.map(dojo => ({ label: dojo.name, value: dojo.id })))
+const isCityStarter = computed(() => subscription.value?.plan === 'city-starter')
+const studentCountByDojo = computed(() => students.value.reduce<Record<number, number>>((counts, student) => { if (student.dojoId) counts[student.dojoId] = (counts[student.dojoId] || 0) + 1; return counts }, {}))
+const cityStarterAtCapacity = computed(() => isCityStarter.value && dojos.value.length > 0 && dojos.value.every(dojo => (studentCountByDojo.value[dojo.id] || 0) >= 75))
+const dojoOptions = computed(() => dojos.value.filter(dojo => !isCityStarter.value || (studentCountByDojo.value[dojo.id] || 0) < 75).map(dojo => ({ label: dojo.name, value: dojo.id })))
 const availableFeePlanOptions = computed(() => feePlans.value
   .filter(plan => !plan.dojoId || plan.dojoId === newStudent.dojoId)
   .map(plan => ({ label: `${plan.name}${plan.dojo?.name ? ` — ${plan.dojo.name}` : ''}`, value: plan.id })))
@@ -179,6 +185,7 @@ function ageLabel(dateOfBirth: string) {
 }
 
 async function toggleCreateForm() {
+  if (cityStarterAtCapacity.value) return
   if (!showCreate.value && !dojos.value.length) {
     toast.add({ color: 'warning', title: 'Create a dojo before adding students', description: 'Set up your dojo, fees, instructor, and schedule first.' })
     await navigateTo('/dojos')

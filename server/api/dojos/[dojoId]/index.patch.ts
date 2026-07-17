@@ -2,11 +2,15 @@ import { z } from 'zod'
 import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { assertDojoManagementAccess, assertNodeManagementAccess } from '../../../utils/permissions'
+import { assertDojoTerritory, getSubscription } from '../../../utils/subscription'
 
 const updateDojoSchema = z.object({
   nodeId: z.number().int().positive().optional(),
   name: z.string().min(1).optional(),
   address: z.string().optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  stateProvince: z.string().trim().max(100).optional().nullable(),
+  country: z.string().trim().max(100).optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
   defaultFeePlanId: z.number().int().positive().nullable().optional(),
@@ -36,6 +40,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
   await assertDojoManagementAccess(session.user.id, session.user.organizationId!, existing.id)
+  await assertDojoTerritory(session.user.organizationId!, { city: body.city ?? existing.city, stateProvince: body.stateProvince ?? existing.stateProvince, country: body.country ?? existing.country })
 
   if (body.nodeId) {
     const node = await db.query.hierarchyNodes.findFirst({
@@ -43,6 +48,14 @@ export default defineEventHandler(async (event) => {
     })
     if (!node || node.organizationId !== session.user.organizationId) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid node ID' })
+    }
+    const { plan } = await getSubscription(session.user.organizationId!)
+    // An existing operational dojo is stored on its own Dojo node. Retain
+    // that node when editing details; only a deliberate location change must
+    // target a City/Town or Branch node.
+    if (['state-pro', 'national'].includes(plan) && body.nodeId !== existing.nodeId) {
+      const nodeLevel = await db.query.hierarchyLevels.findFirst({ where: eq(tables.hierarchyLevels.id, node.levelId) })
+      if (!nodeLevel || !['City / Town', 'Branch'].includes(nodeLevel.name)) throw createError({ statusCode: 400, statusMessage: 'Choose a City/Town or Branch location for this dojo.' })
     }
     await assertNodeManagementAccess(session.user.id, session.user.organizationId!, body.nodeId)
   }

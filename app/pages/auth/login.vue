@@ -16,8 +16,7 @@ const state = reactive({
 
 const loading = ref(false)
 const toast = useToast()
-const { fetch, user } = useUserSession()
-const router = useRouter()
+const { user } = useUserSession()
 const route = useRoute()
 definePageMeta({ layout: 'auth' })
 
@@ -26,22 +25,26 @@ if (route.query.created === '1' && typeof route.query.email === 'string') state.
 async function onLogin(event: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
-    const response = await $fetch<{ workspaceUrl?: string }>('/api/auth/login', {
+    const response = await $fetch<{ workspaceUrl?: string, isPlatformAdmin?: boolean }>('/api/auth/login', {
       method: 'POST',
       body: {
         email: event.data.email,
         password: event.data.password,
       },
     })
-    // Refresh session data
-    await fetch()
-    if (response.workspaceUrl && new URL(response.workspaceUrl).host !== window.location.host) {
+    // The server has already set the session cookie. Use a full navigation so
+    // route middleware reads that new session reliably on the next request.
+    if (response.isPlatformAdmin) {
+      window.location.assign('/platform')
+      return
+    }
+    if (!user.value?.isPlatformAdmin && response.workspaceUrl && new URL(response.workspaceUrl).host !== window.location.host) {
       window.location.assign(response.workspaceUrl)
       return
     }
     // Platform operators begin in the platform console; everyone else uses
     // their organization workspace dashboard.
-    router.push(user.value?.isPlatformAdmin ? '/platform' : '/')
+    window.location.assign('/')
   } catch (error: any) {
     toast.add({
       color: 'error',

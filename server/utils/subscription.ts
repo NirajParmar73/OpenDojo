@@ -104,6 +104,39 @@ export async function assertDojoLimit(orgId: number) {
   }
 }
 
+export async function assertDojoTerritory(orgId: number, location: { city?: string | null, stateProvince?: string | null, country?: string | null }) {
+  const { plan } = await getSubscription(orgId)
+  if (!['city-starter', 'city-pro', 'state-pro', 'national'].includes(plan)) return
+  const normalize = (value: string | null | undefined) => value?.trim().toLocaleLowerCase() || ''
+  const requiresCity = plan === 'city-starter' || plan === 'city-pro'
+  const required = requiresCity ? ['city', 'stateProvince', 'country'] : plan === 'state-pro' ? ['stateProvince', 'country'] : ['country']
+  if (required.some(key => !normalize(location[key as keyof typeof location]))) {
+    const fields = requiresCity ? 'City, state/province, and country' : plan === 'state-pro' ? 'State/province and country' : 'Country'
+    const planName = plan === 'national' ? 'National' : plan === 'state-pro' ? 'State Pro' : 'City'
+    throw createError({ statusCode: 400, statusMessage: `${fields} are required for the ${planName} plan.` })
+  }
+  const firstDojo = await db.query.dojos.findFirst({ where: eq(tables.dojos.organizationId, orgId), orderBy: (dojo, { asc }) => [asc(dojo.id)] })
+  if (!firstDojo) return
+  const sameCountry = normalize(firstDojo.country) === normalize(location.country)
+  const sameState = normalize(firstDojo.stateProvince) === normalize(location.stateProvince)
+  const sameCity = normalize(firstDojo.city) === normalize(location.city)
+  if (!sameCountry || (plan === 'state-pro' && !sameState) || (requiresCity && !sameCity)) {
+    const message = plan === 'national'
+      ? 'National workspaces can add locations only within their configured country.'
+      : plan === 'state-pro'
+        ? 'State Pro workspaces can add locations only within their configured state/province.'
+        : 'City plan workspaces can add locations only within their configured city.'
+    throw createError({ statusCode: 402, statusMessage: message })
+  }
+}
+
+export async function assertStaffAccountLimit(orgId: number) {
+  const { limits } = await getSubscription(orgId)
+  if (limits.instructorsPerDojo === null) return
+  const [result] = await db.select({ value: count() }).from(tables.users).where(eq(tables.users.organizationId, orgId))
+  if ((result?.value || 0) >= 1) throw createError({ statusCode: 402, statusMessage: 'Free Forever includes one owner account. Upgrade to add staff.' })
+}
+
 export async function assertInstructorLimit(orgId: number, dojoId: number) {
   const { limits } = await getSubscription(orgId)
   const used = await getInstructorCount(dojoId)
@@ -118,6 +151,28 @@ export async function assertFederationManagementAccess(orgId: number) {
   if (plan === 'free' && nodeCount > 0) {
     throw createError({ statusCode: 402, statusMessage: 'Adding or restructuring hierarchy levels requires a paid plan.' })
   }
+}
+
+const hierarchyLevelsByPlan: Record<SubscriptionPlan, string[] | null> = {
+  free: [],
+  'city-starter': [],
+  'city-pro': [],
+  'state-pro': ['State / Province', 'District', 'City / Town', 'Branch'],
+  national: null,
+}
+
+export async function assertHierarchyLevelAllowed(orgId: number, levelName: string) {
+  const { plan } = await getSubscription(orgId)
+  const allowed = hierarchyLevelsByPlan[plan]
+  if (allowed === null) return
+  if (!allowed.includes(levelName.trim())) {
+    throw createError({ statusCode: 402, statusMessage: plan === 'free' ? 'Upgrade to manage a multi-location hierarchy.' : `${plan === 'state-pro' ? 'State Pro' : 'City'} workspaces cannot use the ${levelName} hierarchy type.` })
+  }
+}
+
+export async function getAllowedHierarchyLevelNames(orgId: number) {
+  const { plan } = await getSubscription(orgId)
+  return hierarchyLevelsByPlan[plan]
 }
 
 export async function getSubscriptionUsage(orgId: number) {

@@ -49,6 +49,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // ✅ Set session with all required fields
+  const isPlatformAdmin = isPlatformAdminEmail(user.email)
   await setUserSession(event, {
     user: {
       id: user.id,
@@ -59,11 +60,11 @@ export default defineEventHandler(async (event) => {
       organizationName: orgName,
       organizationLogo: orgLogo,
       avatar: user.avatar || null,
-      isPlatformAdmin: isPlatformAdminEmail(user.email),
+      isPlatformAdmin,
     },
     lastLoggedIn: new Date(),
   })
 
   const baseDomain = String(useRuntimeConfig(event).tenantBaseDomain || '')
-  return { success: true, workspaceUrl: orgSlug ? workspaceUrl(baseDomain, orgSlug) : '' }
+  return { success: true, isPlatformAdmin, workspaceUrl: orgSlug ? workspaceUrl(baseDomain, orgSlug) : '' }
 })
