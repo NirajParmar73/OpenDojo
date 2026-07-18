@@ -28,15 +28,15 @@ const billingPeriod = ref<'monthly' | 'annual'>('annual')
 const paidPlans = [
   { key: 'city-starter' as const, name: 'City Starter', monthly: 199, annual: 1990, summary: 'For up to two locations in the same city.', features: ['75 students per location', 'Owner + staff, fees and grading'] },
   { key: 'city-pro' as const, name: 'City Pro', monthly: 399, annual: 3990, summary: 'For unlimited city-level management.', features: ['Unlimited locations, students, and staff', 'Full city-level management'] },
-  { key: 'state-pro' as const, name: 'State Pro', monthly: 699, annual: 6990, summary: 'For operations across one state.', features: ['Unlimited cities and locations', 'Advanced reports'] },
-  { key: 'national' as const, name: 'National', monthly: 1999, annual: 19990, summary: 'For federations operating nationwide.', features: ['Federation management', 'AI reports and white-label options'] },
+  { key: 'state-pro' as const, name: 'State Pro', monthly: 699, annual: 6990, summary: 'For operations across one state.', features: ['Unlimited cities and locations', 'State-level organization structure'] },
+  { key: 'national' as const, name: 'National', monthly: 1999, annual: 19990, summary: 'For federations operating nationwide.', features: ['Federation management', 'Nationwide management'] },
 ]
 const planOrder: PlanKey[] = ['free', 'city-starter', 'city-pro', 'state-pro', 'national']
 const nextRecommendedPlan = computed<PlanKey | null>(() => planOrder[planOrder.indexOf(subscription.value?.plan || 'free') + 1] || null)
 const usageCards = computed(() => [
   { label: 'Students', value: subscription.value?.usage.students || 0, limit: limitLabel(subscription.value?.limits.students) },
   { label: 'Dojos / branches', value: subscription.value?.usage.dojos || 0, limit: limitLabel(subscription.value?.limits.dojos) },
-  { label: 'Hierarchy management', value: subscription.value?.plan === 'national' ? 'Included' : 'National', limit: '' },
+  { label: 'Location management', value: subscription.value?.plan === 'national' ? 'Included' : 'National', limit: '' },
 ])
 function planLabel(plan?: PlanKey | null) { return plan ? ({ free: 'Free Forever', 'city-starter': 'City Starter', 'city-pro': 'City Pro', 'state-pro': 'State Pro', national: 'National' }[plan]) : 'Free Forever' }
 function limitLabel(limit?: number | null) { return limit === null || limit === undefined ? 'Unlimited' : String(limit) }

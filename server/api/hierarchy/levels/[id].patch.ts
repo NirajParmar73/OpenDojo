@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../../server/utils/database'
 import { eq } from 'drizzle-orm'
+import { assertFederationManagementAccess, assertHierarchyLevelAllowed } from '../../../utils/subscription'
 
 const updateLevelSchema = z.object({
   name: z.string().min(1).optional(),
@@ -31,6 +32,8 @@ export default defineEventHandler(async (event) => {
   if (!existing || existing.organizationId !== session.user.organizationId) {
     throw createError({ statusCode: 404, statusMessage: 'Level not found' })
   }
+  await assertFederationManagementAccess(session.user.organizationId)
+  if (body.name !== undefined) await assertHierarchyLevelAllowed(session.user.organizationId, body.name)
 
   const [updated] = await db.update(tables.hierarchyLevels)
     .set({

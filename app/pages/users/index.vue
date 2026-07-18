@@ -13,6 +13,7 @@
           <UInput v-model="newUser.danDegree" placeholder="Dan Degree (e.g., 1st Dan)" />
           <USelect v-model="newUser.role" :items="accountRoleOptions" placeholder="Account role" />
         </div>
+        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Account role controls general access. Add a responsibility below to define the locations or dojos this person can manage.</p>
         <div class="mt-4">
           <h4 class="font-medium mb-2">Assignments</h4>
           <div v-for="(assign, index) in newUser.assignments" :key="index" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
@@ -26,7 +27,7 @@
               <USelect
                 v-model="assign.scopeId"
                 :items="filteredNodeOptions"
-                placeholder="Select Node"
+                placeholder="Select location"
               />
             </template>
             <template v-else-if="isDojoRole(assign.role)">
@@ -96,8 +97,8 @@
               </td>
               <td class="px-4 py-4 whitespace-nowrap">
                 <div class="flex flex-wrap gap-1">
-                  <UButton :to="`/users/${user.id}/edit`" color="primary" variant="ghost" size="sm">Edit</UButton>
-                  <UButton color="error" variant="ghost" size="sm" @click="deleteUser(user.id)">Delete</UButton>
+                  <UButton v-if="user.canEdit" :to="`/users/${user.id}/edit`" color="primary" variant="ghost" size="sm">Edit</UButton>
+                  <UButton v-if="user.canDelete" color="error" variant="ghost" size="sm" @click="deleteUser(user.id)">Delete</UButton>
                   <div class="flex items-center gap-1">
                     <UInput type="file" accept="image/*" :id="`avatar-${user.id}`" class="hidden" @change="(e) => uploadAvatar(user.id, e)" />
                     <UButton size="xs" color="secondary" @click="triggerFileInput(`avatar-${user.id}`)">Upload Avatar</UButton>
@@ -124,8 +125,11 @@
 definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
+const route = useRoute()
 const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
-const isFreePlan = computed(() => subscription.value?.plan === 'free')
+// Default to the restrictive state until entitlements have loaded. The server
+// remains authoritative, but this avoids rendering an unusable invite form.
+const isFreePlan = computed(() => subscription.value?.plan !== 'city-starter' && subscription.value?.plan !== 'city-pro' && subscription.value?.plan !== 'state-pro' && subscription.value?.plan !== 'national')
 const users = ref<any[]>([])
 const nodes = ref<any[]>([])
 const flatNodes = ref<any[]>([])
@@ -170,7 +174,7 @@ const filteredNodeOptions = computed(() => {
   return flatNodes.value
     .filter(node => permissions.value.allowedNodeIds.includes(Number(node.id)))
     .map(node => ({
-      label: nodePathMap.value[node.id] || node.name,
+      label: `${nodePathMap.value[node.id] || node.name} — ${levels.value.find(level => Number(level.id) === Number(node.levelId))?.name || 'Location'}`,
       value: Number(node.id),
     }))
 })
@@ -260,7 +264,7 @@ const newUser = reactive<any>({
   password: '',
   danDegree: '',
   role: 'member',
-  assignments: [],
+  assignments: route.query.add === 'instructor' ? [{ role: 'instructor', scopeId: null }] : [],
 })
 
 // ----- Load Permissions and Data -----

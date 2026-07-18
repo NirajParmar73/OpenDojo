@@ -6,12 +6,12 @@
         <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Student directory</h2>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Find students quickly, update essential details, and open their full record.</p>
       </div>
-      <UButton color="primary" icon="i-lucide-user-plus" size="lg" :disabled="cityStarterAtCapacity" @click="toggleCreateForm">
-        {{ cityStarterAtCapacity ? 'Student limit reached' : (showCreate ? 'Close form' : 'Add student') }}
+      <UButton color="primary" icon="i-lucide-user-plus" size="lg" :disabled="studentLimitReached" @click="toggleCreateForm">
+        {{ studentLimitReached ? 'Student limit reached' : (showCreate ? 'Close form' : 'Add student') }}
       </UButton>
     </section>
 
-    <UAlert v-if="cityStarterAtCapacity" class="mb-6" color="warning" title="City Starter student limit reached" description="Each City Starter dojo can have up to 75 students. Upgrade to City Pro to continue enrolling students." :actions="[{ label: 'View upgrade options', to: '/settings/subscription', color: 'primary' }]" />
+    <UAlert v-if="studentLimitReached" class="mb-6" color="warning" title="Student limit reached" :description="studentLimitMessage" :actions="[{ label: 'View upgrade options', to: '/settings/subscription', color: 'primary' }]" />
 
     <UCard v-if="showCreate" class="mb-6">
       <template #header><div><h3 class="font-semibold">Add a student</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Start with the essentials, including an optional fee plan and recurring discount. You can update fee terms later from the student profile.</p></div></template>
@@ -118,7 +118,8 @@
 definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
-const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
+type Subscription = { plan: string, limits: { students: number | null, studentsPerDojo: number | null }, usage: { students: number } }
+const { data: subscription } = await useFetch<Subscription>('/api/organization/subscription')
 type FeePlan = { id: number, name: string, dojoId: number | null, dojo?: { name: string } | null }
 const students = ref<any[]>([])
 const dojos = ref<any[]>([])
@@ -149,6 +150,14 @@ const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as numbe
 const isCityStarter = computed(() => subscription.value?.plan === 'city-starter')
 const studentCountByDojo = computed(() => students.value.reduce<Record<number, number>>((counts, student) => { if (student.dojoId) counts[student.dojoId] = (counts[student.dojoId] || 0) + 1; return counts }, {}))
 const cityStarterAtCapacity = computed(() => isCityStarter.value && dojos.value.length > 0 && dojos.value.every(dojo => (studentCountByDojo.value[dojo.id] || 0) >= 75))
+const globalStudentLimitReached = computed(() => {
+  const limit = subscription.value?.limits.students
+  return limit !== null && limit !== undefined && students.value.length >= limit
+})
+const studentLimitReached = computed(() => globalStudentLimitReached.value || cityStarterAtCapacity.value)
+const studentLimitMessage = computed(() => globalStudentLimitReached.value
+  ? `Your plan includes up to ${subscription.value?.limits.students} students. Upgrade to continue enrolling students.`
+  : 'Each City Starter dojo can have up to 75 students. Upgrade to City Pro to continue enrolling students.')
 const dojoOptions = computed(() => dojos.value.filter(dojo => !isCityStarter.value || (studentCountByDojo.value[dojo.id] || 0) < 75).map(dojo => ({ label: dojo.name, value: dojo.id })))
 const availableFeePlanOptions = computed(() => feePlans.value
   .filter(plan => !plan.dojoId || plan.dojoId === newStudent.dojoId)
@@ -185,7 +194,7 @@ function ageLabel(dateOfBirth: string) {
 }
 
 async function toggleCreateForm() {
-  if (cityStarterAtCapacity.value) return
+  if (studentLimitReached.value) return
   if (!showCreate.value && !dojos.value.length) {
     toast.add({ color: 'warning', title: 'Create a dojo before adding students', description: 'Set up your dojo, fees, instructor, and schedule first.' })
     await navigateTo('/dojos')

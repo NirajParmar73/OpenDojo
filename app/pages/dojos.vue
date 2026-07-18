@@ -19,9 +19,9 @@
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
           <UInput v-model="newDojo.address" placeholder="Address (optional)" />
-          <UInput v-model="newDojo.city" :readonly="lockCity" placeholder="City" />
-          <UInput v-model="newDojo.stateProvince" :readonly="lockStateProvince" placeholder="State / province" />
-          <UInput v-model="newDojo.country" :readonly="lockCountry" placeholder="Country" />
+          <UInput v-model="newDojo.city" :readonly="isLocationFieldLocked(newDojo.nodeId, 'city')" placeholder="City" />
+          <UInput v-model="newDojo.stateProvince" :readonly="isLocationFieldLocked(newDojo.nodeId, 'stateProvince')" placeholder="State / province" />
+          <UInput v-model="newDojo.country" :readonly="isLocationFieldLocked(newDojo.nodeId, 'country')" placeholder="Country" />
           <UInput v-model="newDojo.phone" placeholder="Phone (optional)" />
           <UInput v-model="newDojo.email" placeholder="Email (optional)" />
         </div>
@@ -74,7 +74,7 @@
 
                     <div class="mb-5 rounded-xl border border-slate-200 bg-white/70 p-4 dark:border-slate-700 dark:bg-slate-900/50">
                       <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center"><div><h5 class="font-medium">Dojo instructor roster</h5><p class="text-sm text-slate-500 dark:text-slate-400">Assign instructors who can teach at this dojo.</p></div></div>
-                      <form class="mt-3 grid gap-3 md:grid-cols-4" @submit.prevent="assignInstructor(dojo.id)"><USelect v-model="dojoInstructorForm.userId" :items="instructorOptions" placeholder="Instructor" /><USelect v-model="dojoInstructorForm.programId" :items="programOptions" placeholder="Program" /><UCheckbox v-model="dojoInstructorForm.isPrimary" label="Primary instructor" /><UButton type="submit" size="sm" :loading="assigningInstructor">Assign instructor</UButton></form>
+                      <form class="mt-3 grid gap-3 md:grid-cols-4" @submit.prevent="assignInstructor(dojo.id)"><USelect v-model="dojoInstructorForm.userId" :items="instructorOptionsForDojo(dojo.id)" placeholder="Instructor" /><USelect v-model="dojoInstructorForm.programId" :items="programOptions" placeholder="Program" /><UCheckbox v-model="dojoInstructorForm.isPrimary" label="Primary instructor" /><UButton type="submit" size="sm" :loading="assigningInstructor">Assign instructor</UButton></form>
                       <div v-if="dojoInstructors[dojo.id]?.length" class="mt-3 flex flex-wrap gap-2"><UBadge v-for="assignment in dojoInstructors[dojo.id]" :key="assignment.id" color="primary" variant="subtle">{{ assignment.user?.name }}<span v-if="assignment.program"> · {{ assignment.program.displayName }}</span><span v-if="assignment.isPrimary"> · Primary</span></UBadge></div>
                     </div>
 
@@ -96,7 +96,7 @@
                         <USelect v-model="scheduleForm.programId" :items="programOptions" placeholder="Optional" />
                       </UFormField>
                       <UFormField label="Instructor">
-                        <USelect v-model="scheduleForm.instructorId" :items="instructorOptions" placeholder="Optional" />
+                        <USelect v-model="scheduleForm.instructorId" :items="scheduledInstructorOptions(dojo.id)" placeholder="Optional" />
                       </UFormField>
                       <UButton type="submit" size="sm" :loading="addingSchedule">Add</UButton>
                     </form>
@@ -133,7 +133,7 @@
                           <UInput v-model="editScheduleForm.name" required />
                         </UFormField>
                         <UFormField label="Instructor">
-                          <USelect v-model="editScheduleForm.instructorId" :items="instructorOptions" placeholder="Optional" />
+                          <USelect v-model="editScheduleForm.instructorId" :items="scheduledInstructorOptions(dojo.id)" placeholder="Optional" />
                         </UFormField>
                         <UButton type="submit" size="sm" :loading="updatingSchedule">Update</UButton>
                         <UButton type="button" color="neutral" size="sm" @click="cancelEditSchedule">Cancel</UButton>
@@ -167,9 +167,9 @@
           </div>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
             <UInput v-model="editDojoForm.address" placeholder="Address" />
-            <UInput v-model="editDojoForm.city" :readonly="lockCity" placeholder="City" />
-            <UInput v-model="editDojoForm.stateProvince" :readonly="lockStateProvince" placeholder="State / province" />
-            <UInput v-model="editDojoForm.country" :readonly="lockCountry" placeholder="Country" />
+            <UInput v-model="editDojoForm.city" :readonly="isLocationFieldLocked(editDojoForm.nodeId, 'city')" placeholder="City" />
+            <UInput v-model="editDojoForm.stateProvince" :readonly="isLocationFieldLocked(editDojoForm.nodeId, 'stateProvince')" placeholder="State / province" />
+            <UInput v-model="editDojoForm.country" :readonly="isLocationFieldLocked(editDojoForm.nodeId, 'country')" placeholder="Country" />
             <p v-if="territoryMessage" class="md:col-span-3 text-sm text-slate-500 dark:text-slate-400">{{ territoryMessage }}</p>
             <UInput v-model="editDojoForm.phone" placeholder="Phone" />
             <UInput v-model="editDojoForm.email" placeholder="Email" />
@@ -190,9 +190,9 @@ definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
 const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
-const isFreePlan = computed(() => subscription.value?.plan === 'free')
+const isFreePlan = computed(() => subscription.value?.plan !== 'city-starter' && subscription.value?.plan !== 'city-pro' && subscription.value?.plan !== 'state-pro' && subscription.value?.plan !== 'national')
 const isCityStarter = computed(() => subscription.value?.plan === 'city-starter')
-const canCreateDojo = computed(() => !isFreePlan.value && (!isCityStarter.value || dojos.value.length < 2))
+const canCreateDojo = computed(() => !!subscription.value && (!isFreePlan.value || dojos.value.length < 1) && (!isCityStarter.value || dojos.value.length < 2))
 const isCityPlan = computed(() => ['city-starter', 'city-pro'].includes(subscription.value?.plan || ''))
 const isStatePlan = computed(() => subscription.value?.plan === 'state-pro')
 const isNationalPlan = computed(() => subscription.value?.plan === 'national')
@@ -217,15 +217,14 @@ const updatingSchedule = ref(false)
 const assigningInstructor = ref(false)
 
 const territoryAnchor = computed(() => dojos.value[0] || null)
-const lockCity = computed(() => isCityPlan.value && !!territoryAnchor.value)
-const lockStateProvince = computed(() => (isCityPlan.value || isStatePlan.value) && !!territoryAnchor.value)
-const lockCountry = computed(() => (isCityPlan.value || isStatePlan.value || isNationalPlan.value) && !!territoryAnchor.value)
 const territoryMessage = computed(() => {
-  const anchor = territoryAnchor.value
-  if (!anchor) return null
-  if (isCityPlan.value) return `Locations in this plan must remain within ${anchor.city}, ${anchor.stateProvince}, ${anchor.country}.`
-  if (isStatePlan.value) return `Locations in this plan must remain within ${anchor.stateProvince}, ${anchor.country}.`
-  if (isNationalPlan.value) return `Locations in this plan must remain within ${anchor.country}.`
+  const territory = getLocationFromNode(newDojo.nodeId) || territoryAnchor.value
+  if (!territory) return null
+  const place = [territory.city, territory.stateProvince, territory.country].filter(Boolean).join(', ')
+  if (place && newDojo.nodeId) return `City, state/province, and country are set by ${getNodePath(newDojo.nodeId)} and cannot be changed here.`
+  if (isCityPlan.value && place) return `Locations in this plan must remain within ${place}.`
+  if (isStatePlan.value && territory.stateProvince && territory.country) return `Locations in this plan must remain within ${territory.stateProvince}, ${territory.country}.`
+  if (isNationalPlan.value && territory.country) return `Locations in this plan must remain within ${territory.country}.`
   return null
 })
 
@@ -256,20 +255,45 @@ const editDojoForm = reactive({
 })
 
 type LocationFields = Pick<typeof newDojo, 'city' | 'stateProvince' | 'country'>
-function applyTerritoryDefaults(target: LocationFields = newDojo) {
-  const anchor = territoryAnchor.value
-  if (!anchor) return
-  if (isCityPlan.value) {
-    target.city = anchor.city || ''
-    target.stateProvince = anchor.stateProvince || ''
-    target.country = anchor.country || ''
-  } else if (isStatePlan.value) {
-    target.stateProvince = anchor.stateProvince || ''
-    target.country = anchor.country || ''
-  } else if (isNationalPlan.value) {
-    target.country = anchor.country || ''
+function getLocationFromNode(nodeId: number | null): Partial<LocationFields> | null {
+  if (!nodeId) return null
+  const nodesById = new Map(flatNodes.value.map(node => [Number(node.id), node]))
+  const location: Partial<LocationFields> = {}
+  let node = nodesById.get(Number(nodeId))
+  let topLocation = node
+  while (node) {
+    const levelName = levels.value.find(level => Number(level.id) === Number(node.levelId))?.name?.trim().toLowerCase()
+    if (levelName === 'city / town' && !location.city) location.city = node.name
+    if (levelName === 'state / province' && !location.stateProvince) location.stateProvince = node.name
+    if (levelName === 'country' && !location.country) location.country = node.name
+    topLocation = node
+    node = node.parentId ? nodesById.get(Number(node.parentId)) : undefined
   }
+  // Some older National workspaces used their country as the top location
+  // before a dedicated Country type existed. Preserve that valid structure.
+  if (isNationalPlan.value && !location.country && topLocation) location.country = topLocation.name
+  return Object.keys(location).length ? location : null
 }
+
+function isLocationFieldLocked(nodeId: number | null, field: keyof LocationFields) {
+  return Boolean(getLocationFromNode(nodeId)?.[field])
+}
+
+function applyTerritoryDefaults(target: LocationFields = newDojo, nodeId: number | null = newDojo.nodeId) {
+  const fromSelectedLocation = getLocationFromNode(nodeId)
+  const anchor = territoryAnchor.value
+  const city = fromSelectedLocation?.city || (isCityPlan.value ? anchor?.city : undefined)
+  const stateProvince = fromSelectedLocation?.stateProvince || ((isCityPlan.value || isStatePlan.value) ? anchor?.stateProvince : undefined)
+  const country = fromSelectedLocation?.country || ((isCityPlan.value || isStatePlan.value || isNationalPlan.value) ? anchor?.country : undefined)
+  if (city) target.city = city
+  if (stateProvince) target.stateProvince = stateProvince
+  if (country) target.country = country
+}
+
+watch(() => newDojo.nodeId, nodeId => applyTerritoryDefaults(newDojo, nodeId))
+watch(() => editDojoForm.nodeId, nodeId => {
+  if (editingDojo.value) applyTerritoryDefaults(editDojoForm, nodeId)
+})
 
 watch([isCityPlan, isStatePlan, isNationalPlan, territoryAnchor], () => applyTerritoryDefaults())
 
@@ -300,12 +324,20 @@ const dayOptions = [
   { label: 'Saturday', value: 6 },
 ]
 
-const instructorOptions = computed(() => {
-  return instructors.value.map((u: any) => ({
+function instructorOptionsForDojo(dojoId: number) {
+  return instructors.value
+    .filter((user: any) => user.role === 'owner' || user.assignments?.some((assignment: any) => ['instructor', 'dojo_head'].includes(assignment.role) && assignment.scopeType === 'dojo' && Number(assignment.scopeId) === Number(dojoId)))
+    .map((u: any) => ({
     label: u.name,
     value: u.id,
   }))
-})
+}
+
+function scheduledInstructorOptions(dojoId: number) {
+  return (dojoInstructors.value[dojoId] || [])
+    .filter((assignment: any) => assignment.isActive)
+    .map((assignment: any) => ({ label: assignment.user?.name || 'Instructor', value: assignment.userId }))
+}
 const dojoInstructorForm = reactive({ userId: undefined as number | undefined, programId: undefined as number | undefined, isPrimary: false })
 const programOptions = computed(() => programs.value.map((program: any) => ({ label: program.displayName, value: program.id })))
 
@@ -388,11 +420,11 @@ async function loadData() {
       $fetch('/api/fee-plans'),
     ])
     dojos.value = dojosData
-    applyTerritoryDefaults()
     levels.value = levelsData
     allNodes.value = nodesData
     flatNodes.value = flattenTree(nodesData)
     nodePathMap.value = buildNodePathMap(flatNodes.value)
+    applyTerritoryDefaults()
     programs.value = programsData
     feePlans.value = feePlansData
 

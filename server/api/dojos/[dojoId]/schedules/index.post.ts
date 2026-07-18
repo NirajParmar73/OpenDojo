@@ -56,10 +56,8 @@ export default defineEventHandler(async (event) => {
     if (!instructor) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid instructor' })
     }
-    // Optionally check role: instructor or higher
-    if (instructor.role !== 'owner' && !instructor.assignments.some(assignment => ['instructor', 'dojo_head'].includes(assignment.role))) {
-      throw createError({ statusCode: 400, statusMessage: 'User is not an instructor' })
-    }
+    const rosterAssignment = await db.query.dojoInstructors.findFirst({ where: and(eq(tables.dojoInstructors.dojoId, Number(dojoId)), eq(tables.dojoInstructors.userId, instructor.id), eq(tables.dojoInstructors.isActive, 1)) })
+    if (!rosterAssignment && instructor.role !== 'owner') throw createError({ statusCode: 400, statusMessage: 'Select an active instructor assigned to this dojo' })
     if (body.programId && instructor.role !== 'owner') {
       const credential = await db.query.instructorQualifications.findFirst({ where: and(eq(tables.instructorQualifications.userId, instructor.id), eq(tables.instructorQualifications.programId, body.programId)) })
       if (!credential) throw createError({ statusCode: 400, statusMessage: 'Instructor is not qualified for the selected program' })

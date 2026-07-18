@@ -4,7 +4,7 @@
       <p class="mb-2 text-sm font-semibold text-primary">Organization</p>
       <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Set up your dojo your way</h2>
       <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">
-        Manage your organization identity, hierarchy, belt system, and fee plans from one place.
+        Manage your organization identity, locations and structure, belt system, and fee plans from one place.
       </p>
     </section>
 
@@ -36,8 +36,8 @@ definePageMeta({ middleware: ['auth', 'admin'] })
 const settingsItems = [
   { title: 'General settings', description: 'Organization name, logo, and currency.', to: '/settings/general', icon: 'i-lucide-landmark' },
   { title: 'Plan & billing', description: 'Review plan limits and request an upgrade.', to: '/settings/subscription', icon: 'i-lucide-credit-card' },
-  { title: 'Upgrade setup', description: 'Safely expand your hierarchy after a plan upgrade.', to: '/settings/expand-structure', icon: 'i-lucide-git-branch' },
-  { title: 'Hierarchy', description: 'Model regions, branches, and dojo structure.', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
+  { title: 'Upgrade setup', description: 'Safely expand your organization structure after a plan upgrade.', to: '/settings/expand-structure', icon: 'i-lucide-git-branch' },
+  { title: 'Locations & structure', description: 'Organize countries, states, districts, cities, branches, and dojos.', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
   { title: 'Belt system', description: 'Manage ranks, colours, and progression.', to: '/settings/belts', icon: 'i-lucide-award' },
   { title: 'Martial arts & programs', description: 'Manage the disciplines and styles you teach.', to: '/settings/programs', icon: 'i-lucide-swords' },
   { title: 'Affiliations & memberships', description: 'Track governing bodies, memberships, and renewals.', to: '/settings/affiliations', icon: 'i-lucide-badge-check' },

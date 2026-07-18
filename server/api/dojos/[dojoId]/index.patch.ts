@@ -3,6 +3,7 @@ import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { assertDojoManagementAccess, assertNodeManagementAccess } from '../../../utils/permissions'
 import { assertDojoTerritory, getSubscription } from '../../../utils/subscription'
+import { getLocationFromHierarchyNode } from '../../../utils/hierarchy-location'
 
 const updateDojoSchema = z.object({
   nodeId: z.number().int().positive().optional(),
@@ -40,7 +41,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Dojo not found' })
   }
   await assertDojoManagementAccess(session.user.id, session.user.organizationId!, existing.id)
-  await assertDojoTerritory(session.user.organizationId!, { city: body.city ?? existing.city, stateProvince: body.stateProvince ?? existing.stateProvince, country: body.country ?? existing.country })
+  const { plan: subscriptionPlan } = await getSubscription(session.user.organizationId!)
+  const targetNodeId = body.nodeId || existing.nodeId
+  const hierarchyLocation = await getLocationFromHierarchyNode(session.user.organizationId!, targetNodeId, subscriptionPlan === 'national')
+  const location = {
+    city: hierarchyLocation.city || body.city || existing.city,
+    stateProvince: hierarchyLocation.stateProvince || body.stateProvince || existing.stateProvince,
+    country: hierarchyLocation.country || body.country || existing.country,
+  }
+  await assertDojoTerritory(session.user.organizationId!, location)
 
   if (body.nodeId) {
     const node = await db.query.hierarchyNodes.findFirst({
@@ -49,11 +58,10 @@ export default defineEventHandler(async (event) => {
     if (!node || node.organizationId !== session.user.organizationId) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid node ID' })
     }
-    const { plan } = await getSubscription(session.user.organizationId!)
     // An existing operational dojo is stored on its own Dojo node. Retain
     // that node when editing details; only a deliberate location change must
     // target a City/Town or Branch node.
-    if (['state-pro', 'national'].includes(plan) && body.nodeId !== existing.nodeId) {
+    if (['state-pro', 'national'].includes(subscriptionPlan) && body.nodeId !== existing.nodeId) {
       const nodeLevel = await db.query.hierarchyLevels.findFirst({ where: eq(tables.hierarchyLevels.id, node.levelId) })
       if (!nodeLevel || !['City / Town', 'Branch'].includes(nodeLevel.name)) throw createError({ statusCode: 400, statusMessage: 'Choose a City/Town or Branch location for this dojo.' })
     }
@@ -65,7 +73,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const [updated] = await db.update(tables.dojos)
-    .set({ ...body, updatedAt: new Date() })
+    .set({ ...body, ...location, updatedAt: new Date() })
     .where(eq(tables.dojos.id, Number(dojoId)))
     .returning() as any[]
 

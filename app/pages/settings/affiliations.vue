@@ -64,11 +64,12 @@ const { data: nodes } = await useFetch<any[]>('/api/hierarchy/nodes')
 const { data: dojos } = await useFetch<any[]>('/api/dojos')
 
 const bodyOptions = computed(() => (bodies.value || []).map(item => ({ label: item.name, value: item.id })))
-const scopeTypes = computed(() => isOwner.value ? [{ label: 'Organization-wide', value: 'organization' }, { label: 'Hierarchy node', value: 'node' }, { label: 'Dojo', value: 'dojo' }] : [{ label: 'Hierarchy node', value: 'node' }, { label: 'Dojo', value: 'dojo' }])
+const scopeTypes = computed(() => isOwner.value ? [{ label: 'Organization-wide', value: 'organization' }, { label: 'Organization location', value: 'node' }, { label: 'Dojo', value: 'dojo' }] : [{ label: 'Organization location', value: 'node' }, { label: 'Dojo', value: 'dojo' }])
 const flatNodes = computed(() => flattenNodes(nodes.value || []))
-const scopeOptions = computed(() => form.scopeType === 'dojo' ? (dojos.value || []).filter(dojo => isOwner.value || permissions.value?.allowedDojoIds?.includes(dojo.id)).map(dojo => ({ label: dojo.name, value: dojo.id })) : flatNodes.value.filter(node => isOwner.value || permissions.value?.allowedNodeIds?.includes(node.id)).map(node => ({ label: node.name, value: node.id })))
+const scopeOptions = computed(() => form.scopeType === 'dojo' ? (dojos.value || []).filter(dojo => isOwner.value || permissions.value?.allowedDojoIds?.includes(dojo.id)).map(dojo => ({ label: dojo.name, value: dojo.id })) : flatNodes.value.filter(node => isOwner.value || permissions.value?.allowedNodeIds?.includes(node.id)).map(node => ({ label: locationPath(node), value: node.id })))
 
 function flattenNodes(tree: any[]): any[] { return tree.flatMap(node => [node, ...flattenNodes(node.children || [])]) }
+function locationPath(node: any) { const nodesById = new Map(flatNodes.value.map(item => [item.id, item])); const parts: string[] = []; let current: any = node; while (current) { parts.unshift(current.name); current = current.parentId ? nodesById.get(current.parentId) : undefined }; return parts.join(' → ') }
 function formatDate(value: string | Date) { return new Date(value).toLocaleDateString() }
 function resetForm() { Object.assign(form, { governingBodyId: undefined, relationshipType: 'membership', scopeType: isOwner.value ? 'organization' : 'node', scopeId: null, renewalDueAt: '', status: 'active' }); editingAffiliation.value = null }
 function startEdit(item: any) { editingAffiliation.value = item; Object.assign(form, { governingBodyId: item.governingBodyId, relationshipType: item.relationshipType, scopeType: item.scopeType, scopeId: item.scopeId, renewalDueAt: item.renewalDueAt ? new Date(item.renewalDueAt).toISOString().slice(0, 10) : '', status: item.status }) }

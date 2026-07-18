@@ -157,6 +157,39 @@ export async function getAllowedAssignmentsForCreator(userId: number, organizati
   }
 }
 
+type ScopedAssignment = { role: string, scopeType: string, scopeId: number }
+type ManagedUser = { id: number, role: string, assignments: ScopedAssignment[] }
+type AssignmentPermissions = { allowedRoles: string[], allowedNodeIds: number[], allowedDojoIds: number[] }
+
+function isAssignmentWithinTerritory(assignment: ScopedAssignment, permissions: AssignmentPermissions) {
+  return assignment.scopeType === 'node'
+    ? permissions.allowedNodeIds.includes(assignment.scopeId)
+    : assignment.scopeType === 'dojo' && permissions.allowedDojoIds.includes(assignment.scopeId)
+}
+
+export function canViewManagedUser(actorUserId: number, actorRole: string, target: ManagedUser, permissions: AssignmentPermissions) {
+  if (actorRole === 'owner' || target.id === actorUserId) return true
+  return target.assignments.length > 0 && target.assignments.every(assignment => isAssignmentWithinTerritory(assignment, permissions))
+}
+
+export function canEditManagedUser(actorUserId: number, actorRole: string, target: ManagedUser, permissions: AssignmentPermissions) {
+  if (actorRole === 'owner') return true
+  if (target.id === actorUserId || target.role !== 'member') return false
+  return canViewManagedUser(actorUserId, actorRole, target, permissions)
+    && target.assignments.every(assignment => permissions.allowedRoles.includes(assignment.role))
+}
+
+/**
+ * A hierarchy head may remove only a lower-level member whose complete set of
+ * responsibilities is contained within that head's territory. Account admins
+ * and owners remain an owner-only responsibility.
+ */
+export function canDeleteManagedUser(actorUserId: number, actorRole: string, target: ManagedUser, permissions: AssignmentPermissions) {
+  if (target.id === actorUserId || target.role === 'owner') return false
+  if (actorRole === 'owner') return true
+  return canEditManagedUser(actorUserId, actorRole, target, permissions)
+}
+
 export async function assertDojoManagementAccess(userId: number, organizationId: number, dojoId: number) {
   if (!await isDojoAccessible(userId, organizationId, dojoId)) {
     throw createError({ statusCode: 403, statusMessage: 'This dojo is outside your assigned territory' })

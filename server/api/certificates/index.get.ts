@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const hierarchyId = Number(query.hierarchyId) || null
   const type = String(query.type || 'all')
   const search = String(query.search || '').trim().toLowerCase()
-  const accessibleDojoIds = session.user.role === 'admin' ? null : await getAccessibleDojoIds(session.user.id, organizationId)
+  const accessibleDojoIds = await getAccessibleDojoIds(session.user.id, organizationId)
   const nodes = await db.query.hierarchyNodes.findMany({ where: eq(tables.hierarchyNodes.organizationId, organizationId) })
   const selectedNodeIds = new Set<number>()
   const addDescendants = (nodeId: number) => {

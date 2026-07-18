@@ -3,6 +3,7 @@ import { db, tables } from '../../../../server/utils/database'
 import { eq, and } from 'drizzle-orm'
 import { assertHierarchyNodeModificationAccess } from '../../../utils/permissions'
 import { writeAuditLog } from '../../../utils/audit'
+import { assertFederationManagementAccess } from '../../../utils/subscription'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -26,6 +27,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'Node not found' })
   }
   await assertHierarchyNodeModificationAccess(session.user.id, session.user.organizationId!, existing.id)
+  await assertFederationManagementAccess(session.user.organizationId!)
 
   // Optional: Check if node has children – prevent deletion if so
   const children = await db.query.hierarchyNodes.findMany({

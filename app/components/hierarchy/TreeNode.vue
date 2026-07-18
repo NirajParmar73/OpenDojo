@@ -10,28 +10,28 @@
       </button>
 
       <span class="font-medium">{{ node.name }}</span>
-      <span class="text-xs text-gray-400">(Level: {{ levelName }})</span>
+      <span class="text-xs text-gray-400">({{ levelName }})</span>
 
       <button
         v-if="canManageChildren(node.id) && canAddChildren(node)"
         class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
         @click="$emit('addChild', node)"
       >
-        Add Child
+        Add location below
       </button>
       <button
         v-if="canModify(node.id)"
         class="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
         @click="$emit('edit', node)"
       >
-        Edit
+        Edit location
       </button>
       <button
         v-if="canModify(node.id)"
         class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
         @click="$emit('delete', node.id)"
       >
-        Delete
+        Remove
       </button>
     </div>
 

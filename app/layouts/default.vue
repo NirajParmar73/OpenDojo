@@ -183,7 +183,6 @@ const navigation = computed(() => {
       ]
     : allNavigation
   return items.map(section => {
-  if (section.label === 'Workspace' && user.value?.role !== 'owner') return { ...section, items: section.items.filter(item => item.to !== '/getting-started') }
   if (section.label === 'Organization' && !['owner', 'admin'].includes(user.value?.role || '')) return { ...section, items: [] }
   if (section.label === 'Insights' && !['owner', 'admin'].includes(user.value?.role || '')) return { ...section, items: section.items.filter(item => item.to !== '/certificates') }
   return section
@@ -216,8 +215,8 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/finance': { title: 'Collections overview', section: 'Finance' },
   '/finance/pending-fees': { title: 'Pending fees', section: 'Finance' },
   '/finance/expenses': { title: 'Expenses', section: 'Finance' },
-  '/settings/hierarchy/nodes': { title: 'Hierarchy', section: 'Organization' },
-  '/settings/hierarchy/levels': { title: 'Hierarchy levels', section: 'Organization' },
+  '/settings/hierarchy/nodes': { title: 'Locations & structure', section: 'Organization' },
+  '/settings/hierarchy/levels': { title: 'Location types', section: 'Organization' },
   '/settings/belts': { title: 'Belt system', section: 'Organization' },
   '/settings/programs': { title: 'Martial arts & programs', section: 'Organization' },
   '/settings/affiliations': { title: 'Affiliations & memberships', section: 'Organization' },

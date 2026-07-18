@@ -78,6 +78,13 @@
       "when": 1784385000000,
       "tag": "0010_dojo_service_areas",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1784386000000,
+      "tag": "0011_onboarding_progress",
+      "breakpoints": true
     }
   ]
 }

@@ -25,7 +25,10 @@ export async function getSubscription(orgId: number) {
     where: eq(tables.organizations.id, orgId),
     columns: { subscriptionPlan: true, subscriptionStatus: true, billingPeriod: true, trialStartedAt: true, trialEndsAt: true, subscriptionStartedAt: true, subscriptionEndsAt: true, cancelAtPeriodEnd: true, paymentProvider: true, providerCustomerId: true, providerSubscriptionId: true },
   })
-  if (organization?.subscriptionStatus === 'trialing' && organization.trialEndsAt && organization.trialEndsAt <= new Date()) {
+  const now = new Date()
+  const trialExpired = organization?.subscriptionStatus === 'trialing' && organization.trialEndsAt && organization.trialEndsAt <= now
+  const paidTermExpired = organization?.subscriptionPlan !== 'free' && organization?.subscriptionEndsAt && organization.subscriptionEndsAt <= now
+  if (trialExpired || paidTermExpired) {
     await db.update(tables.organizations).set({ subscriptionPlan: 'free', subscriptionStatus: 'expired', billingPeriod: null, updatedAt: new Date() }).where(eq(tables.organizations.id, orgId))
     return { plan: 'free' as const, limits: planLimits.free, status: 'expired' as const, billingPeriod: null, trialStartedAt: organization.trialStartedAt, trialEndsAt: organization.trialEndsAt, subscriptionStartedAt: null, subscriptionEndsAt: null, cancelAtPeriodEnd: false, paymentProvider: null, providerCustomerId: null, providerSubscriptionId: null }
   }
@@ -47,9 +50,12 @@ export async function getSubscription(orgId: number) {
 }
 
 export async function startSubscriptionTrial(orgId: number, plan: Exclude<SubscriptionPlan, 'free'>, billingPeriod: BillingPeriod) {
-  const organization = await db.query.organizations.findFirst({ where: eq(tables.organizations.id, orgId), columns: { trialStartedAt: true } })
+  const organization = await db.query.organizations.findFirst({ where: eq(tables.organizations.id, orgId), columns: { trialStartedAt: true, subscriptionPlan: true, subscriptionStatus: true } })
   if (!organization) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
   if (organization.trialStartedAt) throw createError({ statusCode: 409, statusMessage: 'This organization has already used its free trial.' })
+  if (organization.subscriptionPlan !== 'free' || ['trialing', 'active', 'suspended'].includes(organization.subscriptionStatus)) {
+    throw createError({ statusCode: 409, statusMessage: 'This organization already has paid-plan access.' })
+  }
   const trialStartedAt = new Date()
   const trialEndsAt = new Date(trialStartedAt)
   trialEndsAt.setDate(trialEndsAt.getDate() + 14)

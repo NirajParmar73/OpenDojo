@@ -1,5 +1,5 @@
 // server/database/schema.ts
-import { pgTable } from 'drizzle-orm/pg-core'
+import { pgTable, uniqueIndex } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // ---------- TABLE DEFINITIONS (all tables first) ----------
@@ -218,6 +218,18 @@ export const governingBodies = pgTable('governing_bodies', (t) => ({
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
+
+// Per-user completion state for the role-specific getting-started guide.
+// Operational steps can still be completed automatically in the UI; this table
+// records review steps that cannot be inferred safely from other records.
+export const onboardingProgress = pgTable('onboarding_progress', (t) => ({
+  id: t.serial('id').primaryKey(),
+  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  stepKey: t.text('step_key').notNull(),
+  completedAt: t.timestamp('completed_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+}), table => [
+  uniqueIndex('onboarding_progress_user_step_unique').on(table.userId, table.stepKey),
+])
 
 // Platform-owned records deliberately do not belong to a customer organization.
 // They remain available after a tenant is permanently deleted.

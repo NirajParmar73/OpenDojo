@@ -3,6 +3,7 @@ import { db, tables } from '../../../server/utils/database'
 import { and, eq } from 'drizzle-orm'
 import { assertNodeManagementAccess } from '../../utils/permissions'
 import { assertDojoLimit, assertDojoTerritory, getSubscription } from '../../utils/subscription'
+import { getLocationFromHierarchyNode } from '../../utils/hierarchy-location'
 
 const createDojoSchema = z.object({
   nodeId: z.number().int().positive().nullable().optional(),
@@ -29,11 +30,16 @@ export default defineEventHandler(async (event) => {
 
   const body = await readValidatedBody(event, createDojoSchema.parse)
   await assertDojoLimit(orgId)
-  await assertDojoTerritory(orgId, body)
-
   const subscription = await getSubscription(orgId)
   const isCityPlan = subscription.plan === 'city-starter' || subscription.plan === 'city-pro'
   const isAdvancedPlan = subscription.plan === 'state-pro' || subscription.plan === 'national'
+  const hierarchyLocation = body.nodeId ? await getLocationFromHierarchyNode(orgId, body.nodeId, subscription.plan === 'national') : {}
+  const location = {
+    city: hierarchyLocation.city || body.city,
+    stateProvince: hierarchyLocation.stateProvince || body.stateProvince,
+    country: hierarchyLocation.country || body.country,
+  }
+  await assertDojoTerritory(orgId, location)
   let nodeId = body.nodeId || null
 
   // City workspaces are organized by their location fields, not a manual
@@ -44,7 +50,7 @@ export default defineEventHandler(async (event) => {
     if (!dojoLevel) throw createError({ statusCode: 400, statusMessage: 'Workspace hierarchy is not ready. Please contact support.' })
     let cityNode = await db.query.hierarchyNodes.findFirst({ where: eq(tables.hierarchyNodes.levelId, dojoLevel.id), orderBy: (node, { asc }) => [asc(node.id)] })
     if (!cityNode) {
-      const [createdNode] = await db.insert(tables.hierarchyNodes).values({ organizationId: orgId, levelId: dojoLevel.id, name: `${body.city || 'City'} locations` }).returning()
+      const [createdNode] = await db.insert(tables.hierarchyNodes).values({ organizationId: orgId, levelId: dojoLevel.id, name: `${location.city || 'City'} locations` }).returning()
       cityNode = createdNode
     }
     nodeId = cityNode?.id || null
@@ -52,7 +58,7 @@ export default defineEventHandler(async (event) => {
   // Older workspaces and workspaces created before their first dojo may not
   // have a hierarchy yet. Build the first valid path from the dojo location.
   if (isAdvancedPlan && !nodeId) {
-    if (!body.city || !body.stateProvince || (subscription.plan === 'national' && !body.country)) throw createError({ statusCode: 400, statusMessage: 'Enter the city, state/province, and country before creating the first dojo.' })
+    if (!location.city || !location.stateProvince || (subscription.plan === 'national' && !location.country)) throw createError({ statusCode: 400, statusMessage: 'Enter the city, state/province, and country before creating the first dojo.' })
     const requiredLevels = subscription.plan === 'national' ? ['Country', 'State / Province', 'City / Town', 'Branch', 'Dojo'] : ['State / Province', 'City / Town', 'Branch', 'Dojo']
     const levels = await db.query.hierarchyLevels.findMany({ where: eq(tables.hierarchyLevels.organizationId, orgId) })
     const levelByName = new Map(levels.map(level => [level.name, level]))
@@ -71,9 +77,9 @@ export default defineEventHandler(async (event) => {
       return created!
     }
     let parentId: number | null = null
-    if (subscription.plan === 'national') parentId = (await findOrCreate('Country', body.country, null)).id
-    parentId = (await findOrCreate('State / Province', body.stateProvince, parentId)).id
-    parentId = (await findOrCreate('City / Town', body.city, parentId)).id
+    if (subscription.plan === 'national') parentId = (await findOrCreate('Country', location.country!, null)).id
+    parentId = (await findOrCreate('State / Province', location.stateProvince!, parentId)).id
+    parentId = (await findOrCreate('City / Town', location.city!, parentId)).id
     parentId = (await findOrCreate('Branch', `${body.name} Branch`, parentId)).id
     nodeId = (await findOrCreate('Dojo', body.name, parentId)).id
   }
@@ -116,9 +122,9 @@ export default defineEventHandler(async (event) => {
     nodeId,
     name: body.name,
     address: body.address || null,
-    city: body.city || null,
-    stateProvince: body.stateProvince || null,
-    country: body.country || null,
+    city: location.city || null,
+    stateProvince: location.stateProvince || null,
+    country: location.country || null,
     phone: body.phone || null,
     email: body.email || null,
   }).returning() as any[]

@@ -28,7 +28,16 @@ export default defineEventHandler(async (event) => {
   }
 
   const [organization] = await db.update(tables.organizations)
-    .set({ subscriptionPlan: body.subscriptionPlan ?? existing.subscriptionPlan, slug, updatedAt: new Date() })
+    .set({
+      subscriptionPlan: body.subscriptionPlan ?? existing.subscriptionPlan,
+      subscriptionStatus: body.subscriptionPlan === undefined ? existing.subscriptionStatus : body.subscriptionPlan === 'free' ? 'free' : 'active',
+      billingPeriod: body.subscriptionPlan === 'free' ? null : existing.billingPeriod,
+      subscriptionStartedAt: body.subscriptionPlan && body.subscriptionPlan !== 'free' ? existing.subscriptionStartedAt || new Date() : existing.subscriptionStartedAt,
+      subscriptionEndsAt: body.subscriptionPlan === 'free' ? null : existing.subscriptionEndsAt,
+      cancelAtPeriodEnd: body.subscriptionPlan === 'free' ? false : existing.cancelAtPeriodEnd,
+      slug,
+      updatedAt: new Date(),
+    })
     .where(eq(tables.organizations.id, id))
     .returning({ id: tables.organizations.id, name: tables.organizations.name, slug: tables.organizations.slug, subscriptionPlan: tables.organizations.subscriptionPlan })
 

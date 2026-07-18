@@ -16,7 +16,7 @@
           class="py-2 px-1 border-b-2 border-transparent text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300"
           active-class="border-blue-500 text-blue-600"
         >
-          Hierarchy
+          Locations & structure
         </NuxtLink>
         <NuxtLink
           to="/settings/belts"

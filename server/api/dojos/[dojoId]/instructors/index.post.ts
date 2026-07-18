@@ -11,7 +11,12 @@ export default defineEventHandler(async event => {
   const dojo = await db.query.dojos.findFirst({ where: and(eq(tables.dojos.id, dojoId), eq(tables.dojos.organizationId, session.user.organizationId)) })
   if (dojo) await assertDojoManagementAccess(session.user.id, session.user.organizationId, dojoId)
   const user = await db.query.users.findFirst({ where: and(eq(tables.users.id, body.userId), eq(tables.users.organizationId, session.user.organizationId)), with: { assignments: true } })
-  if (!dojo || !user || (user.role !== 'owner' && !user.assignments.some(assignment => ['instructor', 'dojo_head'].includes(assignment.role)))) throw createError({ statusCode: 400, statusMessage: 'Select an eligible instructor' })
+  const isEligibleForDojo = user?.role === 'owner' || user?.assignments.some(assignment => (
+    ['instructor', 'dojo_head'].includes(assignment.role)
+    && assignment.scopeType === 'dojo'
+    && assignment.scopeId === dojoId
+  ))
+  if (!dojo || !user || !isEligibleForDojo) throw createError({ statusCode: 400, statusMessage: 'Select an instructor assigned to this dojo' })
   const existing = await db.query.dojoInstructors.findFirst({ where: and(eq(tables.dojoInstructors.dojoId, dojoId), eq(tables.dojoInstructors.userId, body.userId)) })
   if (existing) throw createError({ statusCode: 409, statusMessage: 'This instructor is already assigned to the dojo' })
   await assertInstructorLimit(session.user.organizationId, dojoId)

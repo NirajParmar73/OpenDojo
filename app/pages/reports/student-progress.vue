@@ -8,8 +8,8 @@
 
     <UCard>
       <div class="grid gap-4 sm:grid-cols-2">
-        <UFormField label="Hierarchy territory">
-          <USelect v-model="selectedNodeId" :items="nodeOptions" placeholder="All accessible hierarchy" />
+        <UFormField label="Organization location">
+          <USelect v-model="selectedNodeId" :items="nodeOptions" placeholder="All accessible locations" />
         </UFormField>
         <UFormField label="Dojo">
           <USelect v-model="selectedDojoId" :items="dojoOptions" placeholder="All accessible dojos" />
@@ -39,9 +39,20 @@ const { data: students } = await useFetch<any[]>('/api/students')
 const { data: scope } = await useFetch<{ nodes: ScopeNode[], dojos: ScopeDojo[] }>('/api/reports/scope')
 
 const nodeOptions = computed(() => [
-  { label: 'All accessible hierarchy', value: null },
-  ...((scope.value?.nodes || []).map(node => ({ label: node.name, value: node.id })))
+  { label: 'All accessible locations', value: null },
+  ...((scope.value?.nodes || []).map(node => ({ label: locationPath(node), value: node.id })))
 ])
+
+function locationPath(node: ScopeNode) {
+  const nodesById = new Map((scope.value?.nodes || []).map(item => [item.id, item]))
+  const parts: string[] = []
+  let current: ScopeNode | undefined = node
+  while (current) {
+    parts.unshift(current.name)
+    current = current.parentId === null ? undefined : nodesById.get(current.parentId)
+  }
+  return parts.join(' → ')
+}
 
 const selectedNodeAndDescendants = computed(() => {
   if (!selectedNodeId.value) return null

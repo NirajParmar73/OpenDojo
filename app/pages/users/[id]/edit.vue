@@ -18,17 +18,18 @@
             <UFormField label="Dan degree"><UInput v-model="form.danDegree" /></UFormField>
             <UFormField label="Account role"><USelect v-model="form.role" :items="accountRoleOptions" :disabled="user.role === 'owner'" /></UFormField>
           </div>
+          <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Account role controls general access. Responsibilities below define the locations or dojos this person can manage.</p>
         </div>
 
         <div class="border-t border-slate-100 pt-7 dark:border-slate-800">
           <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-            <div><h3 class="font-semibold">Scoped responsibilities</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Add responsibility for a hierarchy node or a specific dojo.</p></div>
+            <div><h3 class="font-semibold">Scoped responsibilities</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Add a responsibility for an organization location or a specific dojo.</p></div>
             <UButton type="button" size="sm" color="primary" variant="soft" icon="i-lucide-plus" @click="addAssignment">Add responsibility</UButton>
           </div>
           <div v-if="form.assignments.length" class="mt-4 space-y-3">
             <div v-for="(assignment, index) in form.assignments" :key="index" class="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_1fr_auto] dark:border-slate-800">
               <USelect v-model="assignment.role" :items="scopedRoleOptions" placeholder="Responsibility" @update:model-value="assignment.scopeId = null" />
-              <USelect v-if="isNodeRole(assignment.role)" v-model="assignment.scopeId" :items="nodeOptions" placeholder="Select hierarchy node" />
+              <USelect v-if="isNodeRole(assignment.role)" v-model="assignment.scopeId" :items="nodeOptions" placeholder="Select location" />
               <USelect v-else v-model="assignment.scopeId" :items="dojoOptions" placeholder="Select dojo" />
               <UButton type="button" color="error" variant="ghost" icon="i-lucide-trash-2" aria-label="Remove responsibility" @click="form.assignments.splice(index, 1)" />
             </div>
@@ -73,12 +74,27 @@ const accountRoleOptions = [{ label: 'Member', value: 'member' }, { label: 'Admi
 const { data: user, pending, error } = await useFetch<any>(`/api/users/${userId}`)
 const { data: permissions } = await useFetch<any>('/api/users/me/permissions')
 const { data: nodes } = await useFetch<any[]>('/api/hierarchy/nodes')
+const { data: levels } = await useFetch<any[]>('/api/hierarchy/levels')
 const { data: dojos } = await useFetch<any[]>('/api/dojos')
 const { data: programs } = await useFetch<any[]>('/api/organization/programs')
 const { data: qualifications, refresh: refreshQualifications } = await useFetch<any[]>(`/api/instructor-qualifications?userId=${userId}`)
 
 const scopedRoleOptions = computed(() => allRoleOptions.filter(role => permissions.value?.allowedRoles?.includes(role.value)))
-const nodeOptions = computed(() => flattenNodes(nodes.value || []).filter(node => permissions.value?.allowedNodeIds?.includes(node.id)).map(node => ({ label: node.name, value: node.id })))
+const nodeOptions = computed(() => {
+  const allNodes = flattenNodes(nodes.value || [])
+  const nodesById = new Map(allNodes.map(node => [Number(node.id), node]))
+  const label = (node: any) => {
+    const parts: string[] = []
+    let current = node
+    while (current) {
+      parts.unshift(current.name)
+      current = current.parentId ? nodesById.get(Number(current.parentId)) : undefined
+    }
+    const levelName = (levels.value || []).find(level => Number(level.id) === Number(node.levelId))?.name || 'Location'
+    return `${parts.join(' → ')} — ${levelName}`
+  }
+  return allNodes.filter(node => permissions.value?.allowedNodeIds?.includes(node.id)).map(node => ({ label: label(node), value: node.id }))
+})
 const dojoOptions = computed(() => (dojos.value || []).filter(dojo => permissions.value?.allowedDojoIds?.includes(dojo.id)).map(dojo => ({ label: dojo.name, value: dojo.id })))
 const programOptions = computed(() => [{ label: 'Any program', value: null }, ...((programs.value || []).map(program => ({ label: program.displayName, value: program.id })))] )
 

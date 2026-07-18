@@ -5,7 +5,7 @@
       <div class="relative max-w-2xl">
         <p class="text-sm font-semibold text-violet-200">INSIGHTS</p>
         <h2 class="mt-2 text-3xl font-semibold tracking-tight sm:text-4xl">Reports for your territory.</h2>
-        <p class="mt-3 text-sm leading-6 text-slate-300 sm:text-base">Every report is limited to the hierarchy nodes and dojos assigned to you. Select a report, choose a scope, then download or share the result.</p>
+        <p class="mt-3 text-sm leading-6 text-slate-300 sm:text-base">Every report is limited to the organization locations and dojos assigned to you. Select a report, choose a scope, then download or share the result.</p>
         <div class="mt-5 inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1.5 text-sm text-slate-200"><UIcon name="i-lucide-shield-check" class="h-4 w-4 text-violet-200" />{{ scopeMessage }}</div>
       </div>
     </section>

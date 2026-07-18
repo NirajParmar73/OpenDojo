@@ -5,7 +5,7 @@ import { getAccessibleDojoIds, getHierarchyManagementScope } from '../../utils/p
 export default defineEventHandler(async event => {
   const session = await getUserSession(event)
   if (!session?.user?.organizationId) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  const dojoIds = session.user.role === 'admin' ? null : await getAccessibleDojoIds(session.user.id, session.user.organizationId)
+  const dojoIds = await getAccessibleDojoIds(session.user.id, session.user.organizationId)
   const managementScope = await getHierarchyManagementScope(session.user.id, session.user.organizationId)
   const allDojos = await db.query.dojos.findMany({ where: eq(tables.dojos.organizationId, session.user.organizationId), with: { node: true } })
   const dojos = dojoIds === null ? allDojos : allDojos.filter(dojo => dojoIds.includes(dojo.id))

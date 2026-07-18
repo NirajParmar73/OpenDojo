@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq, and } from 'drizzle-orm'
-import { getAllowedAssignmentsForCreator, getHierarchyManagementScope } from '../../utils/permissions'
+import { canEditManagedUser, getAllowedAssignmentsForCreator, getHierarchyManagementScope } from '../../utils/permissions'
 import { writeAuditLog } from '../../utils/audit'
 
 const updateUserSchema = z.object({
@@ -48,9 +48,7 @@ export default defineEventHandler(async (event) => {
   if (!existingUser) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
-  if (existingUser.role === 'owner' && session.user.role !== 'owner') {
-    throw createError({ statusCode: 403, statusMessage: 'Only an owner can manage an owner account' })
-  }
+  if (existingUser.role === 'owner' && session.user.role !== 'owner') throw createError({ statusCode: 403, statusMessage: 'Only an owner can manage an owner account' })
   if (body.role !== undefined && body.role !== existingUser.role && session.user.role !== 'owner') {
     throw createError({ statusCode: 403, statusMessage: 'Only an owner can change an account role' })
   }
@@ -60,13 +58,7 @@ export default defineEventHandler(async (event) => {
   if (session.user.role !== 'owner' && allowed.allowedRoles.length === 0) {
     throw createError({ statusCode: 403, statusMessage: 'You do not have permission to manage users' })
   }
-  if (session.user.role !== 'owner' && existingUser.assignments.some(assignment => (
-    assignment.scopeType === 'node'
-      ? !(existingUser.id === session.user.id ? managementScope.managedParentNodeIds : allowed.allowedNodeIds).includes(assignment.scopeId)
-      : !allowed.allowedDojoIds.includes(assignment.scopeId)
-  ))) {
-    throw createError({ statusCode: 403, statusMessage: 'This user has responsibilities outside your territory' })
-  }
+  if (!canEditManagedUser(session.user.id, session.user.role, existingUser, allowed)) throw createError({ statusCode: 403, statusMessage: 'This user is not a lower-level member entirely within your territory' })
 
   // If email is updated, check uniqueness
   if (body.email && body.email !== existingUser.email) {

@@ -1,5 +1,6 @@
 import { db, tables } from '../../../../server/utils/database'
 import { eq } from 'drizzle-orm'
+import { assertFederationManagementAccess } from '../../../utils/subscription'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -24,6 +25,7 @@ export default defineEventHandler(async (event) => {
   if (!existing || existing.organizationId !== session.user.organizationId) {
     throw createError({ statusCode: 404, statusMessage: 'Level not found' })
   }
+  await assertFederationManagementAccess(session.user.organizationId)
 
   const [deleted] = await db.delete(tables.hierarchyLevels)
     .where(eq(tables.hierarchyLevels.id, Number(id)))

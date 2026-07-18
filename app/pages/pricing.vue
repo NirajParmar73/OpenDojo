@@ -41,8 +41,8 @@ const plans = [
   { key: 'free', name: 'Free Forever', monthly: 0, annual: 0, limit: '1 dojo location · 1 owner/instructor · up to 25 students', description: 'Everything a new dojo needs to get started.', features: ['Attendance', 'Basic belt records', 'Basic reports'] },
   { key: 'city-starter', name: 'City Starter', monthly: 199, annual: 1990, limit: 'Up to 2 locations in the same city · 75 students per location', description: 'For a growing city-based dojo team.', features: ['Owner + staff access', 'Hierarchy', 'Attendance, fees, and grading'] },
   { key: 'city-pro', name: 'City Pro', monthly: 399, annual: 3990, limit: 'Unlimited locations, students, and staff in one city', description: 'Full management for a city-wide organization.', featured: true, features: ['Everything in City Starter', 'Unlimited city locations', 'Full city-level management'] },
-  { key: 'state-pro', name: 'State Pro', monthly: 699, annual: 6990, limit: 'Unlimited locations and cities across one state', description: 'Centralize operations across your state.', features: ['Unlimited students', 'Advanced reports', 'Centralized management'] },
-  { key: 'national', name: 'National', monthly: 1999, annual: 19990, limit: 'Unlimited states, cities, dojos, and students', description: 'For federations and organizations operating nationwide.', features: ['Complete hierarchy', 'Federation management', 'AI reports and white-label options'] },
+  { key: 'state-pro', name: 'State Pro', monthly: 699, annual: 6990, limit: 'Unlimited locations and cities across one state', description: 'Centralize operations across your state.', features: ['Unlimited students', 'State hierarchy', 'Centralized management'] },
+  { key: 'national', name: 'National', monthly: 1999, annual: 19990, limit: 'Unlimited states, cities, dojos, and students', description: 'For federations and organizations operating nationwide.', features: ['Complete hierarchy', 'Federation management', 'Nationwide management'] },
 ]
 
 function priceForAmount(amountInr: number) {

@@ -18,7 +18,13 @@ if (!connectionString) {
 const database = postgres(connectionString, { max: 1 })
 const result = await database`
   UPDATE organizations
-  SET subscription_plan = ${plan}
+  SET subscription_plan = ${plan},
+      subscription_status = ${plan === 'free' ? 'free' : 'active'},
+      billing_period = CASE WHEN ${plan} = 'free' THEN NULL ELSE billing_period END,
+      subscription_started_at = CASE WHEN ${plan} = 'free' THEN NULL ELSE COALESCE(subscription_started_at, NOW()) END,
+      subscription_ends_at = NULL,
+      cancel_at_period_end = false,
+      updated_at = NOW()
   WHERE id = ${organizationId}
 `
 await database.end()

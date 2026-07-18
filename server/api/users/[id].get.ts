@@ -1,6 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { db, tables } from '../../utils/database'
-import { getAllowedAssignmentsForCreator, getHierarchyManagementScope } from '../../utils/permissions'
+import { canViewManagedUser, getAllowedAssignmentsForCreator } from '../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -21,16 +21,8 @@ export default defineEventHandler(async (event) => {
   if (!user) {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
-  if (session.user.role !== 'owner') {
-    const allowed = await getAllowedAssignmentsForCreator(session.user.id, orgId)
-    const managementScope = await getHierarchyManagementScope(session.user.id, orgId)
-    const inTerritory = user.assignments.some(assignment => (
-      assignment.scopeType === 'node'
-        ? (user.id === session.user.id ? managementScope.managedParentNodeIds : allowed.allowedNodeIds).includes(assignment.scopeId)
-        : allowed.allowedDojoIds.includes(assignment.scopeId)
-    ))
-    if (!inTerritory) throw createError({ statusCode: 403, statusMessage: 'This staff member is outside your assigned territory' })
-  }
+  const allowed = await getAllowedAssignmentsForCreator(session.user.id, orgId)
+  if (!canViewManagedUser(session.user.id, session.user.role, user, allowed)) throw createError({ statusCode: 403, statusMessage: 'This staff member is outside your assigned territory' })
 
   const { passwordHash, ...safeUser } = user
   return safeUser
