@@ -13,6 +13,14 @@
     </div>
 
     <UCard>
+      <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div><h3 class="font-semibold">Email verification</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ profile?.emailVerifiedAt ? 'Your email address is verified.' : 'Verify your email address to protect your account and enable sensitive actions.' }}</p></div>
+        <UBadge v-if="profile?.emailVerifiedAt" color="success" variant="subtle">Verified</UBadge>
+        <UButton v-else :loading="resendingVerification" @click="resendVerification">Send verification email</UButton>
+      </div>
+    </UCard>
+
+    <UCard>
       <template #header>
         <div>
           <h3 class="font-semibold">
@@ -59,10 +67,10 @@
       <template #header>
         <div>
           <h3 class="font-semibold">
-            Access & hierarchy
+            Access & responsibilities
           </h3>
           <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Your organization role and assigned areas of responsibility.
+            Your access level and assigned areas of responsibility.
           </p>
         </div>
       </template>
@@ -74,7 +82,7 @@
           {{ formatRole(assignment.role) }} · {{ assignment.scopeName }}
         </UBadge>
         <p v-if="profile?.role === 'member' && !profile.assignments.length" class="text-sm text-slate-500 dark:text-slate-400">
-          No hierarchy assignment has been added yet.
+          No responsibility has been added yet.
         </p>
       </div>
       <div v-if="user?.role === 'owner'" class="mt-5 border-t border-slate-100 pt-4 dark:border-slate-800">
@@ -204,6 +212,7 @@ definePageMeta({ middleware: 'auth' })
 type Profile = {
   name: string
   email: string
+  emailVerifiedAt: string | null
   avatar: string | null
   danDegree: string | null
   role: string
@@ -218,6 +227,7 @@ const uploadingAvatar = ref(false)
 const savingProfile = ref(false)
 const changingPassword = ref(false)
 const profileForm = reactive({ name: '', email: '', danDegree: '' })
+const resendingVerification = ref(false)
 const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 
 watch(profile, (value) => {
@@ -229,7 +239,8 @@ watch(profile, (value) => {
 }, { immediate: true })
 
 const initials = computed(() => profile.value?.name.split(' ').map(part => part[0]).join('').slice(0, 2).toUpperCase() || 'U')
-function formatRole(role: string) { return role.replaceAll('_', ' ') }
+function formatRole(role: string) { return role === 'member' ? 'Standard access' : role === 'admin' ? 'Organization administrator' : role === 'owner' ? 'Organization owner' : role.replaceAll('_', ' ') }
+async function resendVerification() { resendingVerification.value = true; try { await $fetch('/api/auth/resend-verification', { method: 'POST' }); toast.add({ color: 'success', title: 'Verification email sent', description: 'Check your inbox and spam folder.' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not send verification email', description: error.data?.statusMessage || error.message }) } finally { resendingVerification.value = false } }
 
 function messageFor(error: unknown, fallback: string) {
   if (typeof error === 'object' && error && 'data' in error) {

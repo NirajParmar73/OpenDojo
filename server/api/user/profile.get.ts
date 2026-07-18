@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
       danDegree: true,
       createdAt: true,
       role: true,
+      emailVerifiedAt: true,
     },
     with: { assignments: true },
   })

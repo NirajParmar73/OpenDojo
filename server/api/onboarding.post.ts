@@ -3,6 +3,7 @@ import { db, tables } from '../../server/utils/database'
 import { eq } from 'drizzle-orm'
 import { saveUploadedFile } from '../../server/utils/upload'
 import { currentTenant, organizationSlug, reservedSubdomains, workspaceUrl } from '../utils/tenant'
+import { sendVerificationEmail } from '../utils/email-verification'
 
 export default defineEventHandler(async (event) => {
   if (currentTenant(event)) throw createError({ statusCode: 403, statusMessage: 'New organizations must be created from the main OpenDojo site' })
@@ -198,6 +199,8 @@ export default defineEventHandler(async (event) => {
   return { org, user }
   })
   const { org, user } = provisioned
+
+  try { await sendVerificationEmail(event, user) } catch (error) { console.error('Could not send verification email', error) }
 
   // ✅ Set session with ALL required fields
   // After creating the user, set session

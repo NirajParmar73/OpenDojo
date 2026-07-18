@@ -11,9 +11,9 @@
           <UInput v-model="newUser.email" type="email" placeholder="Email" required />
           <UInput v-model="newUser.password" type="password" placeholder="Password" required />
           <UInput v-model="newUser.danDegree" placeholder="Dan Degree (e.g., 1st Dan)" />
-          <USelect v-model="newUser.role" :items="accountRoleOptions" placeholder="Account role" />
+          <USelect v-model="newUser.role" :items="accountRoleOptions" placeholder="Account access level" />
         </div>
-        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Account role controls general access. Add a responsibility below to define the locations or dojos this person can manage.</p>
+        <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Standard access is recommended for most staff. Responsibilities below define the locations or dojos this person can manage.</p>
         <div class="mt-4">
           <h4 class="font-medium mb-2">Assignments</h4>
           <div v-for="(assign, index) in newUser.assignments" :key="index" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
@@ -68,7 +68,7 @@
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Avatar</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Account Role</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Access level</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dan Degree</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificate</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignments</th>
@@ -83,7 +83,7 @@
               </td>
               <td class="px-4 py-4">{{ user.name }}</td>
               <td class="px-4 py-4">{{ user.email }}</td>
-              <td class="px-4 py-4 capitalize">{{ user.role }}</td>
+              <td class="px-4 py-4">{{ formatAccountAccess(user.role) }}</td>
               <td class="px-4 py-4">{{ user.danDegree || '-' }}</td>
               <td class="px-4 py-4">
                 <a v-if="user.certificateUrl" :href="user.certificateUrl" target="_blank" class="text-blue-600 hover:underline">View</a>
@@ -126,6 +126,7 @@ definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
 const route = useRoute()
+const { user: currentUser } = useUserSession()
 const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
 // Default to the restrictive state until entitlements have loaded. The server
 // remains authoritative, but this avoids rendering an unusable invite form.
@@ -158,10 +159,11 @@ const roleOptions = [
   { label: 'Member', value: 'member' },
 ]
 
-const accountRoleOptions = [
-  { label: 'Member', value: 'member' },
-  { label: 'Admin', value: 'admin' },
-]
+const accountRoleOptions = computed(() => [
+  { label: 'Standard access (recommended)', value: 'member' },
+  ...(currentUser.value?.role === 'owner' ? [{ label: 'Organization administrator', value: 'admin' }] : []),
+])
+const formatAccountAccess = (role: string) => role === 'admin' ? 'Organization administrator' : role === 'owner' ? 'Organization owner' : 'Standard access'
 
 // Filtered role options based on permissions
 const filteredRoleOptions = computed(() => {

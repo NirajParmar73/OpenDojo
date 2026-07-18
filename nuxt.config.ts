@@ -39,8 +39,10 @@ export default defineNuxtConfig({
 
 
   runtimeConfig:{
-    tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
-    public: {
+      tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
+      appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
+      public: {
+      appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
       tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
       legalEntityName: process.env.NUXT_PUBLIC_LEGAL_ENTITY_NAME || 'OpenDojo',
       supportEmail: process.env.NUXT_PUBLIC_SUPPORT_EMAIL || 'support@your-domain.com',

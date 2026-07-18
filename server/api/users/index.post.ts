@@ -3,6 +3,7 @@ import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
 import { getAllowedAssignmentsForCreator } from '../../utils/permissions'
 import { assertStaffAccountLimit } from '../../utils/subscription'
+import { assertVerifiedEmail } from '../../utils/email-verification'
 
 const createUserSchema = z.object({
   name: z.string().min(1),
@@ -30,6 +31,7 @@ export default defineEventHandler(async (event) => {
   if (!orgId) {
     throw createError({ statusCode: 400, statusMessage: 'User has no organization' })
   }
+  await assertVerifiedEmail(session.user.id)
 
   // 1. Get the permissions of the creator (allowed roles and scopes)
   const { allowedRoles, allowedNodeIds, allowedDojoIds } = await getAllowedAssignmentsForCreator(
@@ -47,7 +49,7 @@ export default defineEventHandler(async (event) => {
   await assertStaffAccountLimit(orgId)
 
   if (body.role === 'admin' && session.user.role !== 'owner') {
-    throw createError({ statusCode: 403, statusMessage: 'Only an owner can create an admin user' })
+    throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can grant organization administrator access' })
   }
 
   // 3. Check if email already exists

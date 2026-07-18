@@ -136,6 +136,7 @@ export const studentGradings = pgTable('student_gradings', (t) => ({
   examiner: t.text(),
   certificateNumber: t.text('certificate_number'),
   certificateUrl: t.text(),
+  emailVerifiedAt: t.timestamp('email_verified_at', { withTimezone: true }),
   notes: t.text(),
   createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
@@ -217,6 +218,14 @@ export const governingBodies = pgTable('governing_bodies', (t) => ({
   country: t.text(), website: t.text(), contactName: t.text('contact_name'), contactEmail: t.text('contact_email'), contactPhone: t.text('contact_phone'), notes: t.text(),
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+export const emailVerificationTokens = pgTable('email_verification_tokens', (t) => ({
+  id: t.serial('id').primaryKey(),
+  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
+  tokenHash: t.text('token_hash').notNull(),
+  expiresAt: t.timestamp('expires_at', { withTimezone: true }).notNull(),
+  sentAt: t.timestamp('sent_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
 }))
 
 // Per-user completion state for the role-specific getting-started guide.

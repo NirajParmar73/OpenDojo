@@ -50,7 +50,7 @@ export default defineEventHandler(async (event) => {
   }
   if (existingUser.role === 'owner' && session.user.role !== 'owner') throw createError({ statusCode: 403, statusMessage: 'Only an owner can manage an owner account' })
   if (body.role !== undefined && body.role !== existingUser.role && session.user.role !== 'owner') {
-    throw createError({ statusCode: 403, statusMessage: 'Only an owner can change an account role' })
+    throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can change an account access level' })
   }
 
   const allowed = await getAllowedAssignmentsForCreator(session.user.id, orgId)

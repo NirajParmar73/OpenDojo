@@ -36,7 +36,7 @@ export default defineEventHandler(async (event) => {
     const message = existingUser.role === 'owner'
       ? 'Cannot delete the organization owner'
       : existingUser.role === 'admin'
-        ? 'Only the organization owner can delete an admin user'
+        ? 'Only the organization owner can delete an organization administrator'
         : 'This user is outside your manageable hierarchy'
     throw createError({ statusCode: 403, statusMessage: message })
   }

@@ -16,9 +16,9 @@
             <UFormField label="Full name" required><UInput v-model="form.name" required /></UFormField>
             <UFormField label="Email" required><UInput v-model="form.email" type="email" required /></UFormField>
             <UFormField label="Dan degree"><UInput v-model="form.danDegree" /></UFormField>
-            <UFormField label="Account role"><USelect v-model="form.role" :items="accountRoleOptions" :disabled="user.role === 'owner'" /></UFormField>
+            <UFormField label="Account access level"><USelect v-model="form.role" :items="accountRoleOptions" :disabled="user.role === 'owner'" /></UFormField>
           </div>
-          <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Account role controls general access. Responsibilities below define the locations or dojos this person can manage.</p>
+          <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Standard access is recommended for most staff. Responsibilities below define the locations or dojos this person can manage.</p>
         </div>
 
         <div class="border-t border-slate-100 pt-7 dark:border-slate-800">
@@ -62,6 +62,7 @@ definePageMeta({ middleware: 'auth' })
 const route = useRoute()
 const router = useRouter()
 const toast = useToast()
+const { user: currentUser } = useUserSession()
 const userId = Number(route.params.id)
 const saving = ref(false)
 const savingQualification = ref(false)
@@ -69,7 +70,10 @@ const qualificationForm = reactive({ programId: null as number | null, qualifica
 const form = reactive<any>({ name: '', email: '', danDegree: '', role: 'member', assignments: [] })
 const roleScopeMap: Record<string, 'node' | 'dojo'> = { country_head: 'node', state_head: 'node', district_head: 'node', city_head: 'node', zone_head: 'node', dojo_head: 'dojo', instructor: 'dojo' }
 const allRoleOptions = [{ label: 'Country Head', value: 'country_head' }, { label: 'State Head', value: 'state_head' }, { label: 'District Head', value: 'district_head' }, { label: 'City Head', value: 'city_head' }, { label: 'Zone Head', value: 'zone_head' }, { label: 'Dojo Head', value: 'dojo_head' }, { label: 'Instructor', value: 'instructor' }]
-const accountRoleOptions = [{ label: 'Member', value: 'member' }, { label: 'Admin', value: 'admin' }]
+const accountRoleOptions = computed(() => [
+  { label: 'Standard access (recommended)', value: 'member' },
+  ...(currentUser.value?.role === 'owner' ? [{ label: 'Organization administrator', value: 'admin' }] : []),
+])
 
 const { data: user, pending, error } = await useFetch<any>(`/api/users/${userId}`)
 const { data: permissions } = await useFetch<any>('/api/users/me/permissions')

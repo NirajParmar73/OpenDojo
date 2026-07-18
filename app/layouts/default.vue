@@ -126,7 +126,7 @@ watch(loggedIn, async (isLoggedIn) => {
 
 const orgName = computed(() => user.value?.organizationName || 'OpenDojo')
 const orgLogo = computed(() => user.value?.organizationLogo || null)
-const formatRole = (role: string) => role.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+const formatRole = (role: string) => role === 'member' ? 'Standard access' : role === 'admin' ? 'Organization administrator' : role === 'owner' ? 'Organization owner' : role.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 const identityLabel = computed(() => {
   const accountRole = formatRole(user.value?.role || 'member')
   const responsibilities = (profile.value?.assignments || []).map((assignment: { role: string, scopeName: string }) => `${formatRole(assignment.role)} — ${assignment.scopeName}`)

@@ -15,7 +15,6 @@
             required
           />
           <UInput v-model="newDojo.name" placeholder="Dojo name" required />
-          <UButton type="submit" :loading="creating">Add Dojo</UButton>
         </div>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
           <UInput v-model="newDojo.address" placeholder="Address (optional)" />
@@ -26,6 +25,7 @@
           <UInput v-model="newDojo.email" placeholder="Email (optional)" />
         </div>
         <p v-if="territoryMessage" class="mt-3 text-sm text-slate-500 dark:text-slate-400">{{ territoryMessage }}</p>
+        <div class="mt-4 flex justify-end"><UButton type="submit" :loading="creating">Add Dojo</UButton></div>
       </form>
     </UCard>
     <UCard v-else class="mb-6">

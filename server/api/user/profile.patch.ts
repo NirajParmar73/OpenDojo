@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
+import { sendVerificationEmail } from '../../utils/email-verification'
 
 const profileSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(255),
@@ -28,11 +29,13 @@ export default defineEventHandler(async (event) => {
     }
   }
 
+  const emailChanged = body.email !== user.email
   const [updatedUser] = await db.update(tables.users)
     .set({
       name: body.name,
       email: body.email,
       danDegree: body.danDegree || null,
+      emailVerifiedAt: emailChanged ? null : user.emailVerifiedAt,
       updatedAt: new Date()
     })
     .where(eq(tables.users.id, userId))
@@ -45,6 +48,9 @@ export default defineEventHandler(async (event) => {
   session.user.name = updatedUser.name
   session.user.email = updatedUser.email
   await setUserSession(event, session)
+  if (emailChanged) {
+    try { await sendVerificationEmail(event, updatedUser) } catch (error) { console.error('Could not send verification email', error) }
+  }
 
   return {
     success: true,
