@@ -12,6 +12,16 @@
           <UInput v-model="newUser.password" type="password" placeholder="Password" required />
           <UInput v-model="newUser.danDegree" placeholder="Dan Degree (e.g., 1st Dan)" />
           <USelect v-model="newUser.role" :items="accountRoleOptions" placeholder="Account access level" />
+          <div class="flex items-center gap-3 md:col-span-3">
+            <img v-if="newUserAvatarPreview" :src="newUserAvatarPreview" alt="Selected profile photo" class="h-12 w-12 rounded-full object-cover" />
+            <input ref="newUserCameraInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" capture="environment" class="hidden" @change="selectNewUserAvatar" />
+            <input ref="newUserGalleryInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="selectNewUserAvatar" />
+            <div class="flex flex-wrap gap-2">
+              <UButton type="button" size="sm" color="neutral" variant="soft" icon="i-lucide-camera" @click="newUserCameraInput?.click()">Take photo</UButton>
+              <UButton type="button" size="sm" color="neutral" variant="soft" icon="i-lucide-image" @click="newUserGalleryInput?.click()">Choose photo</UButton>
+            </div>
+            <span class="text-sm text-slate-500">Optional profile photo (up to 5 MB)</span>
+          </div>
         </div>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Standard access is recommended for most staff. Responsibilities below define the locations or dojos this person can manage.</p>
         <div class="mt-4">
@@ -143,6 +153,10 @@ const permissions = ref({
 })
 
 const creating = ref(false)
+const newUserAvatarFile = ref<File | null>(null)
+const newUserAvatarPreview = ref('')
+const newUserCameraInput = ref<HTMLInputElement | null>(null)
+const newUserGalleryInput = ref<HTMLInputElement | null>(null)
 
 // File upload states
 const uploadingAvatar = ref(false)
@@ -269,6 +283,27 @@ const newUser = reactive<any>({
   assignments: route.query.add === 'instructor' ? [{ role: 'instructor', scopeId: null }] : [],
 })
 
+function selectNewUserAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+    input.value = ''
+    toast.add({ color: 'warning', title: 'Choose an image up to 5 MB' })
+    return
+  }
+  if (newUserAvatarPreview.value) URL.revokeObjectURL(newUserAvatarPreview.value)
+  newUserAvatarFile.value = file
+  newUserAvatarPreview.value = URL.createObjectURL(file)
+  input.value = ''
+}
+
+function resetNewUserAvatar() {
+  if (newUserAvatarPreview.value) URL.revokeObjectURL(newUserAvatarPreview.value)
+  newUserAvatarFile.value = null
+  newUserAvatarPreview.value = ''
+}
+
 // ----- Load Permissions and Data -----
 async function loadPermissions() {
   try {
@@ -346,7 +381,7 @@ async function createUser() {
 
   creating.value = true
   try {
-    await $fetch('/api/users', {
+    const response = await $fetch<{ user: { id: number } }>('/api/users', {
       method: 'POST' as any,
       body: {
         name: newUser.name,
@@ -357,6 +392,15 @@ async function createUser() {
         assignments,
       },
     })
+    if (newUserAvatarFile.value) {
+      try {
+        const formData = new FormData()
+        formData.append('avatar', newUserAvatarFile.value)
+        await $fetch(`/api/users/${response.user.id}/avatar`, { method: 'POST' as any, body: formData })
+      } catch (error: any) {
+        toast.add({ color: 'warning', title: 'User created, but photo was not uploaded', description: error.data?.statusMessage || error.message })
+      }
+    }
     toast.add({ color: 'success', title: 'User created' })
     newUser.name = ''
     newUser.email = ''
@@ -364,6 +408,7 @@ async function createUser() {
     newUser.danDegree = ''
     newUser.role = 'member'
     newUser.assignments = []
+    resetNewUserAvatar()
     await loadData()
   } catch (error: any) {
     toast.add({

@@ -8,6 +8,12 @@ const createGuardianSchema = z.object({
   phone: z.string().optional(),
   email: z.string().email().optional(),
   address: z.string().optional(),
+  city: z.string().trim().max(100).optional(),
+  stateProvince: z.string().trim().max(100).optional(),
+  country: z.string().trim().max(100).optional(),
+  countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code').transform(value => value.toUpperCase()).optional(),
+  subdivisionCode: z.string().trim().max(20).optional(),
+  postalCode: z.string().trim().max(20).optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -46,6 +52,12 @@ export default defineEventHandler(async (event) => {
     phone: body.phone || null,
     email: body.email || null,
     address: body.address || null,
+    city: body.city || null,
+    stateProvince: body.stateProvince || null,
+    country: body.country || null,
+    countryCode: body.countryCode || null,
+    subdivisionCode: body.subdivisionCode || null,
+    postalCode: body.postalCode || null,
   }).returning() as any[]
 
   if (!guardian) {

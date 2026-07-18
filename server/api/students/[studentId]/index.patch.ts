@@ -14,6 +14,12 @@ const updateStudentSchema = z.object({
   joinedAt: z.string().date().optional(),
   gender: z.enum(['male', 'female', 'other']).optional().nullable(),
   address: z.string().optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  stateProvince: z.string().trim().max(100).optional().nullable(),
+  country: z.string().trim().max(100).optional().nullable(),
+  countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code').transform(value => value.toUpperCase()).optional().nullable(),
+  subdivisionCode: z.string().trim().max(20).optional().nullable(),
+  postalCode: z.string().trim().max(20).optional().nullable(),
   emergencyContact: z.string().optional().nullable(),
   emergencyPhone: z.string().optional().nullable(),
   medicalNotes: z.string().optional().nullable(),
@@ -92,6 +98,12 @@ export default defineEventHandler(async (event) => {
   if (body.phone !== undefined) updateData.phone = body.phone
   if (body.gender !== undefined) updateData.gender = body.gender
   if (body.address !== undefined) updateData.address = body.address
+  if (body.city !== undefined) updateData.city = body.city
+  if (body.stateProvince !== undefined) updateData.stateProvince = body.stateProvince
+  if (body.country !== undefined) updateData.country = body.country
+  if (body.countryCode !== undefined) updateData.countryCode = body.countryCode
+  if (body.subdivisionCode !== undefined) updateData.subdivisionCode = body.subdivisionCode
+  if (body.postalCode !== undefined) updateData.postalCode = body.postalCode
   if (body.emergencyContact !== undefined) updateData.emergencyContact = body.emergencyContact
   if (body.emergencyPhone !== undefined) updateData.emergencyPhone = body.emergencyPhone
   if (body.medicalNotes !== undefined) updateData.medicalNotes = body.medicalNotes

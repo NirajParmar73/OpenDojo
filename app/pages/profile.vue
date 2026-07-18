@@ -46,11 +46,12 @@
           {{ initials }}
         </div>
         <div class="flex flex-1 flex-col gap-3 sm:flex-row sm:items-center">
-          <UInput
-            type="file"
-            accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml"
-            @change="onFileChange"
-          />
+          <input ref="profileCameraInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" capture="environment" class="hidden" @change="onFileChange" />
+          <input ref="profileGalleryInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp,image/svg+xml" class="hidden" @change="onFileChange" />
+          <div class="flex flex-wrap gap-2">
+            <UButton type="button" color="neutral" variant="soft" icon="i-lucide-camera" @click="profileCameraInput?.click()">Take photo</UButton>
+            <UButton type="button" color="neutral" variant="soft" icon="i-lucide-image" @click="profileGalleryInput?.click()">Choose photo</UButton>
+          </div>
           <UButton
             :disabled="!avatarFile"
             :loading="uploadingAvatar"
@@ -223,6 +224,8 @@ const toast = useToast()
 const { user, fetch: refreshSession } = useUserSession()
 const { data: profile, refresh: refreshProfile } = await useFetch<Profile>('/api/user/profile')
 const avatarFile = ref<File | null>(null)
+const profileCameraInput = ref<HTMLInputElement | null>(null)
+const profileGalleryInput = ref<HTMLInputElement | null>(null)
 const uploadingAvatar = ref(false)
 const savingProfile = ref(false)
 const changingPassword = ref(false)
@@ -251,7 +254,14 @@ function messageFor(error: unknown, fallback: string) {
 }
 
 function onFileChange(event: Event) {
-  avatarFile.value = (event.target as HTMLInputElement).files?.item(0) || null
+  const input = event.target as HTMLInputElement
+  const file = input.files?.item(0) || null
+  input.value = ''
+  if (file && (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024)) {
+    toast.add({ color: 'warning', title: 'Choose an image up to 5 MB' })
+    return
+  }
+  avatarFile.value = file
 }
 
 async function uploadAvatar() {

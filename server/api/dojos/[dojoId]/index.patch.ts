@@ -12,6 +12,9 @@ const updateDojoSchema = z.object({
   city: z.string().trim().max(100).optional().nullable(),
   stateProvince: z.string().trim().max(100).optional().nullable(),
   country: z.string().trim().max(100).optional().nullable(),
+  countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code').transform(value => value.toUpperCase()).optional().nullable(),
+  subdivisionCode: z.string().trim().max(20).optional().nullable(),
+  postalCode: z.string().trim().max(20).optional().nullable(),
   phone: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
   defaultFeePlanId: z.number().int().positive().nullable().optional(),
@@ -48,6 +51,9 @@ export default defineEventHandler(async (event) => {
     city: hierarchyLocation.city || body.city || existing.city,
     stateProvince: hierarchyLocation.stateProvince || body.stateProvince || existing.stateProvince,
     country: hierarchyLocation.country || body.country || existing.country,
+    countryCode: hierarchyLocation.countryCode || body.countryCode || existing.countryCode,
+    subdivisionCode: hierarchyLocation.subdivisionCode || body.subdivisionCode || existing.subdivisionCode,
+    postalCode: hierarchyLocation.postalCode || body.postalCode || existing.postalCode,
   }
   await assertDojoTerritory(session.user.organizationId!, location)
 

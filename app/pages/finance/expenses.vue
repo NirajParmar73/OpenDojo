@@ -248,7 +248,7 @@
 definePageMeta({ middleware: 'auth' })
 
 type Expense = { id: number, description: string, category: string, amount: number, taxAmount: number, payee: string | null, dueAt: string | null, paidAt?: string | null, paymentMethod?: string | null, invoiceNumber?: string | null, notes?: string | null, scopeType: string, scopeId: number | null, affiliationId?: number | null, status: string, affiliation?: { governingBody?: { name: string } } }
-type ScopedItem = { id: number, name: string }
+type ScopedItem = { id: number, name: string, label?: string }
 const toast = useToast()
 const showForm = ref(false)
 const saving = ref(false)
@@ -266,7 +266,7 @@ const form = reactive({ category: 'other', description: '', amount: undefined as
 const { data: expenses, pending, error, refresh } = await useFetch<Expense[]>('/api/finance/expenses')
 const { data: affiliations } = await useFetch<Array<{ id: number, governingBody: { name: string } }>>('/api/affiliations')
 const { data: reportScope } = await useFetch<{ nodes: ScopedItem[], dojos: ScopedItem[] }>('/api/reports/scope')
-const scopeItems = computed(() => (form.scopeType === 'dojo' ? reportScope.value?.dojos || [] : reportScope.value?.nodes || []).map(item => ({ label: item.name, value: item.id })))
+const scopeItems = computed(() => (form.scopeType === 'dojo' ? reportScope.value?.dojos || [] : reportScope.value?.nodes || []).map(item => ({ label: item.label || item.name, value: item.id })))
 const affiliationOptions = computed(() => [{ label: 'No affiliation', value: null }, ...(affiliations.value || []).map(item => ({ label: item.governingBody.name, value: item.id }))])
 
 function formatCurrency(amount: number) {

@@ -21,7 +21,21 @@
         <UFormField label="Date of birth"><UInput v-model="form.dateOfBirth" type="date" /></UFormField>
         <UFormField label="Date joined" required><UInput v-model="form.joinedAt" type="date" required /></UFormField>
         <UFormField label="Gender"><USelect v-model="form.gender" :items="genderOptions" placeholder="Not specified" /></UFormField>
+        <UFormField label="Profile photo">
+          <div class="flex items-center gap-3">
+            <img v-if="student?.avatar" :src="student.avatar" alt="Student profile photo" class="h-12 w-12 rounded-full object-cover" />
+            <input ref="studentCameraInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" capture="environment" class="hidden" @change="uploadAvatar" />
+            <input ref="studentGalleryInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="uploadAvatar" />
+            <UButton type="button" size="sm" color="neutral" variant="soft" icon="i-lucide-camera" @click="studentCameraInput?.click()">Take photo</UButton>
+            <UButton type="button" size="sm" color="neutral" variant="soft" icon="i-lucide-image" @click="studentGalleryInput?.click()">Choose photo</UButton>
+          </div>
+        </UFormField>
         <UFormField label="Address" class="md:col-span-2"><UInput v-model="form.address" /></UFormField>
+        <UFormField label="Country"><UInput v-model="form.country" /></UFormField>
+        <UFormField label="Country code"><UInput v-model="form.countryCode" maxlength="2" placeholder="IN" /></UFormField>
+        <UFormField label="State / province"><UInput v-model="form.stateProvince" /></UFormField>
+        <UFormField label="City"><UInput v-model="form.city" /></UFormField>
+        <UFormField label="ZIP / PIN code"><UInput v-model="form.postalCode" /></UFormField>
         <UFormField label="Emergency contact"><UInput v-model="form.emergencyContact" /></UFormField>
         <UFormField label="Emergency phone"><UInput v-model="form.emergencyPhone" /></UFormField>
         <UFormField label="Medical notes" class="md:col-span-2"><UTextarea v-model="form.medicalNotes" :rows="3" /></UFormField>
@@ -52,7 +66,9 @@ const studentId = Number(route.params.id)
 const saving = ref(false)
 const savingFee = ref(false)
 const savingPortal = ref(false)
-const form = reactive({ firstName: '', lastName: '', dojoId: null as number | null, status: 'active', email: '', phone: '', dateOfBirth: '', joinedAt: '', gender: undefined as string | undefined, address: '', emergencyContact: '', emergencyPhone: '', medicalNotes: '' })
+const studentCameraInput = ref<HTMLInputElement | null>(null)
+const studentGalleryInput = ref<HTMLInputElement | null>(null)
+const form = reactive({ firstName: '', lastName: '', dojoId: null as number | null, status: 'active', email: '', phone: '', dateOfBirth: '', joinedAt: '', gender: undefined as string | undefined, address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '', emergencyContact: '', emergencyPhone: '', medicalNotes: '' })
 const statusOptions = [{ label: 'Active', value: 'active' }, { label: 'Inactive', value: 'inactive' }, { label: 'Archived', value: 'archived' }]
 const genderOptions = [{ label: 'Male', value: 'male' }, { label: 'Female', value: 'female' }, { label: 'Other', value: 'other' }]
 
@@ -77,6 +93,11 @@ watchEffect(() => {
     joinedAt: student.value.joinedAt ? new Date(student.value.joinedAt).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
     gender: student.value.gender || undefined,
     address: student.value.address || '',
+    city: student.value.city || '',
+    stateProvince: student.value.stateProvince || '',
+    country: student.value.country || '',
+    countryCode: student.value.countryCode || '',
+    postalCode: student.value.postalCode || '',
     emergencyContact: student.value.emergencyContact || '',
     emergencyPhone: student.value.emergencyPhone || '',
     medicalNotes: student.value.medicalNotes || '',
@@ -95,12 +116,32 @@ async function savePortalAccess() {
   try { await $fetch(`/api/students/${studentId}/portal-account`, { method: 'POST', body: portalForm }); portalForm.temporaryPassword = ''; toast.add({ color: 'success', title: 'Portal access saved' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not save portal access', description: error.data?.statusMessage || error.message }) } finally { savingPortal.value = false }
 }
 
+async function uploadAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+    toast.add({ color: 'warning', title: 'Choose an image up to 5 MB' })
+    return
+  }
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    const result = await $fetch<{ path: string }>(`/api/students/${studentId}/avatar`, { method: 'POST', body: formData })
+    if (student.value) student.value.avatar = result.path
+    toast.add({ color: 'success', title: 'Profile photo updated' })
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not upload profile photo', description: error.data?.statusMessage || error.message })
+  }
+}
+
 async function save() {
   saving.value = true
   try {
     await $fetch(`/api/students/${studentId}`, {
       method: 'PATCH',
-      body: { ...form, email: form.email || null, phone: form.phone || null, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, address: form.address || null, emergencyContact: form.emergencyContact || null, emergencyPhone: form.emergencyPhone || null, medicalNotes: form.medicalNotes || null },
+      body: { ...form, email: form.email || null, phone: form.phone || null, dateOfBirth: form.dateOfBirth || null, gender: form.gender || null, address: form.address || null, city: form.city || null, stateProvince: form.stateProvince || null, country: form.country || null, countryCode: form.countryCode || null, postalCode: form.postalCode || null, emergencyContact: form.emergencyContact || null, emergencyPhone: form.emergencyPhone || null, medicalNotes: form.medicalNotes || null },
     })
     toast.add({ color: 'success', title: 'Student updated' })
     await router.push(`/students/${studentId}`)

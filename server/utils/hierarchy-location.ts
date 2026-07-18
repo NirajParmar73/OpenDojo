@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db, tables } from './database'
 
-type LocationDetails = { city?: string, stateProvince?: string, country?: string }
+type LocationDetails = { city?: string, stateProvince?: string, country?: string, countryCode?: string, subdivisionCode?: string, postalCode?: string }
 
 export async function getLocationFromHierarchyNode(organizationId: number, nodeId: number, topLocationIsCountry = false): Promise<LocationDetails> {
   const [nodes, levels] = await Promise.all([
@@ -19,6 +19,9 @@ export async function getLocationFromHierarchyNode(organizationId: number, nodeI
     if (levelName === 'city / town' && !location.city) location.city = current.name
     if (levelName === 'state / province' && !location.stateProvince) location.stateProvince = current.name
     if (levelName === 'country' && !location.country) location.country = current.name
+    if (!location.countryCode && current.countryCode) location.countryCode = current.countryCode
+    if (!location.subdivisionCode && current.subdivisionCode) location.subdivisionCode = current.subdivisionCode
+    if (!location.postalCode && current.postalCode) location.postalCode = current.postalCode
     topLocation = current
     current = current.parentId ? nodesById.get(current.parentId) : undefined
   }

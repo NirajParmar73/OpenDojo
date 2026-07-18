@@ -28,7 +28,7 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-type ScopeNode = { id: number, name: string, parentId: number | null }
+type ScopeNode = { id: number, name: string, label?: string, parentId: number | null }
 type ScopeDojo = { id: number, name: string, nodeId: number }
 
 const toast = useToast()
@@ -48,7 +48,7 @@ function locationPath(node: ScopeNode) {
   const parts: string[] = []
   let current: ScopeNode | undefined = node
   while (current) {
-    parts.unshift(current.name)
+    parts.unshift(current.label || current.name)
     current = current.parentId === null ? undefined : nodesById.get(current.parentId)
   }
   return parts.join(' → ')

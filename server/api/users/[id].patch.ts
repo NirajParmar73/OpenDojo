@@ -3,6 +3,7 @@ import { db, tables } from '../../../server/utils/database'
 import { eq, and } from 'drizzle-orm'
 import { canEditManagedUser, getAllowedAssignmentsForCreator, getHierarchyManagementScope } from '../../utils/permissions'
 import { writeAuditLog } from '../../utils/audit'
+import { formatHierarchyNodeLabel } from '../../utils/hierarchy-label'
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
@@ -155,7 +156,8 @@ export default defineEventHandler(async (event) => {
         const node = await db.query.hierarchyNodes.findFirst({
           where: eq(tables.hierarchyNodes.id, assignment.scopeId),
         })
-        scopeName = node?.name || null
+        const level = node ? await db.query.hierarchyLevels.findFirst({ where: eq(tables.hierarchyLevels.id, node.levelId) }) : null
+        scopeName = node ? formatHierarchyNodeLabel(node.name, level?.name) : null
       } else if (assignment.scopeType === 'dojo') {
         const dojo = await db.query.dojos.findFirst({
           where: eq(tables.dojos.id, assignment.scopeId),

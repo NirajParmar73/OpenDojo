@@ -1,5 +1,6 @@
 import { db, tables } from '../../../../server/utils/database'
 import { eq, and, isNull } from 'drizzle-orm'
+import { formatHierarchyNodeLabel } from '../../../utils/hierarchy-label'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -17,13 +18,15 @@ export default defineEventHandler(async (event) => {
     where: eq(tables.hierarchyNodes.organizationId, orgId),
     orderBy: (nodes, { asc }) => [asc(nodes.createdAt)],
   })
+  const levels = await db.query.hierarchyLevels.findMany({ where: eq(tables.hierarchyLevels.organizationId, orgId) })
+  const levelNames = new Map(levels.map(level => [level.id, level.name]))
 
   // Build a tree structure
   const nodeMap = new Map()
   const roots: any[] = []
 
   allNodes.forEach(node => {
-    nodeMap.set(node.id, { ...node, children: [] })
+    nodeMap.set(node.id, { ...node, label: formatHierarchyNodeLabel(node.name, levelNames.get(node.levelId)), children: [] })
   })
 
   allNodes.forEach(node => {

@@ -1,6 +1,7 @@
 import { db, tables } from '../utils/database'
 import { eq } from 'drizzle-orm'
 import { getAccessibleDojoIds } from '../utils/permissions'
+import { formatHierarchyNodeLabel } from '../utils/hierarchy-label'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -21,6 +22,7 @@ export default defineEventHandler(async (event) => {
     where: eq(tables.hierarchyLevels.organizationId, organizationId),
     orderBy: (levels, { asc }) => [asc(levels.order)]
   })
+  const levelNames = new Map(levels.map(level => [level.id, level.name]))
   const nodesById = new Map(allNodes.map(node => [node.id, node]))
   const accessibleNodeIds = new Set<number>()
   for (const dojo of dojos) {
@@ -90,7 +92,7 @@ export default defineEventHandler(async (event) => {
       ungrouped.students += studentCountByDojo.get(dojo.id) || 0
       continue
     }
-    const item = breakdownByNode.get(node.id) || { id: node.id, name: node.name, dojos: 0, students: 0 }
+    const item = breakdownByNode.get(node.id) || { id: node.id, name: formatHierarchyNodeLabel(node.name, levelNames.get(node.levelId)), dojos: 0, students: 0 }
     item.dojos += 1
     item.students += studentCountByDojo.get(dojo.id) || 0
     breakdownByNode.set(node.id, item)

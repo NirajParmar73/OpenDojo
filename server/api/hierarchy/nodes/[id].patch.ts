@@ -7,6 +7,9 @@ import { assertFederationManagementAccess, assertHierarchyLevelAllowed } from '.
 
 const updateNodeSchema = z.object({
   name: z.string().min(1).optional(),
+  countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code').transform(value => value.toUpperCase()).optional().nullable(),
+  subdivisionCode: z.string().trim().min(1).max(20).optional().nullable(),
+  postalCode: z.string().trim().min(1).max(20).optional().nullable(),
   levelId: z.number().int().positive().optional(),
   parentId: z.number().int().positive().nullable().optional(),
 })

@@ -1,6 +1,7 @@
 import { db, tables } from '../../../server/utils/database'
 import { eq } from 'drizzle-orm'
 import { canDeleteManagedUser, canEditManagedUser, canViewManagedUser, getAllowedAssignmentsForCreator } from '../../utils/permissions'
+import { formatHierarchyNodeLabel } from '../../utils/hierarchy-label'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -34,7 +35,8 @@ export default defineEventHandler(async (event) => {
             const node = await db.query.hierarchyNodes.findFirst({
               where: eq(tables.hierarchyNodes.id, assignment.scopeId),
             })
-            scopeName = node?.name || null
+            const level = node ? await db.query.hierarchyLevels.findFirst({ where: eq(tables.hierarchyLevels.id, node.levelId) }) : null
+            scopeName = node ? formatHierarchyNodeLabel(node.name, level?.name) : null
           } else if (assignment.scopeType === 'dojo') {
             const dojo = await db.query.dojos.findFirst({
               where: eq(tables.dojos.id, assignment.scopeId),

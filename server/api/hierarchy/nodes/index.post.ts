@@ -10,6 +10,9 @@ const createNodeSchema = z.object({
   levelId: z.number().int().positive(),
   parentId: z.number().int().positive().nullable().optional(),
   name: z.string().min(1),
+  countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code').transform(value => value.toUpperCase()).optional().nullable(),
+  subdivisionCode: z.string().trim().min(1).max(20).optional().nullable(),
+  postalCode: z.string().trim().min(1).max(20).optional().nullable(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -61,6 +64,9 @@ export default defineEventHandler(async (event) => {
     levelId: body.levelId,
     parentId: body.parentId || null,
     name: body.name,
+    countryCode: body.countryCode || null,
+    subdivisionCode: body.subdivisionCode || null,
+    postalCode: body.postalCode || null,
   }).returning() as any[] // ✅ Fix: cast to any[]
 
   if (!node) {

@@ -8,6 +8,12 @@ const updateGuardianSchema = z.object({
   phone: z.string().optional().nullable(),
   email: z.string().email().optional().nullable(),
   address: z.string().optional().nullable(),
+  city: z.string().trim().max(100).optional().nullable(),
+  stateProvince: z.string().trim().max(100).optional().nullable(),
+  country: z.string().trim().max(100).optional().nullable(),
+  countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code').transform(value => value.toUpperCase()).optional().nullable(),
+  subdivisionCode: z.string().trim().max(20).optional().nullable(),
+  postalCode: z.string().trim().max(20).optional().nullable(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -57,6 +63,12 @@ export default defineEventHandler(async (event) => {
   if (body.phone !== undefined) updateData.phone = body.phone
   if (body.email !== undefined) updateData.email = body.email
   if (body.address !== undefined) updateData.address = body.address
+  if (body.city !== undefined) updateData.city = body.city
+  if (body.stateProvince !== undefined) updateData.stateProvince = body.stateProvince
+  if (body.country !== undefined) updateData.country = body.country
+  if (body.countryCode !== undefined) updateData.countryCode = body.countryCode
+  if (body.subdivisionCode !== undefined) updateData.subdivisionCode = body.subdivisionCode
+  if (body.postalCode !== undefined) updateData.postalCode = body.postalCode
   updateData.updatedAt = new Date()
 
   const [updated] = await db.update(tables.guardians)

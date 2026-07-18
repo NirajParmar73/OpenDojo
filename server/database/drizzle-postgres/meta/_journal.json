@@ -86,6 +86,7 @@
       "tag": "0011_onboarding_progress",
       "breakpoints": true
     },
-    { "idx": 12, "version": "7", "when": 1784387000000, "tag": "0012_email_verification", "breakpoints": true }
+    { "idx": 12, "version": "7", "when": 1784387000000, "tag": "0012_email_verification", "breakpoints": true },
+    { "idx": 13, "version": "7", "when": 1784388000000, "tag": "0013_structured_geography", "breakpoints": true }
   ]
 }

@@ -12,6 +12,9 @@ const createDojoSchema = z.object({
   city: z.string().trim().max(100).optional(),
   stateProvince: z.string().trim().max(100).optional(),
   country: z.string().trim().max(100).optional(),
+  countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code').transform(value => value.toUpperCase()).optional(),
+  subdivisionCode: z.string().trim().max(20).optional(),
+  postalCode: z.string().trim().max(20).optional(),
   phone: z.string().optional(),
   email: z.string().email().optional(),
 })
@@ -38,6 +41,9 @@ export default defineEventHandler(async (event) => {
     city: hierarchyLocation.city || body.city,
     stateProvince: hierarchyLocation.stateProvince || body.stateProvince,
     country: hierarchyLocation.country || body.country,
+    countryCode: hierarchyLocation.countryCode || body.countryCode,
+    subdivisionCode: hierarchyLocation.subdivisionCode || body.subdivisionCode,
+    postalCode: hierarchyLocation.postalCode || body.postalCode,
   }
   await assertDojoTerritory(orgId, location)
   let nodeId = body.nodeId || null
@@ -125,6 +131,9 @@ export default defineEventHandler(async (event) => {
     city: location.city || null,
     stateProvince: location.stateProvince || null,
     country: location.country || null,
+    countryCode: location.countryCode || null,
+    subdivisionCode: location.subdivisionCode || null,
+    postalCode: location.postalCode || null,
     phone: body.phone || null,
     email: body.email || null,
   }).returning() as any[]

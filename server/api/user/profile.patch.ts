@@ -6,7 +6,14 @@ import { sendVerificationEmail } from '../../utils/email-verification'
 const profileSchema = z.object({
   name: z.string().trim().min(1, 'Name is required').max(255),
   email: z.string().trim().email('Enter a valid email address').max(255),
-  danDegree: z.string().trim().max(100).nullable().optional()
+  danDegree: z.string().trim().max(100).nullable().optional(),
+  address: z.string().trim().max(500).nullable().optional(),
+  city: z.string().trim().max(100).nullable().optional(),
+  stateProvince: z.string().trim().max(100).nullable().optional(),
+  country: z.string().trim().max(100).nullable().optional(),
+  countryCode: z.string().trim().regex(/^[A-Za-z]{2}$/, 'Use a two-letter ISO country code').transform(value => value.toUpperCase()).nullable().optional(),
+  subdivisionCode: z.string().trim().max(20).nullable().optional(),
+  postalCode: z.string().trim().max(20).nullable().optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -35,6 +42,13 @@ export default defineEventHandler(async (event) => {
       name: body.name,
       email: body.email,
       danDegree: body.danDegree || null,
+      ...(body.address !== undefined ? { address: body.address || null } : {}),
+      ...(body.city !== undefined ? { city: body.city || null } : {}),
+      ...(body.stateProvince !== undefined ? { stateProvince: body.stateProvince || null } : {}),
+      ...(body.country !== undefined ? { country: body.country || null } : {}),
+      ...(body.countryCode !== undefined ? { countryCode: body.countryCode || null } : {}),
+      ...(body.subdivisionCode !== undefined ? { subdivisionCode: body.subdivisionCode || null } : {}),
+      ...(body.postalCode !== undefined ? { postalCode: body.postalCode || null } : {}),
       emailVerifiedAt: emailChanged ? null : user.emailVerifiedAt,
       updatedAt: new Date()
     })
@@ -58,7 +72,14 @@ export default defineEventHandler(async (event) => {
       name: updatedUser.name,
       email: updatedUser.email,
       danDegree: updatedUser.danDegree,
-      avatar: updatedUser.avatar
+      avatar: updatedUser.avatar,
+      address: updatedUser.address,
+      city: updatedUser.city,
+      stateProvince: updatedUser.stateProvince,
+      country: updatedUser.country,
+      countryCode: updatedUser.countryCode,
+      subdivisionCode: updatedUser.subdivisionCode,
+      postalCode: updatedUser.postalCode,
     }
   }
 })

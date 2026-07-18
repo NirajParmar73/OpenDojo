@@ -2,7 +2,6 @@ import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { saveUploadedFile } from '../../../utils/upload'
 
-console.log('Avatar endpoint hit')
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user) {

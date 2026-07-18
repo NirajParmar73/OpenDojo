@@ -1,5 +1,6 @@
 import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
+import { formatHierarchyNodeLabel } from '../../utils/hierarchy-label'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -17,6 +18,13 @@ export default defineEventHandler(async (event) => {
       createdAt: true,
       role: true,
       emailVerifiedAt: true,
+      address: true,
+      city: true,
+      stateProvince: true,
+      country: true,
+      countryCode: true,
+      subdivisionCode: true,
+      postalCode: true,
     },
     with: { assignments: true },
   })
@@ -27,7 +35,8 @@ export default defineEventHandler(async (event) => {
   const assignments = await Promise.all(user.assignments.map(async assignment => {
     if (assignment.scopeType === 'node') {
       const node = await db.query.hierarchyNodes.findFirst({ where: eq(tables.hierarchyNodes.id, assignment.scopeId) })
-      return { role: assignment.role, scopeName: node?.name || 'Hierarchy scope' }
+      const level = node ? await db.query.hierarchyLevels.findFirst({ where: eq(tables.hierarchyLevels.id, node.levelId) }) : null
+      return { role: assignment.role, scopeName: node ? formatHierarchyNodeLabel(node.name, level?.name) : 'Hierarchy scope' }
     }
     const dojo = await db.query.dojos.findFirst({ where: eq(tables.dojos.id, assignment.scopeId) })
     return { role: assignment.role, scopeName: dojo?.name || 'Dojo scope' }

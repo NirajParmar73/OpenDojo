@@ -17,6 +17,15 @@
             <UFormField label="Email" required><UInput v-model="form.email" type="email" required /></UFormField>
             <UFormField label="Dan degree"><UInput v-model="form.danDegree" /></UFormField>
             <UFormField label="Account access level"><USelect v-model="form.role" :items="accountRoleOptions" :disabled="user.role === 'owner'" /></UFormField>
+            <UFormField label="Profile photo" class="md:col-span-2">
+              <div class="flex items-center gap-3">
+                <img v-if="user.avatar" :src="user.avatar" alt="Staff profile photo" class="h-12 w-12 rounded-full object-cover" />
+                <input ref="staffCameraInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" capture="environment" class="hidden" @change="uploadAvatar" />
+                <input ref="staffGalleryInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="uploadAvatar" />
+                <UButton type="button" size="sm" color="neutral" variant="soft" icon="i-lucide-camera" @click="staffCameraInput?.click()">Take photo</UButton>
+                <UButton type="button" size="sm" color="neutral" variant="soft" icon="i-lucide-image" @click="staffGalleryInput?.click()">Choose photo</UButton>
+              </div>
+            </UFormField>
           </div>
           <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Standard access is recommended for most staff. Responsibilities below define the locations or dojos this person can manage.</p>
         </div>
@@ -66,6 +75,8 @@ const { user: currentUser } = useUserSession()
 const userId = Number(route.params.id)
 const saving = ref(false)
 const savingQualification = ref(false)
+const staffCameraInput = ref<HTMLInputElement | null>(null)
+const staffGalleryInput = ref<HTMLInputElement | null>(null)
 const qualificationForm = reactive({ programId: null as number | null, qualification: '', issuer: '', expiresAt: '' })
 const form = reactive<any>({ name: '', email: '', danDegree: '', role: 'member', assignments: [] })
 const roleScopeMap: Record<string, 'node' | 'dojo'> = { country_head: 'node', state_head: 'node', district_head: 'node', city_head: 'node', zone_head: 'node', dojo_head: 'dojo', instructor: 'dojo' }
@@ -126,6 +137,26 @@ function addAssignment() {
     return
   }
   form.assignments.push({ role: initialRole, scopeId: null })
+}
+
+async function uploadAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+    toast.add({ color: 'warning', title: 'Choose an image up to 5 MB' })
+    return
+  }
+  try {
+    const formData = new FormData()
+    formData.append('avatar', file)
+    const result = await $fetch<{ path: string }>(`/api/users/${userId}/avatar`, { method: 'POST', body: formData })
+    if (user.value) user.value.avatar = result.path
+    toast.add({ color: 'success', title: 'Profile photo updated' })
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not upload profile photo', description: error.data?.statusMessage || error.message })
+  }
 }
 
 async function addQualification() {

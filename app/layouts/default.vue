@@ -159,6 +159,7 @@ const allNavigation = [
       { label: 'Record payment', to: '/fees', icon: 'i-lucide-circle-dollar-sign' },
       { label: 'Recent receipts', to: '/receipts', icon: 'i-lucide-receipt-text' },
       { label: 'Collections overview', to: '/finance', icon: 'i-lucide-chart-no-axes-combined' },
+      { label: 'Revenue analytics', to: '/reports/finance', icon: 'i-lucide-chart-line' },
       { label: 'Pending fees', to: '/finance/pending-fees', icon: 'i-lucide-clock-alert' },
       { label: 'Expenses', to: '/finance/expenses', icon: 'i-lucide-receipt-indian-rupee' },
     ],

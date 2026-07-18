@@ -34,6 +34,23 @@
         <UFormField label="Gender"><USelect v-model="newStudent.gender" :items="genderOptions" placeholder="Optional" /></UFormField>
         <UFormField label="Emergency contact"><UInput v-model="newStudent.emergencyContact" /></UFormField>
         <UFormField label="Emergency phone"><UInput v-model="newStudent.emergencyPhone" /></UFormField>
+        <UFormField label="Profile photo" description="Optional. JPG, PNG, GIF, or WebP up to 5 MB.">
+          <div class="flex items-center gap-3">
+            <img v-if="studentAvatarPreview" :src="studentAvatarPreview" alt="Selected profile photo" class="h-12 w-12 rounded-full object-cover" />
+            <input ref="studentCameraInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" capture="environment" class="hidden" @change="selectStudentAvatar" />
+            <input ref="studentGalleryInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden" @change="selectStudentAvatar" />
+            <div class="flex flex-wrap gap-2">
+              <UButton type="button" size="sm" color="neutral" variant="soft" icon="i-lucide-camera" @click="studentCameraInput?.click()">Take photo</UButton>
+              <UButton type="button" size="sm" color="neutral" variant="soft" icon="i-lucide-image" @click="studentGalleryInput?.click()">Choose photo</UButton>
+            </div>
+          </div>
+        </UFormField>
+        <UFormField label="Address" class="md:col-span-2"><UInput v-model="newStudent.address" placeholder="Street address (optional)" /></UFormField>
+        <UFormField label="Country"><UInput v-model="newStudent.country" placeholder="e.g. India" /></UFormField>
+        <UFormField label="Country code"><UInput v-model="newStudent.countryCode" maxlength="2" placeholder="IN" /></UFormField>
+        <UFormField label="State / province"><UInput v-model="newStudent.stateProvince" /></UFormField>
+        <UFormField label="City"><UInput v-model="newStudent.city" /></UFormField>
+        <UFormField label="ZIP / PIN code"><UInput v-model="newStudent.postalCode" /></UFormField>
         <div class="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2 pt-2">
           <UButton type="button" color="neutral" variant="ghost" @click="resetCreateForm">Cancel</UButton>
           <UButton type="submit" color="primary" :loading="creating">Create student</UButton>
@@ -145,7 +162,11 @@ const genderOptions = [
 ]
 
 const today = new Date().toISOString().slice(0, 10)
-const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: null as number | null, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '' })
+const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: null as number | null, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
+const studentAvatarFile = ref<File | null>(null)
+const studentAvatarPreview = ref('')
+const studentCameraInput = ref<HTMLInputElement | null>(null)
+const studentGalleryInput = ref<HTMLInputElement | null>(null)
 
 const isCityStarter = computed(() => subscription.value?.plan === 'city-starter')
 const studentCountByDojo = computed(() => students.value.reduce<Record<number, number>>((counts, student) => { if (student.dojoId) counts[student.dojoId] = (counts[student.dojoId] || 0) + 1; return counts }, {}))
@@ -174,8 +195,26 @@ const filteredStudents = computed(() => {
 })
 
 function resetCreateForm() {
-  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: null, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '' })
+  if (studentAvatarPreview.value) URL.revokeObjectURL(studentAvatarPreview.value)
+  studentAvatarFile.value = null
+  studentAvatarPreview.value = ''
+  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: null, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
   showCreate.value = false
+}
+
+function selectStudentAvatar(event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  if (!file) return
+  if (!file.type.startsWith('image/') || file.size > 5 * 1024 * 1024) {
+    input.value = ''
+    toast.add({ color: 'warning', title: 'Choose an image up to 5 MB' })
+    return
+  }
+  if (studentAvatarPreview.value) URL.revokeObjectURL(studentAvatarPreview.value)
+  studentAvatarFile.value = file
+  studentAvatarPreview.value = URL.createObjectURL(file)
+  input.value = ''
 }
 
 function formatDate(value?: string | null) {
@@ -231,8 +270,18 @@ async function createStudent() {
   try {
     const response = await $fetch('/api/students', {
       method: 'POST',
-      body: { ...newStudent, feePlanId: newStudent.assignFeePlan ? newStudent.feePlanId : null, initialDiscount: Math.round((newStudent.initialDiscount || 0) * 100), discountReason: newStudent.discountReason || undefined, email: newStudent.email || null, phone: newStudent.phone || null, dateOfBirth: newStudent.dateOfBirth || null, gender: newStudent.gender || null, emergencyContact: newStudent.emergencyContact || null, emergencyPhone: newStudent.emergencyPhone || null },
+      body: { ...newStudent, feePlanId: newStudent.assignFeePlan ? newStudent.feePlanId : null, initialDiscount: Math.round((newStudent.initialDiscount || 0) * 100), discountReason: newStudent.discountReason || undefined, email: newStudent.email || null, phone: newStudent.phone || null, dateOfBirth: newStudent.dateOfBirth || null, gender: newStudent.gender || null, emergencyContact: newStudent.emergencyContact || null, emergencyPhone: newStudent.emergencyPhone || null, address: newStudent.address || null, city: newStudent.city || null, stateProvince: newStudent.stateProvince || null, country: newStudent.country || null, countryCode: newStudent.countryCode || null, postalCode: newStudent.postalCode || null },
     }) as any
+    if (studentAvatarFile.value) {
+      try {
+        const formData = new FormData()
+        formData.append('avatar', studentAvatarFile.value)
+        const avatar = await $fetch<{ path: string }>(`/api/students/${response.student.id}/avatar`, { method: 'POST', body: formData })
+        response.student.avatar = avatar.path
+      } catch (error: any) {
+        toast.add({ color: 'warning', title: 'Student created, but photo was not uploaded', description: error.data?.statusMessage || error.message })
+      }
+    }
     students.value.unshift(response.student)
     resetCreateForm()
     toast.add({ color: 'success', title: 'Student created' })

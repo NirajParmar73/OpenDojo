@@ -27,7 +27,7 @@
               <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ receipt.feePlanName }}</td>
               <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ formatDate(receipt.paymentDate) }}</td>
               <td class="px-3 py-4 font-medium">{{ formatCurrency(receipt.amount) }}</td>
-              <td class="px-3 py-4 text-right"><UButton :href="`/api/payments/${receipt.id}/receipt`" size="xs" color="primary" variant="soft" icon="i-lucide-download">PDF</UButton></td>
+              <td class="px-3 py-4 text-right"><UButton :href="`/api/payments/${receipt.id}/receipt`" external size="xs" color="primary" variant="soft" icon="i-lucide-download">PDF</UButton></td>
             </tr>
           </tbody>
         </table>
