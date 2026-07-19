@@ -1,7 +1,22 @@
 <template>
   <div class="max-w-4xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-2">Locations &amp; organization structure</h1>
-    <p class="mb-6 max-w-3xl text-sm text-slate-600 dark:text-slate-300">Locations show how your organization is arranged—from country and state to district, city, branch, and dojo. You can only make changes inside the areas assigned to you.</p>
+    <h1 class="text-2xl font-bold mb-2">Organization structure</h1>
+    <UCard class="mb-6 border-primary/20 bg-primary/5">
+      <div class="flex gap-3">
+        <UIcon name="i-lucide-circle-help" class="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+        <div>
+          <h2 class="font-semibold">How to set this up</h2>
+          <ol class="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-300">
+            <li><strong>1. Start with the largest area</strong> you manage, such as India or Gujarat.</li>
+            <li><strong>2. Use “Add …” beside a location</strong> to create the next smaller area under it.</li>
+            <li><strong>3. Add dojos separately</strong> from Dojos &amp; schedules once their location is ready.</li>
+          </ol>
+          <p v-if="structurePath" class="mt-3 text-sm text-slate-500">Your available structure: <strong>{{ structurePath }}</strong></p>
+          <p class="mt-1 text-xs text-slate-500">You can only add or change locations in areas assigned to you.</p>
+        </div>
+      </div>
+    </UCard>
+    <p class="mb-6 max-w-3xl text-sm text-slate-600 dark:text-slate-300">Build from a larger area to a smaller one. For example: country, state, district, city, then branch.</p>
 
     <UCard v-if="isOwner && canAddHierarchy && levels.length < 2" class="mb-6 border-primary/30 bg-primary/5">
       <div class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -13,15 +28,15 @@
       </div>
     </UCard>
 
-    <UCard v-if="isOwner && canCreateCustomTypes" class="mb-6">
-      <h2 class="text-lg font-semibold">Set up location types</h2>
+    <details v-if="isOwner && canCreateCustomTypes" class="mb-6 rounded-xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-slate-900">
+      <summary class="cursor-pointer font-semibold">Advanced: change the location types</summary>
       <p class="mt-1 text-sm text-gray-500">Location types describe your structure, such as <strong>Country</strong>, <strong>State</strong>, or a custom type. Most organizations can use the available types below.</p>
       <form class="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-[1fr_auto]" @submit.prevent="createCustomLevel">
         <UInput v-model="newLevelName" placeholder="Custom type, e.g. Region or Zone" />
         <UButton type="submit" :loading="creatingLevel">Add custom type</UButton>
       </form>
       <div class="mt-3 flex flex-wrap gap-2"><UButton v-for="preset in levelPresets" :key="preset" size="xs" variant="outline" :disabled="hasLevel(preset)" @click="addPresetLevel(preset)">+ {{ preset }}</UButton></div>
-    </UCard>
+    </details>
 
     <UAlert v-if="hasManagedTerritory && !canManageHierarchy" class="mb-6" color="warning" title="Adding locations requires State Pro or National" description="Your assigned area is recognised, but this workspace plan cannot add or reorganize locations. Ask the organization owner to upgrade the workspace, then return here to add locations below your assigned area." />
 
@@ -46,10 +61,8 @@
     <!-- Tree View -->
     <UCard>
       <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div><h2 class="text-lg font-semibold">Your locations</h2><p v-if="canAddWithinTerritory" class="mt-1 text-sm text-slate-500 dark:text-slate-400">Choose one of your assigned areas, then add a location below it.</p></div>
-        <UButton v-if="canAddWithinTerritory" icon="i-lucide-plus" :disabled="!selectedManagedParent" @click="openAddChild(selectedManagedParent)">Add location</UButton>
+        <div><h2 class="text-lg font-semibold">Your locations</h2><p v-if="canAddWithinTerritory" class="mt-1 text-sm text-slate-500 dark:text-slate-400">Use the “Add …” button beside a location to create the next area under it.</p></div>
       </div>
-      <USelect v-if="canAddWithinTerritory" v-model="selectedManagedParentId" class="mt-4 max-w-xl" :items="managedParentOptions" placeholder="Choose where to add a location" />
       <div v-if="tree.length === 0" class="text-gray-500">No locations yet. Add your first location above.</div>
       <div v-else>
         <!-- ✅ Force re-render with :key="tree.length" -->
@@ -60,6 +73,7 @@
           :levels="levels"
           :can-manage-children="canManageChildren"
           :can-add-children="canAddChildren"
+          :next-child-level-name="nextChildLevelName"
           :can-modify="canModify"
           @add-child="openAddChild"
           @edit="openEdit"
@@ -69,18 +83,13 @@
 
       <!-- Inline Add Child Form -->
       <div v-if="addingChildParent" class="mt-4 border-t pt-4">
-        <h4 class="font-semibold">Add a location below "{{ nodeLabel(addingChildParent) }}"</h4>
-        <p class="mt-1 text-sm text-slate-500">Choose the type, enter the name, then save. Only valid lower-level location types are shown.</p>
+        <h4 class="font-semibold">Add {{ nextChildLevelName(addingChildParent) }} under "{{ addingChildParent.name }}"</h4>
+        <p class="mt-1 text-sm text-slate-500">Enter the name of this {{ nextChildLevelName(addingChildParent).toLowerCase() }}, then save.</p>
         <form @submit.prevent="createChildNode" class="mt-2">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <USelect
-              v-model="newChild.levelId"
-              :items="childLevelOptions"
-              placeholder="1. Choose location type"
-              required
-            />
-            <UInput v-model="newChild.name" placeholder="2. Location name" required />
-            <UButton type="submit" :loading="creatingChild">Save location</UButton>
+            <UInput :model-value="nextChildLevelName(addingChildParent)" disabled />
+            <UInput v-model="newChild.name" :placeholder="`Name of the ${nextChildLevelName(addingChildParent).toLowerCase()}`" required />
+            <UButton type="submit" :loading="creatingChild">Add {{ nextChildLevelName(addingChildParent) }}</UButton>
           </div>
           <UButton type="button" color="neutral" size="sm" class="mt-2" @click="cancelAddChild">Cancel</UButton>
         </form>
@@ -149,7 +158,6 @@ const newRoot = reactive({
 })
 
 const addingChildParent = ref<any>(null)
-const selectedManagedParentId = ref<number | null>(null)
 const newChild = reactive({
   levelId: undefined as number | undefined,
   name: '',
@@ -168,10 +176,17 @@ const rootLevelOptions = computed(() => {
   const firstOrder = Math.min(...levels.value.map(level => level.order))
   return levelOptions.value.filter(option => levels.value.find(level => level.id === option.value)?.order === firstOrder).filter(isLevelAllowed)
 })
-const childLevelOptions = computed(() => {
-  const parentLevel = levels.value.find(level => level.id === addingChildParent.value?.levelId)
+const availableChildLevels = (node: any) => {
+  const parentLevel = levels.value.find(level => Number(level.id) === Number(node?.levelId))
   if (!parentLevel) return []
-  return levelOptions.value.filter(option => (levels.value.find(level => level.id === option.value)?.order || 0) > parentLevel.order).filter(isLevelAllowed)
+  const lowerLevels = levels.value
+    .filter(level => level.order > parentLevel.order && isLevelAllowed({ value: level.id }))
+    .sort((a, b) => a.order - b.order)
+  const nextOrder = lowerLevels[0]?.order
+  return nextOrder === undefined ? [] : lowerLevels.filter(level => level.order === nextOrder)
+}
+const childLevelOptions = computed(() => {
+  return availableChildLevels(addingChildParent.value).map(level => ({ label: level.name, value: level.id }))
 })
 const canManageChildren = (nodeId: number) => isOwner.value || permissions.value?.managedParentNodeIds.includes(nodeId) || false
 const canModify = (nodeId: number) => canManageHierarchy.value && (isOwner.value || permissions.value?.allowedNodeIds.includes(nodeId) || false)
@@ -188,12 +203,14 @@ const levelOptions = computed(() => levels.value
   .map((level: any) => ({ label: level.name, value: level.id }))
   .filter(isLevelAllowed))
 const canAddChildren = (node: any) => {
-  const parentLevel = levels.value.find(level => Number(level.id) === Number(node.levelId))
-  return !!parentLevel && levelOptions.value.some(option => {
-    const level = levels.value.find(item => Number(item.id) === Number(option.value))
-    return !!level && level.order > parentLevel.order && isLevelAllowed(option)
-  })
+  return availableChildLevels(node).length > 0
 }
+const nextChildLevelName = (node: any) => availableChildLevels(node)[0]?.name || 'location'
+const structurePath = computed(() => levels.value
+  .filter(level => isLevelAllowed({ value: level.id }))
+  .sort((a, b) => a.order - b.order)
+  .map(level => level.name)
+  .join(' → '))
 const flatNodes = computed(() => {
   const result: any[] = []
   const visit = (items: any[]) => items.forEach((item) => { result.push(item); visit(item.children || []) })
@@ -208,13 +225,8 @@ const nodeLabel = (node: any) => {
   const level = levels.value.find(item => Number(item.id) === Number(node.levelId))
   return `${node.name} — ${level?.name || 'Hierarchy node'}`
 }
-const managedParentOptions = computed(() => managedParentNodes.value.map(node => ({ label: nodeLabel(node), value: node.id })))
-const selectedManagedParent = computed(() => managedParentNodes.value.find(node => node.id === selectedManagedParentId.value) || null)
 const canAddWithinTerritory = computed(() => canManageHierarchy.value && managedParentNodes.value.length > 0)
 const hasManagedTerritory = computed(() => !isOwner.value && (permissions.value?.managedParentNodeIds.length || 0) > 0)
-watch(managedParentNodes, (parents) => {
-  if (!parents.some(parent => parent.id === selectedManagedParentId.value)) selectedManagedParentId.value = parents[0]?.id || null
-}, { immediate: true })
 const parentOptions = computed(() => {
   if (!editingNode.value) return []
   const currentLevel = levels.value.find(level => level.id === editForm.levelId)
@@ -325,7 +337,7 @@ async function addPresetLevel(name: string) {
 
 function openAddChild(parent: any) {
   addingChildParent.value = parent
-  newChild.levelId = undefined
+  newChild.levelId = childLevelOptions.value[0]?.value
   newChild.name = ''
 }
 
@@ -412,7 +424,7 @@ async function updateNode() {
 }
 
 async function deleteNode(id: number) {
-  if (!confirm('Remove this location? Any locations below it will also be removed.')) return
+  if (!confirm('Remove this empty location? This cannot be undone.')) return
   try {
     await $fetch(`/api/hierarchy/nodes/${id}`, { method: 'DELETE' })
     toast.add({ color: 'success', title: 'Location removed' })

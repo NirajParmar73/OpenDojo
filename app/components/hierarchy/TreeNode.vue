@@ -1,42 +1,35 @@
 <template>
-  <div class="ml-4 border-l-2 border-gray-200 pl-2">
-    <div class="flex items-center gap-2 py-1">
-      <!-- Toggle button -->
-      <button
+  <div class="ml-3 border-l border-slate-200 pl-3 dark:border-slate-700">
+    <div class="flex flex-wrap items-center gap-2 py-2">
+      <UButton
+        v-if="hasChildren"
+        :icon="expanded ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        :aria-label="expanded ? `Collapse ${node.name}` : `Expand ${node.name}`"
         @click="expanded = !expanded"
-        class="px-1 py-0.5 text-sm bg-gray-100 border border-gray-300 rounded hover:bg-gray-200 focus:outline-none w-6 text-center font-mono"
-      >
-        {{ hasChildren ? (expanded ? '▼' : '▶') : '•' }}
-      </button>
+      />
+      <span v-else class="flex h-6 w-6 items-center justify-center text-slate-400"><UIcon name="i-lucide-map-pin" class="h-3.5 w-3.5" /></span>
 
       <span class="font-medium">{{ node.name }}</span>
-      <span class="text-xs text-gray-400">({{ levelName }})</span>
+      <UBadge color="neutral" variant="subtle" size="sm">{{ levelName }}</UBadge>
 
-      <button
+      <UButton
         v-if="canManageChildren(node.id) && canAddChildren(node)"
-        class="px-2 py-1 text-xs bg-blue-500 text-white rounded hover:bg-blue-600"
+        size="xs"
+        color="primary"
+        variant="soft"
+        icon="i-lucide-plus"
         @click="$emit('addChild', node)"
       >
-        Add location below
-      </button>
-      <button
-        v-if="canModify(node.id)"
-        class="px-2 py-1 text-xs bg-gray-500 text-white rounded hover:bg-gray-600"
-        @click="$emit('edit', node)"
-      >
-        Edit location
-      </button>
-      <button
-        v-if="canModify(node.id)"
-        class="px-2 py-1 text-xs bg-red-500 text-white rounded hover:bg-red-600"
-        @click="$emit('delete', node.id)"
-      >
-        Remove
-      </button>
+        Add {{ nextChildLevelName(node) }}
+      </UButton>
+      <UButton v-if="canModify(node.id)" size="xs" color="neutral" variant="ghost" icon="i-lucide-pencil" @click="$emit('edit', node)">Edit</UButton>
+      <UButton v-if="canModify(node.id) && !hasChildren" size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" @click="$emit('delete', node.id)">Remove</UButton>
     </div>
 
-    <!-- Children -->
-    <div v-if="expanded && hasChildren" class="ml-4">
+    <div v-if="expanded && hasChildren" class="ml-3">
       <TreeNode
         v-for="child in node.children"
         :key="child.id"
@@ -44,8 +37,9 @@
         :levels="levels"
         :can-manage-children="canManageChildren"
         :can-add-children="canAddChildren"
+        :next-child-level-name="nextChildLevelName"
         :can-modify="canModify"
-        @addChild="$emit('addChild', $event)"
+        @add-child="$emit('addChild', $event)"
         @edit="$emit('edit', $event)"
         @delete="$emit('delete', $event)"
       />
@@ -55,24 +49,15 @@
 
 <script setup lang="ts">
 const props = defineProps<{
-  node: {
-    id: number
-    name: string
-    levelId: number
-    children: any[]
-  }
+  node: { id: number, name: string, levelId: number, children: any[] }
   levels: any[]
   canManageChildren: (nodeId: number) => boolean
   canAddChildren: (node: { id: number, levelId: number }) => boolean
+  nextChildLevelName: (node: { id: number, levelId: number }) => string
   canModify: (nodeId: number) => boolean
 }>()
 
 const expanded = ref(true)
-
 const hasChildren = computed(() => props.node.children?.length > 0)
-
-const levelName = computed(() => {
-  const level = props.levels.find(l => l.id === props.node.levelId)
-  return level?.name || 'Unknown'
-})
+const levelName = computed(() => props.levels.find(level => level.id === props.node.levelId)?.name || 'Location')
 </script>

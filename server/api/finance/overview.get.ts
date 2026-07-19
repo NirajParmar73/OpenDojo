@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   }) as any[]
 
   const records = assignments
-    .filter(assignment => assignment.student?.organizationId === organizationId && assignment.status === 'active' && (accessibleDojoIds === null || (assignment.student.dojoId !== null && accessibleDojoIds.includes(assignment.student.dojoId))) && (!selectedDojoId || assignment.student.dojoId === selectedDojoId))
+    .filter(assignment => assignment.student?.organizationId === organizationId && assignment.student.status !== 'archived' && assignment.status === 'active' && (accessibleDojoIds === null || (assignment.student.dojoId !== null && accessibleDojoIds.includes(assignment.student.dojoId))) && (!selectedDojoId || assignment.student.dojoId === selectedDojoId))
     .map((assignment) => {
       const balance = calculateFeeBalance({
         amount: assignment.feePlan.amount,

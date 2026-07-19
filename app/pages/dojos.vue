@@ -11,11 +11,12 @@
             v-else
             v-model="newDojo.nodeId"
             :items="nodeOptions"
-            placeholder="Select city or branch"
+            placeholder="Choose the city or branch for this dojo"
             required
           />
           <UInput v-model="newDojo.name" placeholder="Dojo name" required />
         </div>
+        <p v-if="isAdvancedPlan" class="mt-3 text-sm text-slate-500 dark:text-slate-400"><strong>Where should this dojo operate?</strong> Choose its City or Branch. States and districts organize your team and locations, so they are not direct dojo locations. <NuxtLink to="/settings/hierarchy/nodes" class="font-medium text-primary hover:underline">Add a missing city or branch in Organization structure.</NuxtLink></p>
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
           <UInput v-model="newDojo.address" placeholder="Address (optional)" />
           <UInput v-model="newDojo.city" :readonly="isLocationFieldLocked(newDojo.nodeId, 'city')" placeholder="City" />
@@ -160,7 +161,7 @@
               v-else
               v-model="editDojoForm.nodeId"
               :items="editNodeOptions"
-              placeholder="Select city or branch"
+              placeholder="Choose the city or branch for this dojo"
               required
             />
             <UInput v-model="editDojoForm.name" placeholder="Dojo name" required />
@@ -189,7 +190,9 @@
 definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
+const { user } = useUserSession()
 const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
+const { data: hierarchyPermissions } = await useFetch<{ managedParentNodeIds: number[] }>('/api/users/me/permissions')
 const isFreePlan = computed(() => subscription.value?.plan !== 'city-starter' && subscription.value?.plan !== 'city-pro' && subscription.value?.plan !== 'state-pro' && subscription.value?.plan !== 'national')
 const isCityStarter = computed(() => subscription.value?.plan === 'city-starter')
 const canCreateDojo = computed(() => !!subscription.value && (!isFreePlan.value || dojos.value.length < 1) && (!isCityStarter.value || dojos.value.length < 2))
@@ -352,7 +355,9 @@ function buildNodePathMap(nodesList: any[]) {
     const parts: string[] = []
     let current: any = node
     while (current) {
-      parts.unshift(current.name)
+      // The API provides labels such as "Ahmedabad District" and
+      // "Ahmedabad City" so repeated place names stay understandable.
+      parts.unshift(current.label || current.name)
       if (current.parentId && map[current.parentId]) {
         current = map[current.parentId]
       } else {
@@ -385,7 +390,9 @@ const nodeOptions = computed(() => {
   return flatNodes.value.filter((node: any) => {
     if (!isAdvancedPlan.value) return true
     const level = levels.value.find((item: any) => Number(item.id) === Number(node.levelId))
-    return ['City / Town', 'Branch'].includes(level?.name)
+    const isOperationalLocation = ['City / Town', 'Branch'].includes(level?.name)
+    const isInsideManagedTerritory = user.value?.role === 'owner' || hierarchyPermissions.value?.managedParentNodeIds.includes(Number(node.id))
+    return isOperationalLocation && isInsideManagedTerritory
   }).map((node: any) => ({
     label: getNodePath(node.id),
     value: node.id,
