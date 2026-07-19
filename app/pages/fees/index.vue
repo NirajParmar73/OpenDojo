@@ -23,13 +23,14 @@
           <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="reportFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="reportTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-eye" :loading="downloadingReport" @click="downloadFeeReport">Preview PDF</UButton></div></div>
         </div>
       </UCard>
-      <!-- Fee-plan changes are managed from the student profile, not while collecting payment. -->
-      <UCard v-if="false" class="mb-6">
-        <div class="mb-3"><h2 class="text-lg font-semibold">Fee plan for this student</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Set this up once before recording payments. It keeps the outstanding balance accurate.</p></div>
-        <form @submit.prevent="addAssignment" class="mb-4 grid gap-4 md:grid-cols-4">
+      <UCard class="mb-6">
+        <div class="mb-4"><h2 class="text-lg font-semibold">Fee plans for this student</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Assign the monthly, quarterly, annual, or one-time plan that applies to this student. End an active plan before starting a replacement so their payment history remains clear.</p></div>
+        <form @submit.prevent="addAssignment" class="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <UFormField label="Fee plan" required><USelect v-model="newAssignment.feePlanId" :items="feePlanOptions" placeholder="Choose a fee plan" required /></UFormField>
           <UFormField label="Plan starts on" required><UInput v-model="newAssignment.startDate" type="date" required /></UFormField>
-          <UFormField label="Discount"><UInput v-model.number="newAssignment.discount" type="number" min="0" placeholder="0.00" /></UFormField>
+          <UFormField label="Due day"><UInput v-model.number="newAssignment.dueDay" type="number" min="1" max="28" required /></UFormField>
+          <UFormField label="Discount"><UInput v-model.number="newAssignment.discount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField>
+          <UFormField v-if="newAssignment.discount" label="Discount reason" required><UInput v-model="newAssignment.discountReason" placeholder="Reason for discount" required /></UFormField>
           <div class="self-end"><UButton type="submit" class="w-full" :loading="addingAssignment">Assign plan</UButton></div>
         </form>
         <div class="overflow-x-auto">
@@ -42,6 +43,7 @@
                 <th class="px-3 py-2 text-left">Discount</th>
                 <th class="px-3 py-2 text-left">Net</th>
                 <th class="px-3 py-2 text-left">Outstanding</th>
+                <th class="px-3 py-2 text-left">Due day</th>
                 <th class="px-3 py-2 text-left">Status</th>
                 <th class="px-3 py-2 text-left">Actions</th>
               </tr>
@@ -54,13 +56,14 @@
                 <td class="px-3 py-2">{{ formatCurrency(ass.discount || 0) }}</td>
                 <td class="px-3 py-2">{{ formatCurrency(ass.netAmount || 0) }}</td>
                 <td class="px-3 py-2">{{ formatCurrency(ass.outstanding || 0) }}</td>
-                <td class="px-3 py-2">{{ ass.status }}</td>
+                <td class="px-3 py-2">{{ ass.dueDay }}{{ ordinal(ass.dueDay) }}</td>
+                <td class="px-3 py-2"><UBadge :color="ass.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ ass.status }}</UBadge></td>
                 <td class="px-3 py-2">
-                  <UButton color="error" variant="ghost" size="xs" @click="deleteAssignment(ass.id)">Delete</UButton>
+                  <UButton v-if="ass.status === 'active'" color="warning" variant="ghost" size="xs" @click="endAssignment(ass.id)">End plan</UButton>
                 </td>
               </tr>
               <tr v-if="assignments.length === 0">
-                <td colspan="8" class="px-3 py-2 text-center text-gray-500">No assignments</td>
+                <td colspan="9" class="px-3 py-2 text-center text-gray-500">No fee plan assigned yet.</td>
               </tr>
             </tbody>
           </table>
@@ -74,7 +77,8 @@
           <UFormField label="Payment for" required><USelect v-model="paymentForm.assignmentId" :items="assignmentOptions" placeholder="Choose a fee plan" required /></UFormField>
           <UFormField label="Amount received" required><UInput v-model.number="paymentForm.amount" type="number" min="0.01" step="0.01" placeholder="0.00" required /></UFormField>
           <UFormField label="Payment received on" required><UInput v-model="paymentForm.paymentDate" type="date" required /></UFormField>
-          <UFormField label="Fee period covered" required><UInput v-model="paymentForm.billingPeriod" type="month" required /></UFormField>
+          <UFormField label="Fee period begins" required help="The coverage range is calculated from the selected fee plan."><UInput v-model="paymentForm.billingPeriod" type="month" required /></UFormField>
+          <p v-if="selectedAssignment" class="text-sm text-slate-500 dark:text-slate-400 sm:col-span-2 xl:col-span-4">Coverage: <span class="font-medium text-slate-700 dark:text-slate-200">{{ paymentCoverage }}</span></p>
           <UFormField label="Payment method" required><USelect v-model="paymentForm.method" :items="paymentMethods" class="min-w-40" :ui="{ content: 'min-w-40' }" required /></UFormField>
           <UFormField label="Reference"><UInput v-model="paymentForm.referenceNumber" placeholder="Optional reference" /></UFormField>
           <div class="self-end xl:col-span-2"><UButton type="submit" class="w-full" :loading="recordingPayment">Save payment</UButton></div>
@@ -153,11 +157,12 @@ const reportTo = ref('')
 const today = new Date().toISOString().slice(0, 10)
 const currentMonth = today.slice(0, 7)
 
-// Forms (unchanged)
 const newAssignment = reactive({
   feePlanId: undefined as number | undefined,
-  startDate: '',
+  startDate: today,
+  dueDay: new Date().getDate() > 28 ? 28 : new Date().getDate(),
   discount: 0,
+  discountReason: '',
 })
 const addingAssignment = ref(false)
 
@@ -205,7 +210,10 @@ watch(selectedHierarchyId, () => { selectedDojoId.value = 'all'; selectedStudent
 watch(selectedDojoId, () => { selectedStudentId.value = undefined })
 
 const feePlanOptions = computed(() =>
-  feePlans.value.map(p => ({ label: `${p.name} (${formatCurrency(p.amount)})`, value: p.id }))
+  feePlans.value
+    .filter(plan => !plan.dojoId || plan.dojoId === student.value?.dojoId)
+    .filter(plan => !!plan.isActive)
+    .map(plan => ({ label: `${plan.name} · ${plan.frequency} (${formatCurrency(plan.amount)})`, value: plan.id }))
 )
 const assignmentOptions = computed(() =>
   assignments.value
@@ -215,6 +223,8 @@ const assignmentOptions = computed(() =>
       value: assignment.id,
     }))
 )
+const selectedAssignment = computed(() => assignments.value.find(assignment => assignment.id === paymentForm.assignmentId))
+const paymentCoverage = computed(() => selectedAssignment.value ? formatFeePeriod(paymentForm.billingPeriod, selectedAssignment.value.feePlan?.frequency) : '')
 
 function formatCurrency(amount: number) {
   return `₹${(amount / 100).toFixed(2)}`
@@ -222,6 +232,24 @@ function formatCurrency(amount: number) {
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString()
+}
+
+function ordinal(day: number) {
+  if (day % 100 >= 11 && day % 100 <= 13) return 'th'
+  return ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[day % 10] || 'th'
+}
+
+function formatFeePeriod(startMonth: string, frequency?: string) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(startMonth)) return 'Choose a valid start month'
+  const year = Number(startMonth.slice(0, 4))
+  const month = Number(startMonth.slice(5, 7))
+  const start = new Date(year, month - 1, 1)
+  const monthLabel = (date: Date) => date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+  if (frequency === 'one-time') return `One-time charge in ${monthLabel(start)}`
+  const months = frequency === 'quarterly' ? 3 : frequency === 'annual' ? 12 : 1
+  if (months === 1) return monthLabel(start)
+  const end = new Date(year, month + months - 2, 1)
+  return `${monthLabel(start)} – ${monthLabel(end)}`
 }
 
 async function loadData() {
@@ -250,8 +278,8 @@ async function loadData() {
 }
 
 async function addAssignment() {
-  if (!newAssignment.feePlanId || !newAssignment.startDate) {
-    toast.add({ color: 'warning', title: 'Fee plan and start date are required' })
+  if (!newAssignment.feePlanId || !newAssignment.startDate || !newAssignment.dueDay || (newAssignment.discount && !newAssignment.discountReason.trim())) {
+    toast.add({ color: 'warning', title: 'Choose a plan, start date, due day, and a reason for any discount' })
     return
   }
   addingAssignment.value = true
@@ -261,14 +289,18 @@ async function addAssignment() {
       body: {
         feePlanId: newAssignment.feePlanId,
         startDate: newAssignment.startDate,
+        dueDay: newAssignment.dueDay,
         discount: newAssignment.discount ? Math.round(newAssignment.discount * 100) : 0,
+        discountReason: newAssignment.discountReason.trim() || undefined,
       },
     })
     toast.add({ color: 'success', title: 'Assignment added' })
     await loadData()
     newAssignment.feePlanId = undefined
-    newAssignment.startDate = ''
+    newAssignment.startDate = today
+    newAssignment.dueDay = new Date().getDate() > 28 ? 28 : new Date().getDate()
     newAssignment.discount = 0
+    newAssignment.discountReason = ''
   } catch (err: any) {
     toast.add({ color: 'error', title: 'Failed to add assignment', description: err.message })
   } finally {
@@ -281,11 +313,11 @@ function openStudentFees() {
   router.push({ path: '/fees', query: { id: String(selectedStudentId.value) } })
 }
 
-async function deleteAssignment(assignmentId: number) {
-  if (!confirm('Delete this assignment? This cannot be undone if there are no payments.')) return
+async function endAssignment(assignmentId: number) {
+  if (!confirm('End this fee plan today? Its payment history will be kept.')) return
   try {
-    await $fetch(`/api/students/${studentId.value}/fee-assignments/${assignmentId}`, { method: 'DELETE' })
-    toast.add({ color: 'success', title: 'Assignment deleted' })
+    await $fetch(`/api/students/${studentId.value}/fee-assignments/${assignmentId}`, { method: 'PATCH', body: { status: 'expired', endDate: today } })
+    toast.add({ color: 'success', title: 'Fee plan ended' })
     await loadData()
   } catch (err: any) {
     toast.add({ color: 'error', title: 'Deletion failed', description: err.message })
@@ -294,7 +326,7 @@ async function deleteAssignment(assignmentId: number) {
 
 async function recordPayment() {
   if (!paymentForm.assignmentId || !paymentForm.amount || !paymentForm.paymentDate || !paymentForm.billingPeriod) {
-    toast.add({ color: 'warning', title: 'Fee assignment, amount, payment date, and fee month are required' })
+    toast.add({ color: 'warning', title: 'Fee assignment, amount, payment date, and fee-period start are required' })
     return
   }
   recordingPayment.value = true

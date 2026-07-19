@@ -132,7 +132,9 @@ const identityLabel = computed(() => {
   const responsibilities = (profile.value?.assignments || []).map((assignment: { role: string, scopeName: string }) => `${formatRole(assignment.role)} — ${assignment.scopeName}`)
   return responsibilities.length ? `${accountRole} · ${responsibilities.join(', ')}` : accountRole
 })
-const canManageLocations = computed(() => (profile.value?.assignments || []).some((assignment: { role: string }) => ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head'].includes(assignment.role)))
+const territoryManagerRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
+const canManageLocations = computed(() => (profile.value?.assignments || []).some((assignment: { role: string }) => territoryManagerRoles.includes(assignment.role)))
+const canManageFeePlans = computed(() => !['owner', 'admin'].includes(user.value?.role || '') && (profile.value?.assignments || []).some((assignment: { role: string }) => territoryManagerRoles.includes(assignment.role)))
 
 const allNavigation = [
   { label: 'Workspace', items: [{ label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' }, { label: 'Getting started', to: '/getting-started', icon: 'i-lucide-list-checks' }] },
@@ -185,6 +187,9 @@ const navigation = computed(() => {
       ]
     : allNavigation
   return items.map(section => {
+  if (section.label === 'Finance' && canManageFeePlans.value) {
+    return { ...section, items: [...section.items, { label: 'Fee plans', to: '/settings/finance/fee-plans', icon: 'i-lucide-wallet-cards' }] }
+  }
   if (section.label === 'Organization' && !['owner', 'admin'].includes(user.value?.role || '')) {
     return { ...section, items: canManageLocations.value ? [{ label: 'Locations & structure', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' }] : [] }
   }

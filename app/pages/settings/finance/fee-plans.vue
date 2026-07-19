@@ -95,7 +95,7 @@
 </template>
 
 <script setup lang="ts">
-definePageMeta({ middleware: ['auth', 'admin'] })
+definePageMeta({ middleware: ['auth', 'fee-plan-manager'] })
 
 const toast = useToast()
 const { user } = useUserSession()

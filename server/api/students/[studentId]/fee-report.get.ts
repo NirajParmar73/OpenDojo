@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import PDFDocument from 'pdfkit'
 import { db, tables } from '../../../utils/database'
 import { formatAmount } from '../../../utils/currency'
+import { formatFeePeriod } from '../../../utils/fee-period'
 import { calculateFeeBalance } from '../../../utils/fees'
 import { getAccessibleDojoIds } from '../../../utils/permissions'
 
@@ -86,7 +87,7 @@ export default defineEventHandler(async (event) => {
   } else {
     for (const payment of filteredPayments) {
       if (y > doc.page.height - 85) { doc.addPage(); y = 55 }
-      const feePeriod = payment.billingPeriod ? new Date(`${payment.billingPeriod}-01T00:00:00`).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }) : new Date(payment.paymentDate).toLocaleDateString('en-IN', { month: 'short', year: 'numeric' })
+      const feePeriod = formatFeePeriod(payment.billingPeriod, payment.paymentDate, payment.assignment?.feePlan?.frequency, 'short')
       doc.font('Helvetica').fontSize(10).fillColor('#111827')
       doc.text(new Date(payment.paymentDate).toLocaleDateString('en-IN'), columns[0]!, y, { width: 70 })
       doc.text(feePeriod, columns[1]!, y, { width: 95 })

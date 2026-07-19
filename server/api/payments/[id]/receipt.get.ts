@@ -4,12 +4,8 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { db, tables } from '../../../utils/database'
 import { formatAmount } from '../../../utils/currency'
+import { formatFeePeriod } from '../../../utils/fee-period'
 import { getAccessibleDojoIds } from '../../../utils/permissions'
-
-function formatBillingPeriod(billingPeriod: string | null, paymentDate: Date | number) {
-  const date = billingPeriod ? new Date(`${billingPeriod}-01T00:00:00`) : new Date(paymentDate)
-  return date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
-}
 
 // PDFKit's built-in Helvetica font cannot encode the Indian Rupee glyph. Using
 // the ISO currency code avoids it being rendered as a stray superscript "1".
@@ -120,7 +116,7 @@ export default defineEventHandler(async (event) => {
   sectionTitle('Payment details', '#14b8a6')
   detailCard([
     ['Fee plan', payment.assignment?.feePlan?.name || 'General payment'],
-    ['Fee period', formatBillingPeriod(payment.billingPeriod, payment.paymentDate)],
+    ['Fee period', formatFeePeriod(payment.billingPeriod, payment.paymentDate, payment.assignment?.feePlan?.frequency)],
     ['Payment method', String(payment.method || 'cash').replaceAll('_', ' ')],
     ...(payment.referenceNumber ? [['Reference', payment.referenceNumber] as [string, string]] : []),
   ], '#f0fdfa')

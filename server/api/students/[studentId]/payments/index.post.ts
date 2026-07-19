@@ -9,7 +9,7 @@ const createPaymentSchema = z.object({
   amount: z.number().int().positive(),
   discountAmount: z.number().int().nonnegative().default(0),
   paymentDate: z.string(),
-  billingPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Select the fee month this payment covers'),
+  billingPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Select the month in which the fee period begins'),
   method: z.enum(['cash', 'bank_transfer', 'card', 'other']).default('cash'),
   referenceNumber: z.string().optional().nullable(),
   assignmentId: z.number().int().positive().nullable().optional(),

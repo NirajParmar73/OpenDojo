@@ -54,6 +54,21 @@ export default defineEventHandler(async (event) => {
   if (!feePlan) {
     throw createError({ statusCode: 400, statusMessage: 'Invalid fee plan' })
   }
+  if (feePlan.dojoId && feePlan.dojoId !== student.dojoId) {
+    throw createError({ statusCode: 400, statusMessage: 'Choose a fee plan for this student\'s dojo.' })
+  }
+  if (feePlan.frequency !== 'one-time') {
+    const activeAssignments = await db.query.studentFeeAssignments.findMany({
+      where: and(
+        eq(tables.studentFeeAssignments.studentId, Number(studentId)),
+        eq(tables.studentFeeAssignments.status, 'active')
+      ),
+      with: { feePlan: true },
+    }) as any[]
+    if (activeAssignments.some(assignment => assignment.feePlan.frequency !== 'one-time')) {
+      throw createError({ statusCode: 409, statusMessage: 'End the student\'s current recurring fee plan before assigning another one.' })
+    }
+  }
 
   const [assignment] = await db.insert(tables.studentFeeAssignments).values({
     studentId: Number(studentId),

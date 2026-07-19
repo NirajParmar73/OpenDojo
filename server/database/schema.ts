@@ -597,7 +597,7 @@ export const payments = pgTable('payments', (t) => ({
   amount: t.integer('amount').notNull(),
   discountAmount: t.integer('discount_amount').notNull().default(0),
   paymentDate: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
-  billingPeriod: t.text('billing_period'), // YYYY-MM fee period covered by this payment
+  billingPeriod: t.text('billing_period'), // YYYY-MM start month; coverage range comes from the assigned fee plan
   method: t.text({ enum: ['cash', 'bank_transfer', 'card', 'other'] }).default('cash'),
   referenceNumber: t.text(),
   receiptNumber: t.text().notNull(),
