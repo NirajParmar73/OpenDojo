@@ -191,7 +191,15 @@ const navigation = computed(() => {
     return { ...section, items: [...section.items, { label: 'Fee plans', to: '/settings/finance/fee-plans', icon: 'i-lucide-wallet-cards' }] }
   }
   if (section.label === 'Organization' && !['owner', 'admin'].includes(user.value?.role || '')) {
-    return { ...section, items: canManageLocations.value ? [{ label: 'Locations & structure', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' }] : [] }
+    return {
+      ...section,
+      items: canManageLocations.value
+        ? [
+            { label: 'Locations & structure', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
+            { label: 'Audit log', to: '/settings/audit-log', icon: 'i-lucide-scroll-text' },
+          ]
+        : [],
+    }
   }
   if (section.label === 'Insights' && !['owner', 'admin'].includes(user.value?.role || '')) return { ...section, items: section.items.filter(item => item.to !== '/certificates') }
   return section
