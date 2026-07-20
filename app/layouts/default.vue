@@ -86,6 +86,7 @@
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
+          <PwaInstallButton />
           <button
             class="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
             :aria-label="colorMode.value === 'dark' ? 'Use light mode' : 'Use dark mode'"

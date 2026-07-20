@@ -8,13 +8,16 @@
           Open Dojo
           <span class="font-normal text-slate-500">Student portal</span>
         </NuxtLink>
-        <button
-          v-if="loggedIn"
-          class="text-sm font-medium text-slate-600 hover:text-red-600 dark:text-slate-300"
-          @click="logout"
-        >
-          Sign out
-        </button>
+        <div class="flex items-center gap-3">
+          <PwaInstallButton />
+          <button
+            v-if="loggedIn"
+            class="text-sm font-medium text-slate-600 hover:text-red-600 dark:text-slate-300"
+            @click="logout"
+          >
+            Sign out
+          </button>
+        </div>
       </div>
     </header>
     <main class="px-4 py-8 sm:px-6">
