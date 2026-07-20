@@ -141,6 +141,7 @@ const selectedStudentId = ref<number | undefined>()
 const selectedHierarchyId = ref<number | 'all'>('all')
 const selectedDojoId = ref<number | 'all'>('all')
 const { data: studentDirectory } = await useFetch<any[]>('/api/students')
+const { data: organizationSettings } = await useFetch<{ currency?: string }>('/api/organization/settings')
 
 const toast = useToast()
 const student = ref<any>(null)
@@ -226,9 +227,7 @@ const assignmentOptions = computed(() =>
 const selectedAssignment = computed(() => assignments.value.find(assignment => assignment.id === paymentForm.assignmentId))
 const paymentCoverage = computed(() => selectedAssignment.value ? formatFeePeriod(paymentForm.billingPeriod, selectedAssignment.value.feePlan?.frequency) : '')
 
-function formatCurrency(amount: number) {
-  return `₹${(amount / 100).toFixed(2)}`
-}
+function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organizationSettings.value?.currency || 'USD' }).format(amount / 100) }
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString()

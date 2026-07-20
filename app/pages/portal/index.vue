@@ -20,9 +20,10 @@ definePageMeta({ middleware: 'auth', layout: 'portal' })
 const { user } = useUserSession(); if (user.value?.role !== 'student') await navigateTo('/')
 const toast = useToast(); const tab = ref('profile'); const savingProfile = ref(false); const tabs = [{ label: 'Profile', value: 'profile' }, { label: 'Attendance', value: 'attendance' }, { label: 'Progress', value: 'progress' }, { label: 'Achievements', value: 'achievements' }, { label: 'Fees', value: 'fees' }, { label: 'Documents', value: 'documents' }]
 const { data, pending, error, refresh } = await useFetch<any>('/api/portal/me')
+const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const profile = reactive({ email: '', phone: '', address: '', emergencyContact: '', emergencyPhone: '' })
 watchEffect(() => { if (data.value) Object.assign(profile, { email: data.value.student.email || '', phone: data.value.student.phone || '', address: data.value.student.address || '', emergencyContact: data.value.student.emergencyContact || '', emergencyPhone: data.value.student.emergencyPhone || '' }) })
-function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) }; function formatCurrency(amount: number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount / 100) }
+function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) }; function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organization.value?.currency || 'USD' }).format(amount / 100) }
 function attendanceColor(status: string) { return status === 'present' ? 'success' : status === 'late' ? 'warning' : status === 'excused' ? 'info' : 'error' }
 async function saveProfile() { savingProfile.value = true; try { await $fetch('/api/portal/profile', { method: 'PATCH', body: profile }); await refresh(); toast.add({ color: 'success', title: 'Profile updated' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not update profile', description: error.data?.statusMessage || error.message }) } finally { savingProfile.value = false } }
 </script>

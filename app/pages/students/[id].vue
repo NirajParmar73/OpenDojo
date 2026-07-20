@@ -236,10 +236,10 @@ const documentForm = reactive({ documentType: 'other', documentNumber: '', notes
 const gradingForm = reactive({ beltRankId: undefined as number | undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null as File | null })
 const achievementForm = reactive({ tournamentName: '', tournamentLevel: '', venue: '', startDate: new Date().toISOString().slice(0, 10), endDate: '', eventType: '', ageCategory: '', weightCategory: '', result: '', medalType: '', medalsWon: 0, notes: '', certificate: null as File | null })
 const documentTypeOptions = [
-  { label: 'Aadhaar', value: 'aadhaar' },
+  { label: 'National ID', value: 'national_id' },
   { label: 'Passport', value: 'passport' },
   { label: 'Driving licence', value: 'driving_license' },
-  { label: 'Voter ID', value: 'voter_id' },
+  { label: 'Voter registration', value: 'voter_registration' },
   { label: 'Other document', value: 'other' },
 ]
 const tabs = [
@@ -262,6 +262,7 @@ const { data: gradingData, refresh: refreshGradings } = await useAsyncData(`stud
 const { data: achievementData, refresh: refreshAchievements } = await useAsyncData(`student-${studentId}-achievements`, () => $fetch<any[]>(`/api/students/${studentId}/achievements`))
 const { data: beltRankData } = await useFetch<any[]>('/api/belt-ranks')
 const { data: feePlanData } = await useFetch<any[]>('/api/fee-plans')
+const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const savingFeeAssignment = ref(false)
 const editingAssignmentId = ref<number | null>(null)
 const feeAssignmentForm = reactive({ feePlanId: null as number | null, startDate: new Date().toISOString().slice(0, 10), discount: 0, discountReason: '' })
@@ -290,9 +291,7 @@ function formatDate(value?: number | string | null) {
   return value ? new Date(value).toLocaleDateString() : 'Not provided'
 }
 
-function formatCurrency(amount?: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format((amount || 0) / 100)
-}
+function formatCurrency(amount?: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organization.value?.currency || 'USD' }).format((amount || 0) / 100) }
 
 function attendanceColor(status: string) {
   return status === 'present' ? 'success' : status === 'late' ? 'warning' : status === 'excused' ? 'neutral' : 'error'

@@ -5,7 +5,7 @@
       <h1 class="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Pricing that grows with your organization.</h1>
       <p class="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">Start free, then scale from your city to your state and beyond.</p>
       <p class="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary"><UIcon name="i-lucide-sparkles" class="h-4 w-4" />All paid plans include a 14-day free trial. No credit card required.</p>
-      <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Prices shown in {{ currency === 'INR' ? 'INR' : 'USD' }}. {{ currency === 'INR' ? 'International visitors see USD pricing.' : 'Converted at ₹100 = US$1.' }}</p>
+      <p class="mt-3 text-sm text-slate-500 dark:text-slate-400">Prices shown in {{ currency }}. Choose the currency that applies to your organization during setup.</p>
       <div class="mt-7 inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800" role="group" aria-label="Billing period">
         <button class="rounded-lg px-4 py-2 text-sm font-medium transition" :class="billingPeriod === 'monthly' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 dark:text-slate-300'" @click="billingPeriod = 'monthly'">Monthly</button>
         <button class="rounded-lg px-4 py-2 text-sm font-medium transition" :class="billingPeriod === 'annual' ? 'bg-white text-slate-950 shadow-sm dark:bg-slate-950 dark:text-white' : 'text-slate-600 dark:text-slate-300'" @click="billingPeriod = 'annual'">Yearly <span class="text-primary">Save 2 months</span></button>
@@ -27,7 +27,7 @@
       </article>
     </div>
 
-    <div class="mx-auto mt-10 max-w-6xl rounded-2xl border border-slate-200 bg-slate-100 p-6 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"><p class="font-semibold text-slate-900 dark:text-white">A note about billing</p><p class="mt-2">Every paid plan begins with a 14-day free trial and does not require a credit card. You can also stay on Free Forever until you exceed its limits. Prices are shown in {{ currency === 'INR' ? 'INR for India' : 'USD outside India' }} and exclude applicable taxes unless stated at checkout. Monthly plans renew each month; yearly plans are billed annually and include two months free. See our <NuxtLink to="/refund-policy" class="text-primary hover:underline">Refund Policy</NuxtLink> for details.</p></div>
+    <div class="mx-auto mt-10 max-w-6xl rounded-2xl border border-slate-200 bg-slate-100 p-6 text-sm leading-6 text-slate-600 dark:border-slate-800 dark:bg-slate-900 dark:text-slate-300"><p class="font-semibold text-slate-900 dark:text-white">A note about billing</p><p class="mt-2">Every paid plan begins with a 14-day free trial and does not require a credit card. You can also stay on Free Forever until you exceed its limits. Prices are shown in {{ currency }} and exclude applicable taxes unless stated at checkout. Monthly plans renew each month; yearly plans are billed annually and include two months free. See our <NuxtLink to="/refund-policy" class="text-primary hover:underline">Refund Policy</NuxtLink> for details.</p></div>
   </section>
 </template>
 

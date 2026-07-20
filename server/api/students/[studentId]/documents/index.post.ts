@@ -2,7 +2,7 @@ import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { allowedDocumentTypes, saveUploadedFile } from '../../../../utils/upload'
 
-const documentTypes = ['aadhaar', 'passport', 'driving_license', 'voter_id', 'other']
+const documentTypes = ['national_id', 'passport', 'driving_license', 'voter_registration', 'other', 'aadhaar', 'voter_id']
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)

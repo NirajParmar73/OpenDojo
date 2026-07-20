@@ -35,7 +35,7 @@
         <UFormField label="Country code"><UInput v-model="form.countryCode" maxlength="2" placeholder="IN" /></UFormField>
         <UFormField label="State / province"><UInput v-model="form.stateProvince" /></UFormField>
         <UFormField label="City"><UInput v-model="form.city" /></UFormField>
-        <UFormField label="ZIP / PIN code"><UInput v-model="form.postalCode" /></UFormField>
+        <UFormField label="Postal / ZIP code"><UInput v-model="form.postalCode" /></UFormField>
         <UFormField label="Emergency contact"><UInput v-model="form.emergencyContact" /></UFormField>
         <UFormField label="Emergency phone"><UInput v-model="form.emergencyPhone" /></UFormField>
         <UFormField label="Medical notes" class="md:col-span-2"><UTextarea v-model="form.medicalNotes" :rows="3" /></UFormField>

@@ -46,11 +46,11 @@
           </div>
         </UFormField>
         <UFormField label="Address" class="md:col-span-2"><UInput v-model="newStudent.address" placeholder="Street address (optional)" /></UFormField>
-        <UFormField label="Country"><UInput v-model="newStudent.country" placeholder="e.g. India" /></UFormField>
-        <UFormField label="Country code"><UInput v-model="newStudent.countryCode" maxlength="2" placeholder="IN" /></UFormField>
+        <UFormField label="Country"><UInput v-model="newStudent.country" placeholder="e.g. Canada" /></UFormField>
+        <UFormField label="Country code"><UInput v-model="newStudent.countryCode" maxlength="2" placeholder="CA" /></UFormField>
         <UFormField label="State / province"><UInput v-model="newStudent.stateProvince" /></UFormField>
         <UFormField label="City"><UInput v-model="newStudent.city" /></UFormField>
-        <UFormField label="ZIP / PIN code"><UInput v-model="newStudent.postalCode" /></UFormField>
+        <UFormField label="Postal / ZIP code"><UInput v-model="newStudent.postalCode" /></UFormField>
         <div class="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2 pt-2">
           <UButton type="button" color="neutral" variant="ghost" @click="resetCreateForm">Cancel</UButton>
           <UButton type="submit" color="primary" :loading="creating">Create student</UButton>

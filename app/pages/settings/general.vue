@@ -52,13 +52,7 @@ const toast = useToast()
 const loading = ref(false)
 const message = ref('')
 
-const currencyOptions = [
-  { label: 'INR (₹)', value: 'INR' },
-  { label: 'USD ($)', value: 'USD' },
-  { label: 'EUR (€)', value: 'EUR' },
-  { label: 'GBP (£)', value: 'GBP' },
-  { label: 'JPY (¥)', value: 'JPY' },
-]
+const currencyOptions = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'INR', 'SGD', 'AED', 'ZAR', 'BRL', 'MXN'].map(value => ({ label: value, value }))
 
 const org = reactive({
   name: '',

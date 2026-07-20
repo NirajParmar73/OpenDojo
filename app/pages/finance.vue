@@ -51,6 +51,7 @@ const filter = ref('all')
 const filterOptions = [{ label: 'All records', value: 'all' }, { label: 'Paid', value: 'paid' }, { label: 'Pending', value: 'pending' }, { label: 'Overdue', value: 'overdue' }]
 const selectedDojoId = ref<number | null>(null)
 const { data: reportScope } = await useFetch<any>('/api/reports/scope')
+const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const dojoOptions = computed(() => [{ label: 'All accessible dojos', value: null }, ...((reportScope.value?.dojos || []).map((dojo: any) => ({ label: dojo.name, value: dojo.id })))] )
 const { data: overview, pending, error } = await useFetch<any>(() => `/api/finance/overview${selectedDojoId.value ? `?dojoId=${selectedDojoId.value}` : ''}`)
 const filteredRecords = computed(() => (overview.value?.records || []).filter((record: any) => {
@@ -59,8 +60,8 @@ const filteredRecords = computed(() => (overview.value?.records || []).filter((r
   const matchesFilter = filter.value === 'all' || record.collectionStatus === filter.value
   return matchesSearch && matchesFilter
 }))
-function formatCurrency(amount: number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount / 100) }
-function formatCompactCurrency(amount: number) { return new Intl.NumberFormat('en-IN', { notation: 'compact', maximumFractionDigits: 1 }).format(amount / 100) }
+function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organization.value?.currency || 'USD' }).format(amount / 100) }
+function formatCompactCurrency(amount: number) { return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(amount / 100) }
 function formatDate(value: string | number | null) { return value ? new Date(value).toLocaleDateString() : '—' }
 function trendHeight(amount: number) {
   const maximum = Math.max(...(overview.value?.revenueTrend || []).map((month: any) => month.amount), 1)

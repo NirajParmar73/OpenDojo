@@ -5,7 +5,7 @@ export const subscriptionPlans = ['free', 'city-starter', 'city-pro', 'state-pro
 export type SubscriptionPlan = typeof subscriptionPlans[number]
 export const billingPeriods = ['monthly', 'annual'] as const
 export type BillingPeriod = typeof billingPeriods[number]
-export const subscriptionStatuses = ['free', 'trialing', 'active', 'cancelled', 'expired', 'suspended'] as const
+export const subscriptionStatuses = ['free', 'pending_payment', 'trialing', 'active', 'cancelled', 'expired', 'suspended'] as const
 export type SubscriptionStatus = typeof subscriptionStatuses[number]
 
 const planLimits: Record<SubscriptionPlan, { students: number | null, studentsPerDojo: number | null, dojos: number | null, instructorsPerDojo: number | null }> = {
@@ -32,7 +32,7 @@ export async function getSubscription(orgId: number) {
     await db.update(tables.organizations).set({ subscriptionPlan: 'free', subscriptionStatus: 'expired', billingPeriod: null, updatedAt: new Date() }).where(eq(tables.organizations.id, orgId))
     return { plan: 'free' as const, limits: planLimits.free, status: 'expired' as const, billingPeriod: null, trialStartedAt: organization.trialStartedAt, trialEndsAt: organization.trialEndsAt, subscriptionStartedAt: null, subscriptionEndsAt: null, cancelAtPeriodEnd: false, paymentProvider: null, providerCustomerId: null, providerSubscriptionId: null }
   }
-  const plan = normalizePlan(organization?.subscriptionPlan)
+  const plan = organization?.subscriptionStatus === 'pending_payment' ? 'free' : normalizePlan(organization?.subscriptionPlan)
   return {
     plan,
     limits: planLimits[plan],

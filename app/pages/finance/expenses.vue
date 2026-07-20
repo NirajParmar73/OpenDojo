@@ -264,13 +264,14 @@ const statusOptions = [{ label: 'Due / unpaid', value: 'due' }, { label: 'Paid',
 const paymentMethods = ['cash', 'bank_transfer', 'card', 'upi', 'other'].map(value => ({ label: value.replaceAll('_', ' '), value }))
 const form = reactive({ category: 'other', description: '', amount: undefined as number | undefined, scopeType: user.value?.role === 'owner' ? 'organization' : 'node', scopeId: null as number | null, dueAt: '', paidAt: '', paymentMethod: 'cash', status: 'due', affiliationId: null as number | null, payee: '', invoiceNumber: '', notes: '' })
 const { data: expenses, pending, error, refresh } = await useFetch<Expense[]>('/api/finance/expenses')
+const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const { data: affiliations } = await useFetch<Array<{ id: number, governingBody: { name: string } }>>('/api/affiliations')
 const { data: reportScope } = await useFetch<{ nodes: ScopedItem[], dojos: ScopedItem[] }>('/api/reports/scope')
 const scopeItems = computed(() => (form.scopeType === 'dojo' ? reportScope.value?.dojos || [] : reportScope.value?.nodes || []).map(item => ({ label: item.label || item.name, value: item.id })))
 const affiliationOptions = computed(() => [{ label: 'No affiliation', value: null }, ...(affiliations.value || []).map(item => ({ label: item.governingBody.name, value: item.id }))])
 
 function formatCurrency(amount: number) {
-  return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount / 100)
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: organization.value?.currency || 'USD' }).format(amount / 100)
 }
 
 // eslint-disable-next-line @stylistic/max-statements-per-line

@@ -1,7 +1,7 @@
 <template>
   <div class="max-w-4xl mx-auto p-6">
     <h1 class="text-2xl font-bold mb-2">Hierarchy Types</h1>
-    <p class="mb-6 text-sm text-gray-500">A type describes the structure, such as Country or Branch. Add the real locations—such as India or Sunrise Karate—on the Hierarchy Nodes page.</p>
+    <p class="mb-6 text-sm text-gray-500">A type describes the structure, such as Country or Branch. Add the real locations—such as Canada or Sunrise Karate—on the Hierarchy Nodes page.</p>
 
     <!-- Create Level Form -->
     <UCard class="mb-6">

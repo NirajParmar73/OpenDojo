@@ -41,7 +41,11 @@ export default defineEventHandler(async (event) => {
     if (conflict && conflict.id !== session.user.organizationId) throw createError({ statusCode: 409, statusMessage: 'That workspace address is already taken' })
     updateData.slug = slug
   }
-  if (currency !== null) updateData.currency = currency
+  if (currency !== null) {
+    const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'INR', 'SGD', 'AED', 'ZAR', 'BRL', 'MXN'])
+    if (!supportedCurrencies.has(currency)) throw createError({ statusCode: 400, statusMessage: 'Choose a supported currency' })
+    updateData.currency = currency
+  }
   if (logoFilePart && logoFilePart.data) {
     try {
       const saved = await saveUploadedFile(

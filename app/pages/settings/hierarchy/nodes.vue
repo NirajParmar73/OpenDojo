@@ -7,7 +7,7 @@
         <div>
           <h2 class="font-semibold">How to set this up</h2>
           <ol class="mt-2 space-y-1 text-sm text-slate-600 dark:text-slate-300">
-            <li><strong>1. Start with the largest area</strong> you manage, such as India or Gujarat.</li>
+            <li><strong>1. Start with the largest area</strong> you manage, such as a country or region.</li>
             <li><strong>2. Use “Add …” beside a location</strong> to create the next smaller area under it.</li>
             <li><strong>3. Add dojos separately</strong> from Dojos &amp; schedules once their location is ready.</li>
           </ol>
@@ -43,7 +43,7 @@
     <!-- Add Root Node -->
     <UCard v-if="isOwner && canAddHierarchy && tree.length === 0" class="mb-6">
       <h3 class="text-lg font-semibold mb-1">Add your first location</h3>
-      <p class="mb-3 text-sm text-gray-500">Choose its type first, then enter its real name. Example: <strong>Country</strong> → <strong>India</strong>.</p>
+      <p class="mb-3 text-sm text-gray-500">Choose its type first, then enter its real name. Example: <strong>Country</strong> → <strong>Canada</strong>.</p>
       <form @submit.prevent="createRootNode">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <USelect
@@ -52,7 +52,7 @@
             placeholder="1. Choose location type"
             required
           />
-          <UInput v-model="newRoot.name" placeholder="2. Location name, e.g. India" required />
+          <UInput v-model="newRoot.name" placeholder="2. Location name, e.g. Canada" required />
           <UButton type="submit" :loading="creatingRoot">Save location</UButton>
         </div>
       </form>

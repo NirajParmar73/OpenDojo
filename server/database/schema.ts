@@ -648,7 +648,7 @@ export const documents = pgTable('documents', (t) => ({
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }),
   userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  documentType: t.text().notNull(), // 'aadhaar', 'passport', 'driving_license', 'voter_id', 'other'
+  documentType: t.text().notNull(), // e.g. 'national_id', 'passport', 'driving_license', 'voter_registration', 'other'
   documentNumber: t.text(),
   fileUrl: t.text().notNull(),
   issuedDate: t.timestamp({ withTimezone: true }),

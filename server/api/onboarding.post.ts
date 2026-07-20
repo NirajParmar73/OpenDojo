@@ -28,6 +28,7 @@ export default defineEventHandler(async (event) => {
   const branchName = getField('branchName')?.trim()
   const feeName = getField('feeName')
   const feeAmount = Number(getField('feeAmount'))
+  const currency = getField('currency')
   const name = getField('name')
   const email = getField('email')
   const password = getField('password')
@@ -45,6 +46,8 @@ export default defineEventHandler(async (event) => {
   if (password.length < 8) {
     throw createError({ statusCode: 400, statusMessage: 'Password must be at least 8 characters' })
   }
+  const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'INR', 'SGD', 'AED', 'ZAR', 'BRL', 'MXN'])
+  if (!currency || !supportedCurrencies.has(currency)) throw createError({ statusCode: 400, statusMessage: 'Choose a supported organization currency' })
   if (!/^\S+@\S+\.\S+$/.test(email)) throw createError({ statusCode: 400, statusMessage: 'Enter a valid owner email address' })
   const trialPlans = ['city-starter', 'city-pro', 'state-pro', 'national'] as const
   const trialPlan = trialPlans.includes(requestedTrialPlan as typeof trialPlans[number]) ? requestedTrialPlan as typeof trialPlans[number] : null
@@ -107,6 +110,7 @@ export default defineEventHandler(async (event) => {
     name: orgName,
     slug,
     logo: logoPath,
+    currency,
     subscriptionPlan: trialPlan || 'free',
     subscriptionStatus: trialPlan ? 'trialing' : 'free',
     billingPeriod: trialPlan ? (requestedBillingPeriod || 'annual') : null,

@@ -41,6 +41,8 @@ export default defineNuxtConfig({
   runtimeConfig:{
       tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
       appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
+      razorpayKeyId: process.env.NUXT_RAZORPAY_KEY_ID || '',
+      razorpayKeySecret: process.env.NUXT_RAZORPAY_KEY_SECRET || '',
       public: {
       appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
       tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
@@ -48,6 +50,7 @@ export default defineNuxtConfig({
       supportEmail: process.env.NUXT_PUBLIC_SUPPORT_EMAIL || 'support@your-domain.com',
       supportPhone: process.env.NUXT_PUBLIC_SUPPORT_PHONE || '',
       legalAddress: process.env.NUXT_PUBLIC_LEGAL_ADDRESS || '',
+      razorpayKeyId: process.env.NUXT_RAZORPAY_KEY_ID || '',
     },
     session:{
       password: '',

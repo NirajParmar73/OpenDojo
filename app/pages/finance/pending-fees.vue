@@ -41,12 +41,13 @@ definePageMeta({ middleware: 'auth' })
 const search = ref('')
 const selectedDojoId = ref<number | null>(null)
 const { data: reportScope } = await useFetch<any>('/api/reports/scope')
+const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const dojoOptions = computed(() => [{ label: 'All accessible dojos', value: null }, ...((reportScope.value?.dojos || []).map((dojo: any) => ({ label: dojo.name, value: dojo.id })))] )
 const { data: overview, pending, error } = await useFetch<any>(() => `/api/finance/overview${selectedDojoId.value ? `?dojoId=${selectedDojoId.value}` : ''}`)
 const records = computed(() => (overview.value?.records || []).filter((record: any) => record.outstandingAmount > 0))
 const filteredRecords = computed(() => { const term = search.value.trim().toLowerCase(); return records.value.filter((record: any) => !term || `${record.studentName} ${record.dojoName}`.toLowerCase().includes(term)) })
 const overdueAmount = computed(() => records.value.filter((record: any) => record.daysOverdue > 0).reduce((total: number, record: any) => total + record.outstandingAmount, 0))
 const longestOverdue = computed(() => Math.max(0, ...records.value.map((record: any) => record.daysOverdue || 0)))
-function formatCurrency(amount: number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR' }).format(amount / 100) }
+function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organization.value?.currency || 'USD' }).format(amount / 100) }
 function formatMonth(value: string | null) { return value ? new Intl.DateTimeFormat(undefined, { month: 'short', year: 'numeric' }).format(new Date(value)) : '—' }
 </script>
