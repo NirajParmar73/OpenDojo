@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../utils/database'
 import { eq, and } from 'drizzle-orm'
-import { assertDojoManagementAccess, assertNodeManagementAccess } from '../../../utils/permissions'
+import { assertDojoManagementAccess, assertNodeManagementAccess, isDojoWithinHierarchyNode } from '../../../utils/permissions'
 import { assertDojoTerritory, getSubscription } from '../../../utils/subscription'
 import { getLocationFromHierarchyNode } from '../../../utils/hierarchy-location'
 
@@ -76,6 +76,8 @@ export default defineEventHandler(async (event) => {
   if (body.defaultFeePlanId) {
     const plan = await db.query.feePlans.findFirst({ where: and(eq(tables.feePlans.id, body.defaultFeePlanId), eq(tables.feePlans.organizationId, session.user.organizationId!)) })
     if (!plan) throw createError({ statusCode: 400, statusMessage: 'Invalid default fee plan' })
+    if (plan.dojoId && plan.dojoId !== existing.id) throw createError({ statusCode: 400, statusMessage: 'Choose a fee plan for this dojo.' })
+    if (plan.scopeNodeId && !await isDojoWithinHierarchyNode(session.user.organizationId!, existing.id, plan.scopeNodeId)) throw createError({ statusCode: 400, statusMessage: 'Choose a fee plan for this dojo\'s territory.' })
   }
 
   const [updated] = await db.update(tables.dojos)

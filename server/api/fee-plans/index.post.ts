@@ -25,8 +25,24 @@ export default defineEventHandler(async (event) => {
 
   const body = await readValidatedBody(event, createFeePlanSchema.parse)
 
-  if (session.user.role !== 'owner' && !body.dojoId) {
-    throw createError({ statusCode: 403, statusMessage: 'Choose a dojo. Only the organization owner can create organization-wide fee plans.' })
+  const assignments = !body.dojoId && session.user.role !== 'owner'
+    ? await db.query.assignments.findMany({ where: eq(tables.assignments.userId, session.user.id) })
+    : []
+  const territoryRoleOrder = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head']
+  const territoryAssignments = assignments
+    .filter(assignment => assignment.scopeType === 'node' && territoryRoleOrder.includes(assignment.role))
+  const highestTerritoryRoleIndex = Math.min(...territoryAssignments.map(assignment => territoryRoleOrder.indexOf(assignment.role)))
+  const territoryNodeIds = [...new Set(territoryAssignments
+    .filter(assignment => territoryRoleOrder.indexOf(assignment.role) === highestTerritoryRoleIndex)
+    .map(assignment => assignment.scopeId))]
+  if (!body.dojoId && session.user.role !== 'owner' && territoryNodeIds.length !== 1) {
+    throw createError({ statusCode: 403, statusMessage: 'A territory-wide plan requires one assigned hierarchy territory.' })
+  }
+  if (territoryNodeIds.length === 1) {
+    const scopeNode = await db.query.hierarchyNodes.findFirst({ where: eq(tables.hierarchyNodes.id, territoryNodeIds[0]) })
+    if (!scopeNode || scopeNode.organizationId !== orgId) {
+      throw createError({ statusCode: 403, statusMessage: 'Your assigned fee-plan territory is invalid.' })
+    }
   }
 
   // If dojoId is provided, verify it belongs to the organization
@@ -46,6 +62,7 @@ export default defineEventHandler(async (event) => {
     amount: body.amount,
     frequency: body.frequency,
     dojoId: body.dojoId || null,
+    scopeNodeId: body.dojoId ? null : (session.user.role === 'owner' ? null : territoryNodeIds[0]),
     description: body.description || null,
     isActive: body.isActive ? 1 : 0
   }).returning()

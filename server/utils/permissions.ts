@@ -2,6 +2,41 @@ import { db, tables } from '../utils/database'
 import { eq, inArray } from 'drizzle-orm'
 
 export const roleHierarchy = ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']
+export async function getAccessibleFeePlanScopeNodeIds(userId: number, organizationId: number) {
+  const accessibleDojos = await getAccessibleDojoIds(userId, organizationId)
+  if (accessibleDojos === null) return null
+
+  const [assignments, dojos, nodes] = await Promise.all([
+    db.query.assignments.findMany({ where: eq(tables.assignments.userId, userId) }),
+    db.query.dojos.findMany({ where: eq(tables.dojos.organizationId, organizationId) }),
+    db.query.hierarchyNodes.findMany({ where: eq(tables.hierarchyNodes.organizationId, organizationId) }),
+  ])
+  const nodesById = new Map(nodes.map(node => [node.id, node]))
+  const scopeNodeIds = new Set(assignments.filter(assignment => assignment.scopeType === 'node').map(assignment => assignment.scopeId))
+  for (const dojo of dojos.filter(dojo => accessibleDojos.includes(dojo.id))) {
+    let nodeId: number | null = dojo.nodeId
+    while (nodeId !== null) {
+      scopeNodeIds.add(nodeId)
+      nodeId = nodesById.get(nodeId)?.parentId ?? null
+    }
+  }
+  return [...scopeNodeIds]
+}
+
+export async function isDojoWithinHierarchyNode(organizationId: number, dojoId: number, scopeNodeId: number) {
+  const [dojo, nodes] = await Promise.all([
+    db.query.dojos.findFirst({ where: eq(tables.dojos.id, dojoId) }),
+    db.query.hierarchyNodes.findMany({ where: eq(tables.hierarchyNodes.organizationId, organizationId) }),
+  ])
+  if (!dojo || dojo.organizationId !== organizationId) return false
+  const nodesById = new Map(nodes.map(node => [node.id, node]))
+  let nodeId: number | null = dojo.nodeId
+  while (nodeId !== null) {
+    if (nodeId === scopeNodeId) return true
+    nodeId = nodesById.get(nodeId)?.parentId ?? null
+  }
+  return false
+}
 
 export async function getHierarchyManagementScope(userId: number, organizationId: number) {
   const user = await db.query.users.findFirst({ where: eq(tables.users.id, userId) })

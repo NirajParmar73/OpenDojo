@@ -16,8 +16,8 @@
           <USelect
             v-model="newPlan.dojoId"
             :items="dojoOptions"
-            :placeholder="isOwner ? 'Dojo (optional)' : 'Choose a dojo'"
-            :required="!isOwner"
+            :placeholder="canCreateOrganizationWide ? 'Dojo (optional: entire territory)' : 'Choose a dojo'"
+            :required="!canCreateOrganizationWide"
           />
           <UInput v-model="newPlan.description" placeholder="Description (optional)" />
           <UButton type="submit" :loading="creating">Add Fee Plan</UButton>
@@ -43,7 +43,7 @@
               <td class="px-4 py-4">{{ plan.name }}</td>
               <td class="px-4 py-4">{{ formatAmount(plan.amount, currency) }}</td>
               <td class="px-4 py-4">{{ plan.frequency }}</td>
-              <td class="px-4 py-4">{{ plan.dojo?.name || 'All' }}</td>
+              <td class="px-4 py-4">{{ plan.dojo?.name || plan.scopeNode?.name || 'All' }}</td>
               <td class="px-4 py-4">
                 <span :class="plan.isActive ? 'text-green-600' : 'text-gray-400'">
                   {{ plan.isActive ? 'Active' : 'Inactive' }}
@@ -76,8 +76,8 @@
             <USelect
               v-model="editForm.dojoId"
               :items="dojoOptions"
-              :placeholder="isOwner ? 'Dojo (optional)' : 'Choose a dojo'"
-              :required="!isOwner"
+              :placeholder="canCreateOrganizationWide ? 'Dojo (optional: entire territory)' : 'Choose a dojo'"
+              :required="!canCreateOrganizationWide"
             />
             <UInput v-model="editForm.description" placeholder="Description" />
             <div class="flex items-center gap-2">
@@ -105,6 +105,9 @@ const currency = ref('INR')
 const creating = ref(false)
 const updating = ref(false)
 const isOwner = computed(() => user.value?.role === 'owner')
+const profile = ref<{ assignments: { role: string }[] } | null>(null)
+const territoryManagerRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head']
+const canCreateOrganizationWide = computed(() => isOwner.value || !!profile.value?.assignments.some(assignment => territoryManagerRoles.includes(assignment.role)))
 
 const frequencyOptions = [
   { label: 'Monthly', value: 'monthly' },
@@ -142,22 +145,24 @@ function formatAmount(amount: number, cur: string) {
 
 async function loadData() {
   try {
-    const [plans, dojosData, org] = await Promise.all([
+    const [plans, dojosData, org, userProfile] = await Promise.all([
       $fetch('/api/fee-plans'),
       $fetch('/api/dojos'),
       $fetch('/api/organization/settings'),
+      $fetch<{ assignments: { role: string }[] }>('/api/user/profile'),
     ])
     feePlans.value = plans
     dojos.value = dojosData
     currency.value = org.currency || 'INR'
+    profile.value = userProfile
   } catch (error: any) {
     toast.add({ color: 'error', title: 'Failed to load data', description: error.message })
   }
 }
 
 async function createFeePlan() {
-  if (!newPlan.name || !newPlan.amount || (!isOwner.value && !newPlan.dojoId)) {
-    toast.add({ color: 'warning', title: isOwner.value ? 'Name and amount are required' : 'Name, amount, and dojo are required' })
+  if (!newPlan.name || !newPlan.amount || (!canCreateOrganizationWide.value && !newPlan.dojoId)) {
+    toast.add({ color: 'warning', title: canCreateOrganizationWide.value ? 'Name and amount are required' : 'Name, amount, and dojo are required' })
     return
   }
   creating.value = true
@@ -199,8 +204,8 @@ function cancelEdit() {
 
 async function updatePlan() {
   if (!editingPlan.value) return
-  if (!editForm.name || !editForm.amount || (!isOwner.value && !editForm.dojoId)) {
-    toast.add({ color: 'warning', title: isOwner.value ? 'Name and amount are required' : 'Name, amount, and dojo are required' })
+  if (!editForm.name || !editForm.amount || (!canCreateOrganizationWide.value && !editForm.dojoId)) {
+    toast.add({ color: 'warning', title: canCreateOrganizationWide.value ? 'Name and amount are required' : 'Name, amount, and dojo are required' })
     return
   }
   updating.value = true

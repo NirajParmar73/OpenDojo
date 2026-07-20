@@ -567,7 +567,10 @@ export const feePlans = pgTable('fee_plans', (t) => ({
   name: t.text().notNull(),
   amount: t.integer('amount').notNull(), // in smallest currency unit (e.g., paisa for INR)
   frequency: t.text({ enum: ['monthly', 'quarterly', 'annual', 'one-time'] }).default('monthly'),
-  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }), // null = organization-wide
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
+  // When set, this plan applies to every dojo below this hierarchy node.
+  // Both scopeNodeId and dojoId being null means organization-wide.
+  scopeNodeId: t.integer('scope_node_id').references(() => hierarchyNodes.id, { onDelete: 'set null' }),
   description: t.text(),
   isActive: t.integer('is_active').default(1),
   createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
@@ -615,6 +618,10 @@ export const feePlansRelations = relations(feePlans, ({ one, many }) => ({
   dojo: one(dojos, {
     fields: [feePlans.dojoId],
     references: [dojos.id],
+  }),
+  scopeNode: one(hierarchyNodes, {
+    fields: [feePlans.scopeNodeId],
+    references: [hierarchyNodes.id],
   }),
   assignments: many(studentFeeAssignments),
 }))

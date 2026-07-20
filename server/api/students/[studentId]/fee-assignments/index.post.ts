@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
-import { isDojoAccessible } from '../../../../utils/permissions'
+import { isDojoAccessible, isDojoWithinHierarchyNode } from '../../../../utils/permissions'
 
 const createAssignmentSchema = z.object({
   feePlanId: z.number().int().positive(),
@@ -56,6 +56,9 @@ export default defineEventHandler(async (event) => {
   }
   if (feePlan.dojoId && feePlan.dojoId !== student.dojoId) {
     throw createError({ statusCode: 400, statusMessage: 'Choose a fee plan for this student\'s dojo.' })
+  }
+  if (feePlan.scopeNodeId && (!student.dojoId || !await isDojoWithinHierarchyNode(orgId, student.dojoId, feePlan.scopeNodeId))) {
+    throw createError({ statusCode: 400, statusMessage: 'Choose a fee plan for this student\'s territory.' })
   }
   if (feePlan.frequency !== 'one-time') {
     const activeAssignments = await db.query.studentFeeAssignments.findMany({

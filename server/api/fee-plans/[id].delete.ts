@@ -1,6 +1,6 @@
 import { db, tables } from '../../utils/database'
 import { eq, and } from 'drizzle-orm'
-import { assertDojoManagementAccess } from '../../utils/permissions'
+import { assertDojoManagementAccess, assertNodeManagementAccess } from '../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -30,8 +30,13 @@ export default defineEventHandler(async (event) => {
   }
 
   if (session.user.role !== 'owner') {
-    if (!existing.dojoId) throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can delete organization-wide fee plans.' })
-    await assertDojoManagementAccess(session.user.id, orgId, existing.dojoId)
+    if (existing.scopeNodeId) {
+      await assertNodeManagementAccess(session.user.id, orgId, existing.scopeNodeId)
+    } else if (!existing.dojoId) {
+      throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can delete organization-wide fee plans.' })
+    } else {
+      await assertDojoManagementAccess(session.user.id, orgId, existing.dojoId)
+    }
   }
 
   // Optional: check if there are any active student assignments before deleting?

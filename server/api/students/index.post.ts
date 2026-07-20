@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../utils/database'
 import { eq } from 'drizzle-orm'
-import { assertDojoManagementAccess } from '../../utils/permissions'
+import { assertDojoManagementAccess, isDojoWithinHierarchyNode } from '../../utils/permissions'
 import { assertStudentLimit } from '../../utils/subscription'
 
 const createStudentSchema = z.object({
@@ -110,7 +110,7 @@ export default defineEventHandler(async (event) => {
     : body.feePlanId
   if (feePlanId) {
     const feePlan = await db.query.feePlans.findFirst({ where: eq(tables.feePlans.id, feePlanId) })
-    if (!feePlan || feePlan.organizationId !== orgId || (feePlan.dojoId && feePlan.dojoId !== body.dojoId)) {
+    if (!feePlan || feePlan.organizationId !== orgId || (feePlan.dojoId && feePlan.dojoId !== body.dojoId) || (feePlan.scopeNodeId && !await isDojoWithinHierarchyNode(orgId, body.dojoId, feePlan.scopeNodeId))) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid fee plan' })
     }
   }

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../utils/database'
 import { eq, and } from 'drizzle-orm'
-import { assertDojoManagementAccess } from '../../utils/permissions'
+import { assertDojoManagementAccess, assertNodeManagementAccess } from '../../utils/permissions'
 
 const updateFeePlanSchema = z.object({
   name: z.string().min(1).optional(),
@@ -42,9 +42,14 @@ export default defineEventHandler(async (event) => {
   }
 
   if (session.user.role !== 'owner') {
-    if (!existing.dojoId) throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can edit organization-wide fee plans.' })
-    await assertDojoManagementAccess(session.user.id, orgId, existing.dojoId)
-    if (body.dojoId === null) throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can make a fee plan organization-wide.' })
+    if (existing.scopeNodeId) {
+      await assertNodeManagementAccess(session.user.id, orgId, existing.scopeNodeId)
+    } else if (!existing.dojoId) {
+      throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can edit organization-wide fee plans.' })
+    } else {
+      await assertDojoManagementAccess(session.user.id, orgId, existing.dojoId)
+    }
+    if (body.dojoId === null && existing.dojoId) throw createError({ statusCode: 403, statusMessage: 'Create a new blank-dojo plan to apply it across your territory.' })
   }
 
   // If dojoId is provided, verify it belongs to the organization
