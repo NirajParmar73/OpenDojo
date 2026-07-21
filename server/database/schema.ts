@@ -245,6 +245,36 @@ export const governingBodies = pgTable('governing_bodies', (t) => ({
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// An exam is owned by the dojo running it; each candidate gets an immutable
+// fee snapshot on their attempt, rather than a reusable student payment.
+export const gradingExams = pgTable('grading_exams', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  scheduledAt: t.timestamp('scheduled_at', { withTimezone: true }).notNull(),
+  registrationDeadline: t.timestamp('registration_deadline', { withTimezone: true }),
+  feeAmount: t.integer('fee_amount').notNull().default(0),
+  paymentTiming: t.text('payment_timing', { enum: ['registration', 'exam_day'] }).notNull().default('exam_day'),
+  status: t.text({ enum: ['draft', 'open', 'completed', 'cancelled'] }).notNull().default('draft'),
+  notes: t.text(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+export const gradingExamAttempts = pgTable('grading_exam_attempts', (t) => ({
+  id: t.serial('id').primaryKey(), examId: t.integer('exam_id').references(() => gradingExams.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  targetBeltRankId: t.integer('target_belt_rank_id').references(() => beltRanks.id, { onDelete: 'set null' }),
+  attendanceStatus: t.text('attendance_status', { enum: ['registered', 'appeared', 'absent', 'withdrawn'] }).notNull().default('registered'),
+  result: t.text({ enum: ['pending', 'passed', 'failed'] }).notNull().default('pending'), feeAmount: t.integer('fee_amount').notNull().default(0),
+  paymentStatus: t.text('payment_status', { enum: ['pending', 'paid', 'waived', 'refunded'] }).notNull().default('pending'),
+  paymentMethod: t.text('payment_method', { enum: ['cash', 'bank_transfer', 'card', 'other'] }), paymentReference: t.text('payment_reference'),
+  paidAt: t.timestamp('paid_at', { withTimezone: true }), waiverReason: t.text('waiver_reason'), notes: t.text(),
+  gradingId: t.integer('grading_id').references(() => studentGradings.id, { onDelete: 'set null' }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(), updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
 export const emailVerificationTokens = pgTable('email_verification_tokens', (t) => ({
   id: t.serial('id').primaryKey(),
   userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull().unique(),
@@ -483,6 +513,7 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   }),
   guardians: many(guardians),
   gradings: many(studentGradings),
+  gradingExamAttempts: many(gradingExamAttempts),
   achievements: many(studentAchievements),
   attendance: many(attendance),
   documents: many(documents),
@@ -499,6 +530,19 @@ export const studentGradingsRelations = relations(studentGradings, ({ one }) => 
     fields: [studentGradings.beltRankId],
     references: [beltRanks.id],
   }),
+}))
+
+export const gradingExamsRelations = relations(gradingExams, ({ one, many }) => ({
+  dojo: one(dojos, { fields: [gradingExams.dojoId], references: [dojos.id] }),
+  organization: one(organizations, { fields: [gradingExams.organizationId], references: [organizations.id] }),
+  attempts: many(gradingExamAttempts),
+}))
+
+export const gradingExamAttemptsRelations = relations(gradingExamAttempts, ({ one }) => ({
+  exam: one(gradingExams, { fields: [gradingExamAttempts.examId], references: [gradingExams.id] }),
+  student: one(students, { fields: [gradingExamAttempts.studentId], references: [students.id] }),
+  targetBeltRank: one(beltRanks, { fields: [gradingExamAttempts.targetBeltRankId], references: [beltRanks.id] }),
+  grading: one(studentGradings, { fields: [gradingExamAttempts.gradingId], references: [studentGradings.id] }),
 }))
 
 export const guardiansRelations = relations(guardians, ({ one }) => ({

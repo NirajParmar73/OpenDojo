@@ -152,6 +152,8 @@ const allNavigation = [
     items: [
       { label: 'Dojos & schedules', to: '/dojos', icon: 'i-lucide-building-2' },
       { label: 'Attendance', to: '/attendance', icon: 'i-lucide-calendar-check-2' },
+      { label: 'Grading exams', to: '/grading-exams', icon: 'i-lucide-award' },
+      { label: 'Promotion eligibility', to: '/promotion-eligibility', icon: 'i-lucide-list-checks' },
       { label: 'Tournament setup', to: '/tournaments', icon: 'i-lucide-trophy' },
       { label: 'Tournament results', to: '/tournament-results', icon: 'i-lucide-medal' },
     ],
