@@ -1,74 +1,70 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
 
+/* Dojo paper: a restrained, readable version of the supplied wash-painting
+   reference. The dashboard keeps its operational clarity while gaining a
+   warm paper/ink identity. */
 @theme static {
-  --font-sans: 'Public Sans', sans-serif;
+  --font-sans: 'Public Sans', ui-sans-serif, system-ui, sans-serif;
+  --font-display: Georgia, 'Times New Roman', serif;
 
-  --color-green-50: #EFFDF5;
-  --color-green-100: #D9FBE8;
-  --color-green-200: #B3F5D1;
-  --color-green-300: #75EDAE;
-  --color-green-400: #00DC82;
-  --color-green-500: #00C16A;
-  --color-green-600: #00A155;
-  --color-green-700: #007F45;
-  --color-green-800: #016538;
-  --color-green-900: #0A5331;
-  --color-green-950: #052E16;
+  --color-red-50: #fff3ed;
+  --color-red-100: #ffe0d2;
+  --color-red-200: #ffc2ab;
+  --color-red-300: #f99a78;
+  --color-red-400: #e76d4d;
+  --color-red-500: #c7442d;
+  --color-red-600: #ac3021;
+  --color-red-700: #8c241a;
+  --color-red-800: #6e211b;
+  --color-red-900: #541d19;
+  --color-red-950: #2d0d0b;
+
+  --color-slate-50: #fffaf0;
+  --color-slate-100: #f7eedb;
+  --color-slate-200: #e9ddc5;
+  --color-slate-300: #d6c4a6;
+  --color-slate-400: #a99072;
+  --color-slate-500: #796650;
+  --color-slate-600: #5b4c3e;
+  --color-slate-700: #3f352c;
+  --color-slate-800: #2c2826;
+  --color-slate-900: #1d1c1b;
+  --color-slate-950: #121416;
 }
 
-html {
-  background: #f8fafc;
+html { background: #fffaf0; }
+html.dark { background: #121416; }
+body { min-width: 320px; }
+
+body::before {
+  position: fixed;
+  z-index: -1;
+  inset: 0;
+  pointer-events: none;
+  content: '';
+  opacity: .58;
+  background-image: radial-gradient(circle at 12% 8%, rgb(190 63 42 / 8%), transparent 25rem), radial-gradient(circle at 86% 18%, rgb(179 142 74 / 8%), transparent 24rem), repeating-linear-gradient(0deg, rgb(82 56 27 / 2%) 0, rgb(82 56 27 / 2%) 1px, transparent 1px, transparent 4px);
 }
+html.dark body::before { opacity: .23; background-image: radial-gradient(circle at 12% 8%, rgb(217 94 60 / 18%), transparent 25rem), radial-gradient(circle at 86% 18%, rgb(194 145 73 / 12%), transparent 24rem); }
 
-html.dark {
-  background: #020617;
-}
+h1, h2, h3 { font-family: var(--font-display); letter-spacing: -.025em; }
 
-body {
-  min-width: 320px;
-}
+::selection { background: color-mix(in srgb, var(--ui-primary) 25%, transparent); }
 
-/* Native date/month fields and trigger labels can otherwise collapse down to
-   unreadable numeric fragments inside narrow grid and table layouts. */
-input[type='date'],
-input[type='month'],
-input[type='time'],
-[data-slot='trigger'] {
-  min-inline-size: 0;
-  max-inline-size: 100%;
-}
+input[type='date'], input[type='month'], input[type='time'], [data-slot='trigger'] { min-inline-size: 0; max-inline-size: 100%; }
+@media (max-width: 639px) { input[type='date'], input[type='month'], input[type='time'] { font-size: 16px; } [data-slot='trigger'] { min-block-size: 2.75rem; } }
 
-@media (max-width: 639px) {
-  input[type='date'],
-  input[type='month'],
-  input[type='time'] {
-    font-size: 16px;
-  }
-
-  [data-slot='trigger'] {
-    min-block-size: 2.75rem;
-  }
-}
-
-::selection {
-  background: color-mix(in srgb, var(--ui-primary) 25%, transparent);
-}
-
-/* Compatibility layer for legacy pages that still use Tailwind gray/white
-   utilities instead of the newer semantic dark variants. */
-html.dark .bg-white { background-color: #0f172a; }
-html.dark .bg-gray-50 { background-color: #111827; }
-html.dark .bg-gray-100 { background-color: #1e293b; }
-html.dark .bg-gray-200 { background-color: #334155; }
-html.dark .text-gray-900 { color: #f8fafc; }
-html.dark .text-gray-800 { color: #e2e8f0; }
-html.dark .text-gray-700 { color: #cbd5e1; }
-html.dark .text-gray-600 { color: #94a3b8; }
-html.dark .text-gray-500 { color: #94a3b8; }
-html.dark .text-gray-400 { color: #94a3b8; }
-html.dark .border-gray-100,
-html.dark .border-gray-200,
-html.dark .divide-gray-200 { border-color: #334155; }
-html.dark .hover\:bg-gray-50:hover,
-html.dark .hover\:bg-gray-100:hover { background-color: #1e293b; }
+/* A soft painted edge for the app shell and cards without visual noise. */
+[data-slot='root'][class*='bg-white'], .bg-white { box-shadow: 0 1px 2px rgb(59 38 17 / 7%), 0 10px 30px rgb(69 40 13 / 4%); }
+html.dark .bg-white { background-color: #202326; box-shadow: 0 1px 2px rgb(0 0 0 / 30%); }
+html.dark .bg-gray-50 { background-color: #1a1d20; }
+html.dark .bg-gray-100 { background-color: #292d30; }
+html.dark .bg-gray-200 { background-color: #3a3c3d; }
+html.dark .text-gray-900 { color: #fff7ea; }
+html.dark .text-gray-800 { color: #eee4d4; }
+html.dark .text-gray-700 { color: #d6c9b6; }
+html.dark .text-gray-600, html.dark .text-gray-500 { color: #b9aa96; }
+html.dark .text-gray-400 { color: #a39481; }
+html.dark .border-gray-100, html.dark .border-gray-200, html.dark .divide-gray-200 { border-color: #414244; }
+html.dark .hover\:bg-gray-50:hover, html.dark .hover\:bg-gray-100:hover { background-color: #292d30; }

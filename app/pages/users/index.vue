@@ -1,10 +1,11 @@
 <template>
   <div class="max-w-6xl mx-auto p-6">
-    <h1 class="text-2xl font-bold mb-6">User Management</h1>
+    <h1 class="text-2xl font-bold mb-2">Staff & access</h1>
+    <p class="mb-6 text-sm text-slate-500 dark:text-slate-400">Assign access to the whole organization, an optional location group, or an individual location.</p>
 
     <!-- Create User Form (only if user has permissions) -->
     <UCard class="mb-6" v-if="canCreateUsers && !isFreePlan">
-      <h3 class="text-lg font-semibold mb-3">Add User</h3>
+      <h3 class="text-lg font-semibold mb-3">Add staff member</h3>
       <form @submit.prevent="createUser">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
           <UInput v-model="newUser.name" placeholder="Full Name" required />
@@ -25,32 +26,32 @@
         </div>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Standard access is recommended for most staff. Responsibilities below define the locations or dojos this person can manage.</p>
         <div class="mt-4">
-          <h4 class="font-medium mb-2">Assignments</h4>
+          <h4 class="font-medium mb-2">Responsibilities</h4>
           <div v-for="(assign, index) in newUser.assignments" :key="index" class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
             <USelect
               v-model="assign.role"
               :items="filteredRoleOptions"
-              placeholder="Role"
+              placeholder="Responsibility"
               @update:model-value="assign.scopeId = null"
             />
             <template v-if="isNodeRole(assign.role)">
               <USelect
                 v-model="assign.scopeId"
                 :items="filteredNodeOptions"
-                placeholder="Select location"
+                placeholder="Select location group"
               />
             </template>
             <template v-else-if="isDojoRole(assign.role)">
               <USelect
                 v-model="assign.scopeId"
                 :items="filteredDojoOptions"
-                placeholder="Select Dojo"
+                placeholder="Select location"
               />
             </template>
             <div v-else></div>
             <UButton color="error" variant="ghost" size="sm" @click="removeAssignment(newUser.assignments, +index)">Remove</UButton>
           </div>
-          <UButton size="sm" color="secondary" @click="addAssignment(newUser.assignments)">Add Assignment</UButton>
+          <UButton size="sm" color="secondary" @click="addAssignment(newUser.assignments)">Add responsibility</UButton>
         </div>
         <UButton type="submit" class="mt-4" :loading="creating">Create User</UButton>
       </form>
@@ -81,7 +82,7 @@
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Access level</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dan Degree</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificate</th>
-              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Assignments</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Responsibilities</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
@@ -101,7 +102,7 @@
               </td>
               <td class="px-4 py-4">
                 <span v-for="(assign, idx) in user.assignments" :key="idx" class="inline-block bg-gray-100 text-xs px-2 py-1 rounded mr-1 mb-1">
-                  {{ assign.role }} ({{ assign.scopeType }}: {{ assign.scopeName || 'Unknown' }})
+                  {{ formatAssignmentRole(assign.role) }} · {{ assign.scopeName || 'Unknown scope' }}
                 </span>
                 <span v-if="!user.assignments.length" class="text-gray-400">No assignments</span>
               </td>
@@ -140,7 +141,7 @@ const { user: currentUser } = useUserSession()
 const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
 // Default to the restrictive state until entitlements have loaded. The server
 // remains authoritative, but this avoids rendering an unusable invite form.
-const isFreePlan = computed(() => subscription.value?.plan !== 'city-starter' && subscription.value?.plan !== 'city-pro' && subscription.value?.plan !== 'state-pro' && subscription.value?.plan !== 'national')
+const isFreePlan = computed(() => subscription.value?.plan === 'free')
 const users = ref<any[]>([])
 const nodes = ref<any[]>([])
 const flatNodes = ref<any[]>([])
@@ -163,15 +164,14 @@ const uploadingAvatar = ref(false)
 const uploadingCertificate = ref(false)
 
 const roleOptions = [
-  { label: 'Country Head', value: 'country_head' },
-  { label: 'State Head', value: 'state_head' },
-  { label: 'District Head', value: 'district_head' },
-  { label: 'City Head', value: 'city_head' },
-  { label: 'Zone Head', value: 'zone_head' },
-  { label: 'Dojo Head', value: 'dojo_head' },
+  { label: 'Location group manager', value: 'group_manager' },
+  { label: 'Location manager', value: 'location_manager' },
   { label: 'Instructor', value: 'instructor' },
-  { label: 'Member', value: 'member' },
+  { label: 'Staff', value: 'staff' },
 ]
+const legacyNodeRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head']
+const storedRole = (role: string) => ({ group_manager: 'state_head', location_manager: 'dojo_head', staff: 'member' }[role] || role)
+const formatAssignmentRole = (role: string) => legacyNodeRoles.includes(role) ? 'Location group manager' : role === 'dojo_head' ? 'Location manager' : role === 'instructor' ? 'Instructor' : 'Staff'
 
 const accountRoleOptions = computed(() => [
   { label: 'Standard access (recommended)', value: 'member' },
@@ -182,7 +182,10 @@ const formatAccountAccess = (role: string) => role === 'admin' ? 'Organization a
 // Filtered role options based on permissions
 const filteredRoleOptions = computed(() => {
   if (permissions.value.allowedRoles.length === 0) return []
-  return roleOptions.filter(r => permissions.value.allowedRoles.includes(r.value))
+  return roleOptions.filter((role) => {
+    const stored = storedRole(role.value)
+    return role.value === 'group_manager' ? legacyNodeRoles.some(item => permissions.value.allowedRoles.includes(item)) : permissions.value.allowedRoles.includes(stored)
+  })
 })
 
 // ✅ Fixed: convert node.id to number using Number()
@@ -213,13 +216,10 @@ const canCreateUsers = computed(() => {
 })
 
 const roleScopeMap: Record<string, string> = {
-  country_head: 'node',
-  state_head: 'node',
-  district_head: 'node',
-  city_head: 'node',
-  zone_head: 'node',
-  dojo_head: 'dojo',
+  group_manager: 'node',
+  location_manager: 'dojo',
   instructor: 'dojo',
+  staff: 'dojo',
 }
 
 function isNodeRole(role: string): boolean {
@@ -344,7 +344,7 @@ async function loadData() {
 // ----- Assignment Helpers -----
 function addAssignment(assignments: any[]) {
   assignments.push({
-    role: 'member',
+    role: 'staff',
     scopeId: null,
   })
 }
@@ -364,7 +364,7 @@ async function createUser() {
   const assignments = newUser.assignments
     .filter((a: any) => a.role && a.scopeId)
     .map((a: any) => ({
-      role: a.role,
+      role: storedRole(a.role),
       scopeType: isNodeRole(a.role) ? 'node' : (isDojoRole(a.role) ? 'dojo' : null),
       scopeId: Number(a.scopeId),
     }))
@@ -373,7 +373,7 @@ async function createUser() {
   for (const a of assignments) {
     if (isNodeRole(a.role) || isDojoRole(a.role)) {
       if (!a.scopeId) {
-        toast.add({ color: 'warning', title: `Please select a scope for role: ${a.role}` })
+        toast.add({ color: 'warning', title: `Please select a location or group for ${formatAssignmentRole(a.role)}` })
         return
       }
     }

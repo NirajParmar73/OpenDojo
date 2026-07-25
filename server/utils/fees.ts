@@ -1,4 +1,4 @@
-export type FeeFrequency = 'monthly' | 'quarterly' | 'annual' | 'one-time'
+export type FeeFrequency = 'monthly' | 'quarterly' | 'half-annually' | 'annual' | 'one-time'
 
 export interface FeeBalanceInput {
   amount: number
@@ -30,7 +30,7 @@ export function calculateFeeBalance(input: FeeBalanceInput, referenceDate = new 
   const effectiveEnd = endDate && endDate < referenceDate ? endDate : referenceDate
   const dueDay = input.dueDay || startDate.getDate() || 1
   const frequency = input.frequency || 'monthly'
-  const monthsPerPeriod = frequency === 'quarterly' ? 3 : frequency === 'annual' ? 12 : 1
+  const monthsPerPeriod = frequency === 'quarterly' ? 3 : frequency === 'half-annually' ? 6 : frequency === 'annual' ? 12 : 1
 
   let periodsDue = 0
   if (startDate <= effectiveEnd) {

@@ -1,7 +1,7 @@
 export default defineAppConfig({
   ui: {
     colors: {
-      primary: 'violet',
+      primary: 'red',
       neutral: 'slate'
     },
     // Selects and menus are rendered in a portal, so page-level responsive

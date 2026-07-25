@@ -30,6 +30,17 @@
       </form>
     </UCard>
 
+    <UCard class="mb-6">
+      <template #header><div><h3 class="font-semibold">Grading fee schedule</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Set one-time grading fees per dojo and awarded belt. A fee entry is created automatically when that grading is recorded.</p></div></template>
+      <form class="grid gap-4 md:grid-cols-4" @submit.prevent="createGradingFee">
+        <UFormField label="Awarded belt" required><USelect v-model="gradingFee.beltRankId" :items="beltRankOptions" placeholder="Choose belt" /></UFormField>
+        <UFormField label="Fee amount" required><UInput v-model.number="gradingFee.amount" type="number" min="1" placeholder="e.g. 500" /></UFormField>
+        <div class="self-end"><UButton type="submit" :loading="savingGradingFee">Set selected dojos</UButton></div>
+        <div class="md:col-span-4 rounded-xl border border-slate-200 p-4 dark:border-slate-800"><div class="mb-3 flex items-center justify-between"><p class="text-sm font-medium">Apply to dojos</p><UCheckbox :model-value="allDojosSelected" label="Select all dojos" @update:model-value="toggleAllDojos" /></div><div class="grid gap-2 sm:grid-cols-2 lg:grid-cols-3"><UCheckbox v-for="dojo in dojos" :key="dojo.id" :model-value="gradingFee.dojoIds.includes(dojo.id)" :label="dojo.name" @update:model-value="toggleDojo(dojo.id, $event)" /></div></div>
+      </form>
+      <div v-if="gradingFees.length" class="mt-5 divide-y divide-slate-100 text-sm dark:divide-slate-800"><div v-for="schedule in gradingFees" :key="schedule.id" class="flex items-center justify-between gap-3 py-3"><span><strong>{{ schedule.dojo?.name }}</strong> · {{ schedule.beltRank?.name }}</span><span class="font-medium">{{ formatAmount(schedule.feePlan?.amount || 0, currency) }}</span></div></div>
+    </UCard>
+
     <UCard>
       <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
@@ -109,10 +120,13 @@ definePageMeta({ middleware: ['auth', 'fee-plan-manager'] })
 const toast = useToast()
 const { user } = useUserSession()
 const feePlans = ref<any[]>([])
+const gradingFees = ref<any[]>([])
+const beltRanks = ref<any[]>([])
 const dojos = ref<any[]>([])
 const currency = ref('INR')
 const creating = ref(false)
 const updating = ref(false)
+const savingGradingFee = ref(false)
 const isOwner = computed(() => user.value?.role === 'owner')
 const profile = ref<{ assignments: { role: string }[] } | null>(null)
 const territoryManagerRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head']
@@ -121,6 +135,7 @@ const canCreateOrganizationWide = computed(() => isOwner.value || !!profile.valu
 const frequencyOptions = [
   { label: 'Monthly - charged every month', value: 'monthly' },
   { label: 'Quarterly - charged every 3 months', value: 'quarterly' },
+  { label: 'Half-annually - charged every 6 months', value: 'half-annually' },
   { label: 'Annual - charged once a year', value: 'annual' },
   { label: 'One-time - charged once', value: 'one-time' },
 ]
@@ -146,10 +161,15 @@ const editForm = reactive({
   description: '',
   isActive: true,
 })
+const gradingFee = reactive({ dojoIds: [] as number[], beltRankId: null as number | null, amount: null as number | null })
+const allDojosSelected = computed(() => dojos.value.length > 0 && gradingFee.dojoIds.length === dojos.value.length)
+function toggleDojo(dojoId: number, checked: boolean) { gradingFee.dojoIds = checked ? [...new Set([...gradingFee.dojoIds, dojoId])] : gradingFee.dojoIds.filter(id => id !== dojoId) }
+function toggleAllDojos(checked: boolean) { gradingFee.dojoIds = checked ? dojos.value.map(dojo => dojo.id) : [] }
 
 const dojoOptions = computed(() =>
   dojos.value.map(d => ({ label: d.name, value: d.id }))
 )
+const beltRankOptions = computed(() => beltRanks.value.map(rank => ({ label: rank.name, value: rank.id })))
 
 function formatAmount(amount: number, cur: string) {
   const symbol = cur === 'INR' ? '₹' : cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur
@@ -158,19 +178,29 @@ function formatAmount(amount: number, cur: string) {
 
 async function loadData() {
   try {
-    const [plans, dojosData, org, userProfile] = await Promise.all([
+    const [plans, dojosData, org, userProfile, schedules, ranks] = await Promise.all([
       $fetch('/api/fee-plans'),
       $fetch('/api/dojos'),
       $fetch('/api/organization/settings'),
       $fetch<{ assignments: { role: string }[] }>('/api/user/profile'),
+      $fetch('/api/grading-fee-schedules'),
+      $fetch('/api/belt-ranks'),
     ])
     feePlans.value = plans
     dojos.value = dojosData
     currency.value = org.currency || 'INR'
     profile.value = userProfile
+    gradingFees.value = schedules as any[]
+    beltRanks.value = ranks as any[]
   } catch (error: any) {
     toast.add({ color: 'error', title: 'Failed to load data', description: error.message })
   }
+}
+
+async function createGradingFee() {
+  if (!gradingFee.dojoIds.length || !gradingFee.beltRankId || !gradingFee.amount) { toast.add({ color: 'warning', title: 'Choose at least one dojo, a belt, and an amount' }); return }
+  savingGradingFee.value = true
+  try { await $fetch('/api/grading-fee-schedules', { method: 'POST', body: { dojoIds: gradingFee.dojoIds, beltRankId: gradingFee.beltRankId, amount: Math.round(gradingFee.amount * 100) } }); Object.assign(gradingFee, { dojoIds: [], beltRankId: null, amount: null }); await loadData(); toast.add({ color: 'success', title: 'Grading fee added to selected dojos' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not add grading fee', description: error.data?.statusMessage || error.message }) } finally { savingGradingFee.value = false }
 }
 
 async function createFeePlan() {

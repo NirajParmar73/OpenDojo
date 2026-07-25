@@ -127,7 +127,7 @@ watch(loggedIn, async (isLoggedIn) => {
 
 const orgName = computed(() => user.value?.organizationName || 'OpenDojos')
 const orgLogo = computed(() => user.value?.organizationLogo || null)
-const formatRole = (role: string) => role === 'member' ? 'Standard access' : role === 'admin' ? 'Organization administrator' : role === 'owner' ? 'Organization owner' : role.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
+const formatRole = (role: string) => ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head'].includes(role) ? 'Location group manager' : role === 'dojo_head' ? 'Location manager' : role === 'member' ? 'Standard access' : role === 'admin' ? 'Organization administrator' : role === 'owner' ? 'Organization owner' : role.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 const identityLabel = computed(() => {
   const accountRole = formatRole(user.value?.role || 'member')
   const responsibilities = (profile.value?.assignments || []).map((assignment: { role: string, scopeName: string }) => `${formatRole(assignment.role)} — ${assignment.scopeName}`)
@@ -198,7 +198,7 @@ const navigation = computed(() => {
       ...section,
       items: canManageLocations.value
         ? [
-            { label: 'Locations & structure', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
+            { label: 'Location groups', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
             { label: 'Audit log', to: '/settings/audit-log', icon: 'i-lucide-scroll-text' },
           ]
         : [],
@@ -235,7 +235,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/finance': { title: 'Collections overview', section: 'Finance' },
   '/finance/pending-fees': { title: 'Pending fees', section: 'Finance' },
   '/finance/expenses': { title: 'Expenses', section: 'Finance' },
-  '/settings/hierarchy/nodes': { title: 'Locations & structure', section: 'Organization' },
+  '/settings/hierarchy/nodes': { title: 'Location groups', section: 'Organization' },
   '/settings/hierarchy/levels': { title: 'Location types', section: 'Organization' },
   '/settings/belts': { title: 'Belt system', section: 'Organization' },
   '/settings/programs': { title: 'Martial arts & programs', section: 'Organization' },

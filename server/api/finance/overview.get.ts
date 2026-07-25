@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
         dueDay: assignment.dueDay,
         payments: assignment.payments,
       })
-      const monthsPerPeriod = assignment.feePlan.frequency === 'quarterly' ? 3 : assignment.feePlan.frequency === 'annual' ? 12 : 1
+      const monthsPerPeriod = assignment.feePlan.frequency === 'quarterly' ? 3 : assignment.feePlan.frequency === 'half-annually' ? 6 : assignment.feePlan.frequency === 'annual' ? 12 : 1
       const firstUnpaidDueDate = balance.pendingPeriods && balance.paidPeriods < balance.periodsDue
         ? new Date(
             new Date(assignment.startDate).getFullYear(),

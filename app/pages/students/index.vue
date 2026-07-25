@@ -170,18 +170,13 @@ const studentAvatarPreview = ref('')
 const studentCameraInput = ref<HTMLInputElement | null>(null)
 const studentGalleryInput = ref<HTMLInputElement | null>(null)
 
-const isCityStarter = computed(() => subscription.value?.plan === 'city-starter')
-const studentCountByDojo = computed(() => students.value.reduce<Record<number, number>>((counts, student) => { if (student.dojoId) counts[student.dojoId] = (counts[student.dojoId] || 0) + 1; return counts }, {}))
-const cityStarterAtCapacity = computed(() => isCityStarter.value && dojos.value.length > 0 && dojos.value.every(dojo => (studentCountByDojo.value[dojo.id] || 0) >= 75))
 const globalStudentLimitReached = computed(() => {
   const limit = subscription.value?.limits.students
   return limit !== null && limit !== undefined && students.value.length >= limit
 })
-const studentLimitReached = computed(() => globalStudentLimitReached.value || cityStarterAtCapacity.value)
-const studentLimitMessage = computed(() => globalStudentLimitReached.value
-  ? `Your plan includes up to ${subscription.value?.limits.students} students. Upgrade to continue enrolling students.`
-  : 'Each City Starter dojo can have up to 75 students. Upgrade to City Pro to continue enrolling students.')
-const dojoOptions = computed(() => dojos.value.filter(dojo => !isCityStarter.value || (studentCountByDojo.value[dojo.id] || 0) < 75).map(dojo => ({ label: dojo.name, value: dojo.id })))
+const studentLimitReached = computed(() => globalStudentLimitReached.value)
+const studentLimitMessage = computed(() => `Your plan includes up to ${subscription.value?.limits.students} students. Upgrade to continue enrolling students.`)
+const dojoOptions = computed(() => dojos.value.map(dojo => ({ label: dojo.name, value: dojo.id })))
 const programOptions = computed(() => programs.value.map(program => ({ label: program.displayName, value: program.id })))
 const feeFrequencyLabel = (frequency?: string) => ({ monthly: 'every month', quarterly: 'every 3 months', annual: 'every year', 'one-time': 'one-time' } as Record<string, string>)[frequency || ''] || 'billing period'
 const availableFeePlanOptions = computed(() => feePlans.value

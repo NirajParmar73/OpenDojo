@@ -6,7 +6,7 @@ import { assertDojoManagementAccess, assertNodeManagementAccess } from '../../ut
 const updateFeePlanSchema = z.object({
   name: z.string().min(1).optional(),
   amount: z.number().int().positive().optional(),
-  frequency: z.enum(['monthly', 'quarterly', 'annual', 'one-time']).optional(),
+  frequency: z.enum(['monthly', 'quarterly', 'half-annually', 'annual', 'one-time']).optional(),
   dojoId: z.number().int().positive().nullable().optional(),
   description: z.string().optional().nullable(),
   isActive: z.boolean().optional()

@@ -628,7 +628,7 @@ export const feePlans = pgTable('fee_plans', (t) => ({
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   name: t.text().notNull(),
   amount: t.integer('amount').notNull(), // in smallest currency unit (e.g., paisa for INR)
-  frequency: t.text({ enum: ['monthly', 'quarterly', 'annual', 'one-time'] }).default('monthly'),
+  frequency: t.text({ enum: ['monthly', 'quarterly', 'half-annually', 'annual', 'one-time'] }).default('monthly'),
   dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
   // When set, this plan applies to every dojo below this hierarchy node.
   // Both scopeNodeId and dojoId being null means organization-wide.
@@ -712,6 +712,10 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
     fields: [payments.assignmentId],
     references: [studentFeeAssignments.id],
   }),
+  programEnrollment: one(studentProgramEnrollments, {
+    fields: [payments.programEnrollmentId],
+    references: [studentProgramEnrollments.id],
+  }),
 }))
 
 // ---------- Documents ----------
@@ -746,6 +750,18 @@ export const documentsRelations = relations(documents, ({ one }) => ({
   }),
 }))
 
+// A dojo can charge a different one-time grading fee for each awarded belt.
+// The linked fee plan keeps the charge visible in the existing finance flow.
+export const gradingFeeSchedules = pgTable('grading_fee_schedules', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
+  beltRankId: t.integer('belt_rank_id').references(() => beltRanks.id, { onDelete: 'cascade' }).notNull(),
+  feePlanId: t.integer('fee_plan_id').references(() => feePlans.id, { onDelete: 'cascade' }).notNull(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), (t) => ({ dojoRankUnique: uniqueIndex('grading_fee_schedules_dojo_rank_unique').on(t.dojoId, t.beltRankId) }))
+
 export const studentProgramEnrollmentsRelations = relations(studentProgramEnrollments, ({ one }) => ({
   student: one(students, { fields: [studentProgramEnrollments.studentId], references: [students.id] }),
   program: one(organizationPrograms, { fields: [studentProgramEnrollments.programId], references: [organizationPrograms.id] }),
@@ -774,7 +790,6 @@ export const studentAchievementsRelations = relations(studentAchievements, ({ on
     fields: [studentAchievements.createdBy],
     references: [users.id],
   }),
-  programEnrollment: one(studentProgramEnrollments, { fields: [payments.programEnrollmentId], references: [studentProgramEnrollments.id] }),
 }))
 
 export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({

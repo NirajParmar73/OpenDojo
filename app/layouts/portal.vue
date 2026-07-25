@@ -9,7 +9,14 @@
           <span class="font-normal text-slate-500">Student portal</span>
         </NuxtLink>
         <div class="flex items-center gap-3">
-          <PwaInstallButton />
+          <PwaInstallButton label="Install Student app" />
+          <button
+            class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
+            :aria-label="colorMode.value === 'dark' ? 'Use light mode' : 'Use dark mode'"
+            @click="colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'"
+          >
+            <UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4" />
+          </button>
           <button
             v-if="loggedIn"
             class="text-sm font-medium text-slate-600 hover:text-red-600 dark:text-slate-300"
@@ -29,6 +36,7 @@
 <script setup lang="ts">
 const { loggedIn, clear } = useUserSession()
 const router = useRouter()
+const colorMode = useColorMode()
 
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })

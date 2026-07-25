@@ -1,6 +1,6 @@
 <template>
   <UButton v-if="deferredPrompt && !isInstalled" size="sm" icon="i-lucide-download" @click="install">
-    Install app
+    {{ label }}
   </UButton>
 </template>
 
@@ -12,6 +12,7 @@ interface BeforeInstallPromptEvent extends Event {
 
 const deferredPrompt = useState<BeforeInstallPromptEvent | null>('pwa-install-prompt', () => null)
 const isInstalled = ref(false)
+const { label = 'Install app' } = defineProps<{ label?: string }>()
 
 async function install() {
   if (!deferredPrompt.value) return

@@ -37,7 +37,7 @@ const settingsItems = [
   { title: 'General settings', description: 'Organization name, logo, and currency.', to: '/settings/general', icon: 'i-lucide-landmark' },
   { title: 'Plan & billing', description: 'Review plan limits and request an upgrade.', to: '/settings/subscription', icon: 'i-lucide-credit-card' },
   { title: 'Upgrade setup', description: 'Safely expand your organization structure after a plan upgrade.', to: '/settings/expand-structure', icon: 'i-lucide-git-branch' },
-  { title: 'Locations & structure', description: 'Organize countries, states, districts, cities, branches, and dojos.', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
+  { title: 'Location groups', description: 'Optionally organize multiple locations for shared reporting and permissions.', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
   { title: 'Belt system', description: 'Manage ranks, colours, and progression.', to: '/settings/belts', icon: 'i-lucide-award' },
   { title: 'Martial arts & programs', description: 'Manage the disciplines and styles you teach.', to: '/settings/programs', icon: 'i-lucide-swords' },
   { title: 'Affiliations & memberships', description: 'Track governing bodies, memberships, and renewals.', to: '/settings/affiliations', icon: 'i-lucide-badge-check' },

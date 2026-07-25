@@ -204,6 +204,8 @@
             <UFormField label="Examiner"><UInput v-model="gradingForm.examiner" placeholder="Instructor or examiner" /></UFormField>
             <UFormField label="Certificate number"><UInput v-model="gradingForm.certificateNumber" placeholder="e.g. KGI-2026-00124" /></UFormField>
             <UFormField label="Certificate"><UInput type="file" accept="application/pdf,image/*" @change="onCertificateFileChange" /></UFormField>
+            <UFormField v-if="!editingGradingId" label="Grading-fee discount"><UInput v-model.number="gradingForm.gradingDiscount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField>
+            <UFormField v-if="!editingGradingId" label="Discount reason" :required="gradingForm.gradingDiscount > 0"><UInput v-model="gradingForm.gradingDiscountReason" placeholder="Required when discounted" /></UFormField>
             <UFormField label="Notes" class="sm:col-span-2"><UTextarea v-model="gradingForm.notes" placeholder="Assessment notes (optional)" /></UFormField>
             <div class="flex justify-end gap-2 sm:col-span-2"><UButton color="neutral" variant="ghost" @click="cancelGradingEdit">Cancel</UButton><UButton type="submit" color="primary" :loading="savingGrading">{{ editingGradingId ? 'Save changes' : 'Save grading' }}</UButton></div>
           </form>
@@ -239,7 +241,7 @@ const showAchievementForm = ref(false)
 const savingAchievement = ref(false)
 const guardianForm = reactive({ name: '', relationship: '', phone: '', email: '', address: '' })
 const documentForm = reactive({ documentType: 'other', documentNumber: '', notes: '', file: null as File | null })
-const gradingForm = reactive({ beltRankId: undefined as number | undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null as File | null })
+const gradingForm = reactive({ beltRankId: undefined as number | undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null as File | null, gradingDiscount: 0, gradingDiscountReason: '' })
 const achievementForm = reactive({ tournamentName: '', tournamentLevel: '', venue: '', startDate: new Date().toISOString().slice(0, 10), endDate: '', eventType: '', ageCategory: '', weightCategory: '', result: '', medalType: '', medalsWon: 0, notes: '', certificate: null as File | null })
 const documentTypeOptions = [
   { label: 'National ID', value: 'national_id' },
@@ -362,7 +364,7 @@ function toggleDocumentForm() {
 }
 
 function resetGradingForm() {
-  Object.assign(gradingForm, { beltRankId: undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null })
+  Object.assign(gradingForm, { beltRankId: undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null, gradingDiscount: 0, gradingDiscountReason: '' })
 }
 
 function openNewGrading() {
@@ -386,6 +388,8 @@ function editGrading(grading: any) {
     certificateNumber: grading.certificateNumber || '',
     notes: grading.notes || '',
     certificate: null,
+    gradingDiscount: 0,
+    gradingDiscountReason: '',
   })
   showGradingForm.value = true
 }
@@ -506,6 +510,7 @@ async function recordGrading() {
     toast.add({ color: 'warning', title: 'Awarded rank and date are required' })
     return
   }
+  if (!editingGradingId.value && gradingForm.gradingDiscount > 0 && !gradingForm.gradingDiscountReason.trim()) { toast.add({ color: 'warning', title: 'Enter a grading-fee discount reason' }); return }
   savingGrading.value = true
   try {
     const formData = new FormData()
@@ -514,6 +519,7 @@ async function recordGrading() {
     if (gradingForm.examiner.trim()) formData.append('examiner', gradingForm.examiner.trim())
     if (gradingForm.certificateNumber.trim()) formData.append('certificateNumber', gradingForm.certificateNumber.trim())
     if (gradingForm.notes.trim()) formData.append('notes', gradingForm.notes.trim())
+    if (!editingGradingId.value && gradingForm.gradingDiscount > 0) { formData.append('gradingDiscount', String(Math.round(gradingForm.gradingDiscount * 100))); formData.append('gradingDiscountReason', gradingForm.gradingDiscountReason.trim()) }
     if (gradingForm.certificate) formData.append('certificate', gradingForm.certificate)
     await $fetch(`/api/students/${studentId}/gradings${editingGradingId.value ? `/${editingGradingId.value}` : ''}`, { method: editingGradingId.value ? 'PATCH' : 'POST', body: formData })
     const wasEditing = editingGradingId.value !== null

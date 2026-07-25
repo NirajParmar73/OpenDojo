@@ -24,8 +24,6 @@ export default defineEventHandler(async (event) => {
   const dojoCity = getField('dojoCity')
   const dojoStateProvince = getField('dojoStateProvince')
   const dojoCountry = getField('dojoCountry')
-  const districtName = getField('districtName')?.trim()
-  const branchName = getField('branchName')?.trim()
   const feeName = getField('feeName')
   const feeAmount = Number(getField('feeAmount'))
   const feeFrequency = getField('feeFrequency')
@@ -49,11 +47,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'Password must be at least 8 characters' })
   }
 
-  if (!['monthly', 'quarterly', 'annual', 'one-time'].includes(feeFrequency || '')) throw createError({ statusCode: 400, statusMessage: 'Choose a valid fee billing interval' })
+  if (!['monthly', 'quarterly', 'half-annually', 'annual', 'one-time'].includes(feeFrequency || '')) throw createError({ statusCode: 400, statusMessage: 'Choose a valid fee billing interval' })
   const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'INR', 'SGD', 'AED', 'ZAR', 'BRL', 'MXN'])
   if (!currency || !supportedCurrencies.has(currency)) throw createError({ statusCode: 400, statusMessage: 'Choose a supported organization currency' })
   if (!/^\S+@\S+\.\S+$/.test(email)) throw createError({ statusCode: 400, statusMessage: 'Enter a valid owner email address' })
-  const trialPlans = ['city-starter', 'city-pro', 'state-pro', 'national'] as const
+  const trialPlans = ['growth', 'business'] as const
   const trialPlan = trialPlans.includes(requestedTrialPlan as typeof trialPlans[number]) ? requestedTrialPlan as typeof trialPlans[number] : null
   if (requestedTrialPlan && !trialPlan) throw createError({ statusCode: 400, statusMessage: 'Invalid trial plan' })
   if (requestedBillingPeriod && requestedBillingPeriod !== 'monthly' && requestedBillingPeriod !== 'annual') throw createError({ statusCode: 400, statusMessage: 'Invalid billing period' })
@@ -126,30 +124,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create organization' })
   }
 
-  // State and National plans receive a ready-to-use hierarchy. City and Free
-  // workspaces remain intentionally simple with one internal dojo node.
-  const hierarchyNames = trialPlan === 'national'
-    ? ['Country', 'State / Province', 'District', 'City / Town', 'Branch', 'Dojo']
-    : trialPlan === 'state-pro'
-      ? ['State / Province', 'District', 'City / Town', 'Branch', 'Dojo']
-      : ['Dojo']
-  const levels = await tx.insert(tables.hierarchyLevels).values(hierarchyNames.map((name, index) => ({ organizationId: org.id, name, order: index + 1 }))).returning()
-  const levelByName = new Map(levels.map(level => [level.name, level]))
-  let parentId: number | null = null
-  const nodeLabels: Record<string, string | null> = {
-    Country: dojoCountry.trim(),
-    'State / Province': dojoStateProvince.trim(),
-    District: districtName || null,
-    'City / Town': dojoCity.trim(),
-    Branch: branchName || dojoName,
-  }
-  for (const levelName of hierarchyNames.filter(name => name !== 'Dojo')) {
-    const label = nodeLabels[levelName]
-    if (!label) continue
-    const [createdNode] = await tx.insert(tables.hierarchyNodes).values({ organizationId: org.id, levelId: levelByName.get(levelName)!.id, parentId, name: label }).returning()
-    parentId = createdNode!.id
-  }
-  const [node] = await tx.insert(tables.hierarchyNodes).values({ organizationId: org.id, levelId: levelByName.get('Dojo')!.id, parentId, name: dojoName }).returning()
+  // A dojo needs an internal node for existing permission/reporting links, but
+  // geography is never used to build it. Groups can be added later if needed.
+  const [locationLevel] = await tx.insert(tables.hierarchyLevels).values({ organizationId: org.id, name: 'Location', order: 1 }).returning()
+  const [node] = await tx.insert(tables.hierarchyNodes).values({ organizationId: org.id, levelId: locationLevel!.id, parentId: null, name: dojoName }).returning()
   const [dojo] = await tx.insert(tables.dojos).values({ organizationId: org.id, nodeId: node!.id, name: dojoName, address: dojoAddress || null, city: dojoCity.trim(), stateProvince: dojoStateProvince.trim(), country: dojoCountry.trim() }).returning()
 
   const [program] = await tx.insert(tables.organizationPrograms).values({
@@ -176,7 +154,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (dojo) {
-    const [feePlan] = await tx.insert(tables.feePlans).values({ organizationId: org.id, dojoId: dojo.id, name: feeName, amount: feeAmount * 100, frequency: feeFrequency as 'monthly' | 'quarterly' | 'annual' | 'one-time', description: 'Created during workspace setup', isActive: 1 }).returning()
+    const [feePlan] = await tx.insert(tables.feePlans).values({ organizationId: org.id, dojoId: dojo.id, name: feeName, amount: feeAmount * 100, frequency: feeFrequency as 'monthly' | 'quarterly' | 'half-annually' | 'annual' | 'one-time', description: 'Created during workspace setup', isActive: 1 }).returning()
     if (feePlan) await tx.update(tables.dojos).set({ defaultFeePlanId: feePlan.id, updatedAt: new Date() }).where(eq(tables.dojos.id, dojo.id))
   }
 

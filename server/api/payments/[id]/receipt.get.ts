@@ -27,7 +27,12 @@ export default defineEventHandler(async (event) => {
   }) as any
   if (!payment || payment.student.organizationId !== organizationId) throw createError({ statusCode: 404, statusMessage: 'Payment not found' })
 
-  if (payment.student.dojoId) {
+  const portalStudentId = Number((session.user as unknown as Record<string, unknown>).studentId)
+  if (session.user.role === 'student') {
+    // Portal accounts are allowed to receive their own receipt only. They do
+    // not inherit staff/dojo permissions and cannot enumerate other students.
+    if (!portalStudentId || payment.studentId !== portalStudentId) throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+  } else if (payment.student.dojoId) {
     const accessibleDojoIds = await getAccessibleDojoIds(session.user.id, organizationId)
     if (accessibleDojoIds !== null && !accessibleDojoIds.includes(payment.student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'Access denied' })
   } else if (session.user.role !== 'owner') {

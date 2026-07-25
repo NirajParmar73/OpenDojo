@@ -19,22 +19,19 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
 const toast = useToast(); const route = useRoute(); const step = ref(1); const loading = ref(false); const logoFile = ref<File | null>(null)
-const initialPlan = ['city-starter', 'city-pro', 'state-pro', 'national'].includes(String(route.query.trialPlan)) ? String(route.query.trialPlan) : 'free'
+const initialPlan = ['growth', 'business'].includes(String(route.query.trialPlan)) ? String(route.query.trialPlan) : 'free'
 const supportedCurrencies = ['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'INR', 'SGD', 'AED', 'ZAR', 'BRL', 'MXN']
 const initialCurrency = supportedCurrencies.includes(String(route.query.currency)) ? String(route.query.currency) : 'USD'
 const form = reactive({ organizationName: '', workspaceSlug: '', dojoName: '', dojoAddress: '', dojoCity: '', dojoStateProvince: '', dojoCountry: '', dojoPhone: '', dojoEmail: '', districtName: '', branchName: '', feeName: 'Monthly tuition', feeAmount: null as number | null, feeFrequency: 'monthly', currency: initialCurrency, name: '', email: '', password: '', programName: '', martialArt: '', style: '', customMartialArt: '', customStyle: '', subscriptionPlan: initialPlan })
 const currencyOptions = supportedCurrencies.map(value => ({ label: value, value }))
 const planOptions = [
-  { label: 'Free Forever — one owner, one dojo, up to 25 students', value: 'free' },
-  { label: 'City Starter — two dojos in one city, staff, 75 students per dojo', value: 'city-starter' },
-  { label: 'City Pro — unlimited dojos, staff, and students in one city', value: 'city-pro' },
-  { label: 'State Pro — unlimited locations, staff, and students in one state', value: 'state-pro' },
-  { label: 'National — unlimited locations, staff, and students in one country', value: 'national' },
+  { label: 'Free — one location, up to 20 students', value: 'free' },
+  { label: 'Growth — up to 3 locations and 150 students', value: 'growth' },
+  { label: 'Business — unlimited locations and students', value: 'business' },
 ]
 const trialPlan = computed(() => form.subscriptionPlan === 'free' ? null : form.subscriptionPlan); const billingPeriod = computed(() => route.query.billingPeriod === 'monthly' ? 'monthly' : 'annual')
-const isAdvancedPlan = computed(() => ['state-pro', 'national'].includes(form.subscriptionPlan))
-const hierarchyStep = computed(() => isAdvancedPlan.value ? 3 : -1)
-const programStep = computed(() => isAdvancedPlan.value ? 4 : 3)
+const hierarchyStep = computed(() => -1)
+const programStep = computed(() => 3)
 const feeStep = computed(() => programStep.value + 1)
 const staffStep = computed(() => programStep.value + 2)
 const ownerStep = computed(() => programStep.value + 3)
@@ -42,6 +39,7 @@ const totalSteps = computed(() => programStep.value + 4)
 const feeFrequencyOptions = [
   { label: 'Monthly - charged every month', value: 'monthly' },
   { label: 'Quarterly - charged every 3 months', value: 'quarterly' },
+  { label: 'Half-annually - charged every 6 months', value: 'half-annually' },
   { label: 'Annual - charged once a year', value: 'annual' },
   { label: 'One-time - charged once', value: 'one-time' },
 ]

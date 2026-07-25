@@ -141,16 +141,15 @@ const newLevelName = ref('')
 const allLevelPresets = ['Country', 'State / Province', 'District', 'City / Town', 'Branch']
 const allowedPresetNames = computed<string[] | null>(() => {
   const plan = subscription.value?.plan || 'free'
-  if (plan === 'national') return null
-  if (plan === 'state-pro') return ['State / Province', 'District', 'City / Town', 'Branch']
+  if (plan === 'business') return null
   return []
 })
 const levelPresets = computed(() => allowedPresetNames.value === null ? allLevelPresets : allLevelPresets.filter(name => allowedPresetNames.value?.includes(name)))
-const canCreateCustomTypes = computed(() => subscription.value?.plan === 'national')
+const canCreateCustomTypes = computed(() => subscription.value?.plan === 'business')
 const canAddHierarchy = computed(() => allowedPresetNames.value === null || allowedPresetNames.value.length > 0)
-const canManageHierarchy = computed(() => ['state-pro', 'national'].includes(subscription.value?.plan || ''))
-const hierarchyHeading = computed(() => subscription.value?.plan === 'state-pro' ? 'Build your in-state structure' : ['city-starter', 'city-pro'].includes(subscription.value?.plan || '') ? 'Keep your city workspace simple' : 'Add location types when you need them')
-const hierarchyGuidance = computed(() => subscription.value?.plan === 'state-pro' ? 'State Pro supports State, District, City/Town, and Branch. Country-level structure is available on National.' : ['city-starter', 'city-pro'].includes(subscription.value?.plan || '') ? 'Your locations are already limited to one city, so no extra organization structure is needed. Add and manage locations from Dojos & schedules.' : 'A single dojo can stay simple. For a wider organization, add Country, State, City, Branch, or your own custom location type before adding those locations.')
+const canManageHierarchy = computed(() => subscription.value?.plan === 'business')
+const hierarchyHeading = computed(() => subscription.value?.plan === 'business' ? 'Organize locations when it helps' : 'Keep location setup simple')
+const hierarchyGuidance = computed(() => subscription.value?.plan === 'business' ? 'Business includes optional groups for reporting and delegated management. Your locations remain independent.' : 'Add and manage locations from Dojos & schedules. Upgrade to Business only if you need optional location groups.')
 
 const newRoot = reactive({
   levelId: undefined as number | undefined,

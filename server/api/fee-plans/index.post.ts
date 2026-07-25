@@ -6,7 +6,7 @@ import { assertDojoManagementAccess } from '../../utils/permissions'
 const createFeePlanSchema = z.object({
   name: z.string().min(1),
   amount: z.number().int().positive(),
-  frequency: z.enum(['monthly', 'quarterly', 'annual', 'one-time']).default('monthly'),
+  frequency: z.enum(['monthly', 'quarterly', 'half-annually', 'annual', 'one-time']).default('monthly'),
   dojoId: z.number().int().positive().nullable().optional(),
   description: z.string().optional().nullable(),
   isActive: z.boolean().default(true)

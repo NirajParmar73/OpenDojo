@@ -32,14 +32,14 @@
 
         <div class="border-t border-slate-100 pt-7 dark:border-slate-800">
           <div class="flex flex-col justify-between gap-2 sm:flex-row sm:items-center">
-            <div><h3 class="font-semibold">Scoped responsibilities</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Add a responsibility for an organization location or a specific dojo.</p></div>
+            <div><h3 class="font-semibold">Responsibilities</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Assign access to an optional location group or an individual location.</p></div>
             <UButton type="button" size="sm" color="primary" variant="soft" icon="i-lucide-plus" @click="addAssignment">Add responsibility</UButton>
           </div>
           <div v-if="form.assignments.length" class="mt-4 space-y-3">
             <div v-for="(assignment, index) in form.assignments" :key="index" class="grid gap-3 rounded-xl border border-slate-200 p-4 md:grid-cols-[1fr_1fr_auto] dark:border-slate-800">
               <USelect v-model="assignment.role" :items="scopedRoleOptions" placeholder="Responsibility" @update:model-value="assignment.scopeId = null" />
-              <USelect v-if="isNodeRole(assignment.role)" v-model="assignment.scopeId" :items="nodeOptions" placeholder="Select location" />
-              <USelect v-else v-model="assignment.scopeId" :items="dojoOptions" placeholder="Select dojo" />
+              <USelect v-if="isNodeRole(assignment.role)" v-model="assignment.scopeId" :items="nodeOptions" placeholder="Select location group" />
+              <USelect v-else v-model="assignment.scopeId" :items="dojoOptions" placeholder="Select location" />
               <UButton type="button" color="error" variant="ghost" icon="i-lucide-trash-2" aria-label="Remove responsibility" @click="form.assignments.splice(index, 1)" />
             </div>
           </div>
@@ -79,8 +79,11 @@ const staffCameraInput = ref<HTMLInputElement | null>(null)
 const staffGalleryInput = ref<HTMLInputElement | null>(null)
 const qualificationForm = reactive({ programId: null as number | null, qualification: '', issuer: '', expiresAt: '' })
 const form = reactive<any>({ name: '', email: '', danDegree: '', role: 'member', assignments: [] })
-const roleScopeMap: Record<string, 'node' | 'dojo'> = { country_head: 'node', state_head: 'node', district_head: 'node', city_head: 'node', zone_head: 'node', dojo_head: 'dojo', instructor: 'dojo' }
-const allRoleOptions = [{ label: 'Country Head', value: 'country_head' }, { label: 'State Head', value: 'state_head' }, { label: 'District Head', value: 'district_head' }, { label: 'City Head', value: 'city_head' }, { label: 'Zone Head', value: 'zone_head' }, { label: 'Dojo Head', value: 'dojo_head' }, { label: 'Instructor', value: 'instructor' }]
+const roleScopeMap: Record<string, 'node' | 'dojo'> = { group_manager: 'node', location_manager: 'dojo', instructor: 'dojo', staff: 'dojo' }
+const allRoleOptions = [{ label: 'Location group manager', value: 'group_manager' }, { label: 'Location manager', value: 'location_manager' }, { label: 'Instructor', value: 'instructor' }, { label: 'Staff', value: 'staff' }]
+const legacyNodeRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head']
+const displayRole = (role: string) => legacyNodeRoles.includes(role) ? 'group_manager' : role === 'dojo_head' ? 'location_manager' : role === 'member' ? 'staff' : role
+const storedRole = (role: string) => ({ group_manager: 'state_head', location_manager: 'dojo_head', staff: 'member' }[role] || role)
 const accountRoleOptions = computed(() => [
   { label: 'Standard access (recommended)', value: 'member' },
   ...(currentUser.value?.role === 'owner' ? [{ label: 'Organization administrator', value: 'admin' }] : []),
@@ -94,7 +97,7 @@ const { data: dojos } = await useFetch<any[]>('/api/dojos')
 const { data: programs } = await useFetch<any[]>('/api/organization/programs')
 const { data: qualifications, refresh: refreshQualifications } = await useFetch<any[]>(`/api/instructor-qualifications?userId=${userId}`)
 
-const scopedRoleOptions = computed(() => allRoleOptions.filter(role => permissions.value?.allowedRoles?.includes(role.value)))
+const scopedRoleOptions = computed(() => allRoleOptions.filter((role) => role.value === 'group_manager' ? legacyNodeRoles.some(item => permissions.value?.allowedRoles?.includes(item)) : permissions.value?.allowedRoles?.includes(storedRole(role.value))))
 const nodeOptions = computed(() => {
   const allNodes = flattenNodes(nodes.value || [])
   const nodesById = new Map(allNodes.map(node => [Number(node.id), node]))
@@ -120,7 +123,7 @@ watchEffect(() => {
     email: user.value.email,
     danDegree: user.value.danDegree || '',
     role: user.value.role,
-    assignments: user.value.assignments.map((assignment: any) => ({ role: assignment.role, scopeId: assignment.scopeId })),
+    assignments: user.value.assignments.map((assignment: any) => ({ role: displayRole(assignment.role), scopeId: assignment.scopeId })),
   })
 })
 
@@ -171,7 +174,7 @@ async function addQualification() {
 }
 
 async function save() {
-  const assignments = form.assignments.map((assignment: any) => ({ role: assignment.role, scopeType: isNodeRole(assignment.role) ? 'node' : 'dojo', scopeId: Number(assignment.scopeId) }))
+  const assignments = form.assignments.map((assignment: any) => ({ role: storedRole(assignment.role), scopeType: isNodeRole(assignment.role) ? 'node' : 'dojo', scopeId: Number(assignment.scopeId) }))
   if (assignments.some((assignment: any) => !assignment.scopeId)) {
     toast.add({ color: 'warning', title: 'Select a scope for every responsibility' })
     return

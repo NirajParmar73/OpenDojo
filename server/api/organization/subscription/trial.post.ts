@@ -3,7 +3,7 @@ import { billingPeriods, startSubscriptionTrial } from '../../../utils/subscript
 import { writeAuditLog } from '../../../utils/audit'
 
 const bodySchema = z.object({
-  plan: z.enum(['city-starter', 'city-pro', 'state-pro', 'national']),
+  plan: z.enum(['growth', 'business']),
   billingPeriod: z.enum(billingPeriods),
 })
 

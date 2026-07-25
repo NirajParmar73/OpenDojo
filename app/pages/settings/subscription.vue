@@ -20,7 +20,7 @@
 <script setup lang="ts">
 declare global { interface Window { Razorpay?: new (options: Record<string, unknown>) => { open: () => void } } }
 definePageMeta({ middleware: ['auth', 'owner'] })
-type PlanKey = 'free' | 'city-starter' | 'city-pro' | 'state-pro' | 'national'
+type PlanKey = 'free' | 'growth' | 'business'
 type Subscription = { plan: PlanKey, limits: { students: number | null, dojos: number | null }, usage: { students: number, dojos: number, hierarchyNodes: number } }
 const { data: subscription, refresh } = await useFetch<Subscription>('/api/organization/subscription')
 const { supportEmail } = useLegalContact()
@@ -32,19 +32,17 @@ const runtimeConfig = useRuntimeConfig()
 const razorpayEnabled = computed(() => Boolean(runtimeConfig.public.razorpayKeyId))
 const razorpayTestMode = computed(() => runtimeConfig.public.razorpayKeyId.startsWith('rzp_test_'))
 const paidPlans = [
-  { key: 'city-starter' as const, name: 'City Starter', monthly: 199, annual: 1990, summary: 'For up to two locations in the same city.', features: ['75 students per location', 'Owner + staff, fees and grading'] },
-  { key: 'city-pro' as const, name: 'City Pro', monthly: 399, annual: 3990, summary: 'For unlimited city-level management.', features: ['Unlimited locations, students, and staff', 'Full city-level management'] },
-  { key: 'state-pro' as const, name: 'State Pro', monthly: 699, annual: 6990, summary: 'For operations across one state.', features: ['Unlimited cities and locations', 'State-level organization structure'] },
-  { key: 'national' as const, name: 'National', monthly: 1999, annual: 19990, summary: 'For federations operating nationwide.', features: ['Federation management', 'Nationwide management'] },
+  { key: 'growth' as const, name: 'Growth', monthly: 999, annual: 9990, summary: 'For up to three locations and 150 students.', features: ['Location-specific fees and schedules', 'Owner + staff access'] },
+  { key: 'business' as const, name: 'Business', monthly: 3999, annual: 39990, summary: 'For unlimited locations and students.', features: ['Optional location groups', 'Advanced permissions and reporting'] },
 ]
-const planOrder: PlanKey[] = ['free', 'city-starter', 'city-pro', 'state-pro', 'national']
+const planOrder: PlanKey[] = ['free', 'growth', 'business']
 const nextRecommendedPlan = computed<PlanKey | null>(() => planOrder[planOrder.indexOf(subscription.value?.plan || 'free') + 1] || null)
 const usageCards = computed(() => [
   { label: 'Students', value: subscription.value?.usage.students || 0, limit: limitLabel(subscription.value?.limits.students) },
   { label: 'Dojos / branches', value: subscription.value?.usage.dojos || 0, limit: limitLabel(subscription.value?.limits.dojos) },
-  { label: 'Location management', value: subscription.value?.plan === 'national' ? 'Included' : 'National', limit: '' },
+  { label: 'Location groups', value: subscription.value?.plan === 'business' ? 'Included' : 'Optional', limit: '' },
 ])
-function planLabel(plan?: PlanKey | null) { return plan ? ({ free: 'Free Forever', 'city-starter': 'City Starter', 'city-pro': 'City Pro', 'state-pro': 'State Pro', national: 'National' }[plan]) : 'Free Forever' }
+function planLabel(plan?: PlanKey | null) { return plan ? ({ free: 'Free', growth: 'Growth', business: 'Business' }[plan]) : 'Free' }
 function limitLabel(limit?: number | null) { return limit === null || limit === undefined ? 'Unlimited' : String(limit) }
 function priceFor(plan: typeof paidPlans[number]) { return `₹${(billingPeriod.value === 'annual' ? plan.annual : plan.monthly).toLocaleString('en-IN')}` }
 function showUpgradeInstructions() {

@@ -24,7 +24,7 @@ export default defineEventHandler(async (event) => {
     return result
   }, {})
   // These reflect the public monthly list price, not collected payments.
-  const monthlyPrice: Record<string, number> = { 'city-starter': 199, 'city-pro': 399, 'state-pro': 699, national: 1999 }
+  const monthlyPrice: Record<string, number> = { growth: 999, business: 3999, 'city-starter': 999, 'city-pro': 999, 'state-pro': 3999, national: 3999 }
   const estimatedMrr = planRows.reduce((total, organization) => total + (monthlyPrice[organization.subscriptionPlan] || 0), 0)
 
   return {

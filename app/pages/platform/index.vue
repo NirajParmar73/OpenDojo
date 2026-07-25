@@ -71,7 +71,7 @@
 
 <script setup lang="ts">
 definePageMeta({ middleware: ['auth', 'platform-admin'] })
-type Plan = 'free' | 'city-starter' | 'city-pro' | 'state-pro' | 'national'
+type Plan = 'free' | 'growth' | 'business'
 type SubscriptionStatus = 'free' | 'trialing' | 'active' | 'cancelled' | 'expired' | 'suspended'
 type Organization = { id: number, name: string, slug: string, subscriptionPlan: Plan, subscriptionStatus: SubscriptionStatus, createdAt: string, users: number, students: number, dojos: number }
 type OrganizationUser = { id: number, name: string, email: string, role: string, createdAt: string }
@@ -84,8 +84,8 @@ const selectedOrganization = ref<Organization | null>(null)
 const organizationUsers = ref<OrganizationUser[]>([])
 const actionLoading = ref(false)
 const toast = useToast()
-const planOrder: Plan[] = ['free', 'city-starter', 'city-pro', 'state-pro', 'national']
-const planOptions = planOrder.map(value => ({ label: ({ free: 'Free Forever', 'city-starter': 'City Starter', 'city-pro': 'City Pro', 'state-pro': 'State Pro', national: 'National' }[value]), value }))
+const planOrder: Plan[] = ['free', 'growth', 'business']
+const planOptions = planOrder.map(value => ({ label: ({ free: 'Free', growth: 'Growth', business: 'Business' }[value]), value }))
 const loading = computed(() => !overview.value || !organizations.value)
 const cards = computed(() => [
   { label: 'Customer workspaces', value: overview.value?.totals.organizations || 0, icon: 'i-lucide-building-2' },

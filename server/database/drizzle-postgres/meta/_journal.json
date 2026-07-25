@@ -91,6 +91,7 @@
     { "idx": 14, "version": "7", "when": 1784540400000, "tag": "0014_fee_plan_territory_scope", "breakpoints": true },
     { "idx": 15, "version": "7", "when": 1784680000000, "tag": "0015_grading_exam_attempts", "breakpoints": true },
     { "idx": 16, "version": "7", "when": 1786500000000, "tag": "0016_student_program", "breakpoints": true },
-    { "idx": 17, "version": "7", "when": 1786501000000, "tag": "0017_program_enrollments", "breakpoints": true }
+    { "idx": 17, "version": "7", "when": 1786501000000, "tag": "0017_program_enrollments", "breakpoints": true },
+    { "idx": 18, "version": "7", "when": 1786520000000, "tag": "0018_grading_fee_schedules", "breakpoints": true }
   ]
 }

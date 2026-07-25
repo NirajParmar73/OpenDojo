@@ -6,7 +6,7 @@
     <UCard v-if="canCreateDojo" class="mb-6">
       <form @submit.prevent="createDojo">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <div v-if="isCityPlan || needsAutomaticHierarchy" class="flex items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-sm text-slate-600 dark:text-slate-300">{{ isCityPlan ? 'City workspace location' : 'Starter hierarchy will be created automatically' }}</div>
+          <div v-if="isCityPlan || needsAutomaticHierarchy" class="flex items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-sm text-slate-600 dark:text-slate-300">Each location manages its own address, fees, schedules, staff, and students.</div>
           <USelect
             v-else
             v-model="newDojo.nodeId"
@@ -156,7 +156,7 @@
         <h3 class="text-lg font-semibold mb-3">Edit Dojo</h3>
         <form @submit.prevent="updateDojo">
           <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div v-if="isCityPlan" class="flex items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-sm text-slate-600 dark:text-slate-300">City workspace location</div>
+            <div v-if="isCityPlan" class="flex items-center rounded-md border border-primary/20 bg-primary/5 px-3 text-sm text-slate-600 dark:text-slate-300">Location details are independent.</div>
             <USelect
               v-else
               v-model="editDojoForm.nodeId"
@@ -191,16 +191,17 @@ definePageMeta({ middleware: 'auth' })
 
 const toast = useToast()
 const { user } = useUserSession()
-const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
+const { data: subscription } = await useFetch<{ plan: string, limits: { dojos: number | null } }>('/api/organization/subscription')
 const { data: hierarchyPermissions } = await useFetch<{ managedParentNodeIds: number[] }>('/api/users/me/permissions')
-const isFreePlan = computed(() => subscription.value?.plan !== 'city-starter' && subscription.value?.plan !== 'city-pro' && subscription.value?.plan !== 'state-pro' && subscription.value?.plan !== 'national')
-const isCityStarter = computed(() => subscription.value?.plan === 'city-starter')
-const canCreateDojo = computed(() => !!subscription.value && (!isFreePlan.value || dojos.value.length < 1) && (!isCityStarter.value || dojos.value.length < 2))
-const isCityPlan = computed(() => ['city-starter', 'city-pro'].includes(subscription.value?.plan || ''))
-const isStatePlan = computed(() => subscription.value?.plan === 'state-pro')
-const isNationalPlan = computed(() => subscription.value?.plan === 'national')
-const isAdvancedPlan = computed(() => ['state-pro', 'national'].includes(subscription.value?.plan || ''))
-const needsAutomaticHierarchy = computed(() => isAdvancedPlan.value && nodeOptions.value.length === 0)
+const isFreePlan = computed(() => subscription.value?.plan === 'free')
+const canCreateDojo = computed(() => !!subscription.value && (subscription.value.limits.dojos === null || dojos.value.length < subscription.value.limits.dojos))
+// The existing hierarchy remains available for advanced grouping, but normal
+// dojo setup never asks the owner to configure geographic nodes.
+const isCityPlan = computed(() => true)
+const isStatePlan = computed(() => false)
+const isNationalPlan = computed(() => false)
+const isAdvancedPlan = computed(() => false)
+const needsAutomaticHierarchy = computed(() => false)
 const dojos = ref<any[]>([])
 const levels = ref<any[]>([])
 const allNodes = ref<any[]>([])
@@ -220,16 +221,7 @@ const updatingSchedule = ref(false)
 const assigningInstructor = ref(false)
 
 const territoryAnchor = computed(() => dojos.value[0] || null)
-const territoryMessage = computed(() => {
-  const territory = getLocationFromNode(newDojo.nodeId) || territoryAnchor.value
-  if (!territory) return null
-  const place = [territory.city, territory.stateProvince, territory.country].filter(Boolean).join(', ')
-  if (place && newDojo.nodeId) return `City, state/province, and country are set by ${getNodePath(newDojo.nodeId)} and cannot be changed here.`
-  if (isCityPlan.value && place) return `Locations in this plan must remain within ${place}.`
-  if (isStatePlan.value && territory.stateProvince && territory.country) return `Locations in this plan must remain within ${territory.stateProvince}, ${territory.country}.`
-  if (isNationalPlan.value && territory.country) return `Locations in this plan must remain within ${territory.country}.`
-  return null
-})
+const territoryMessage = computed(() => null)
 
 // ----- Form states -----
 const newDojo = reactive({
@@ -282,16 +274,7 @@ function isLocationFieldLocked(nodeId: number | null, field: keyof LocationField
   return Boolean(getLocationFromNode(nodeId)?.[field])
 }
 
-function applyTerritoryDefaults(target: LocationFields = newDojo, nodeId: number | null = newDojo.nodeId) {
-  const fromSelectedLocation = getLocationFromNode(nodeId)
-  const anchor = territoryAnchor.value
-  const city = fromSelectedLocation?.city || (isCityPlan.value ? anchor?.city : undefined)
-  const stateProvince = fromSelectedLocation?.stateProvince || ((isCityPlan.value || isStatePlan.value) ? anchor?.stateProvince : undefined)
-  const country = fromSelectedLocation?.country || ((isCityPlan.value || isStatePlan.value || isNationalPlan.value) ? anchor?.country : undefined)
-  if (city) target.city = city
-  if (stateProvince) target.stateProvince = stateProvince
-  if (country) target.country = country
-}
+function applyTerritoryDefaults(_target: LocationFields = newDojo, _nodeId: number | null = newDojo.nodeId) {}
 
 watch(() => newDojo.nodeId, nodeId => applyTerritoryDefaults(newDojo, nodeId))
 watch(() => editDojoForm.nodeId, nodeId => {

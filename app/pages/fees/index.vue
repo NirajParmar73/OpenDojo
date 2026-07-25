@@ -23,6 +23,13 @@
           <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="reportFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="reportTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-eye" :loading="downloadingReport" @click="downloadFeeReport">Preview PDF</UButton></div></div>
         </div>
       </UCard>
+
+      <UCard v-if="gradingFeeOptions.length" class="mb-6">
+        <template #header><div><h2 class="font-semibold">Grading fees for this dojo</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Select individual grading fees configured for {{ student.dojo?.name }}, or assign all available grading fees at once.</p></div></template>
+        <div class="flex flex-wrap gap-3"><UCheckbox :model-value="allGradingFeesSelected" label="Select all grading fees" @update:model-value="toggleAllGradingFees" /></div>
+        <div class="mt-4 grid gap-3 sm:grid-cols-2"><UCheckbox v-for="item in gradingFeeOptions" :key="item.feePlanId" :model-value="selectedGradingFeePlanIds.includes(item.feePlanId)" :label="`${item.beltRank?.name || 'Grading'} · ${formatCurrency(item.feePlan?.amount || 0)}`" @update:model-value="toggleGradingFee(item.feePlanId, $event)" /></div>
+        <div class="mt-5 flex justify-end"><UButton :disabled="!selectedGradingFeePlanIds.length" :loading="assigningGradingFees" icon="i-lucide-plus" @click="assignSelectedGradingFees">Assign selected grading fees</UButton></div>
+      </UCard>
       <UCard class="mb-6">
         <div class="mb-4"><h2 class="text-lg font-semibold">Fee plans for this student</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Assign the monthly, quarterly, annual, or one-time plan that applies to this student. End an active plan before starting a replacement so their payment history remains clear.</p></div>
         <form @submit.prevent="addAssignment" class="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -148,6 +155,9 @@ const student = ref<any>(null)
 const assignments = ref<any[]>([])
 const payments = ref<any[]>([])
 const feePlans = ref<any[]>([])
+const gradingSchedules = ref<any[]>([])
+const selectedGradingFeePlanIds = ref<number[]>([])
+const assigningGradingFees = ref(false)
 const organization = ref<any>({})
 const loading = ref(true)
 const error = ref('')
@@ -226,6 +236,10 @@ const assignmentOptions = computed(() =>
     }))
 )
 const selectedAssignment = computed(() => assignments.value.find(assignment => assignment.id === paymentForm.assignmentId))
+const gradingFeeOptions = computed(() => gradingSchedules.value.filter(schedule => schedule.dojoId === student.value?.dojoId && schedule.feePlan?.isActive && !assignments.value.some(assignment => assignment.feePlanId === schedule.feePlanId && assignment.status === 'active')))
+const allGradingFeesSelected = computed(() => gradingFeeOptions.value.length > 0 && gradingFeeOptions.value.every(item => selectedGradingFeePlanIds.value.includes(item.feePlanId)))
+function toggleGradingFee(feePlanId: number, checked: boolean) { selectedGradingFeePlanIds.value = checked ? [...new Set([...selectedGradingFeePlanIds.value, feePlanId])] : selectedGradingFeePlanIds.value.filter(id => id !== feePlanId) }
+function toggleAllGradingFees(checked: boolean) { selectedGradingFeePlanIds.value = checked ? gradingFeeOptions.value.map(item => item.feePlanId) : [] }
 const paymentCoverage = computed(() => selectedAssignment.value ? formatFeePeriod(paymentForm.billingPeriod, selectedAssignment.value.feePlan?.frequency) : '')
 
 function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organizationSettings.value?.currency || 'USD' }).format(amount / 100) }
@@ -258,18 +272,21 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const [studentData, assignmentsData, paymentsData, feePlansData, orgData] = await Promise.all([
+    const [studentData, assignmentsData, paymentsData, feePlansData, orgData, schedules] = await Promise.all([
       $fetch(`/api/students/${studentId.value}`),
       $fetch(`/api/students/${studentId.value}/fee-assignments`),
       $fetch(`/api/students/${studentId.value}/payments`),
       $fetch('/api/fee-plans'),
       $fetch('/api/organization/settings'),
+      $fetch('/api/grading-fee-schedules'),
     ])
     student.value = studentData
     assignments.value = assignmentsData
     payments.value = paymentsData
     feePlans.value = feePlansData
     organization.value = orgData
+    gradingSchedules.value = schedules as any[]
+    selectedGradingFeePlanIds.value = []
   } catch (err: any) {
     error.value = err.data?.statusMessage || err.message || 'Failed to load data'
     toast.add({ color: 'error', title: 'Failed to load data', description: error.value })
@@ -307,6 +324,15 @@ async function addAssignment() {
   } finally {
     addingAssignment.value = false
   }
+}
+
+async function assignSelectedGradingFees() {
+  assigningGradingFees.value = true
+  try {
+    await Promise.all(selectedGradingFeePlanIds.value.map(feePlanId => $fetch(`/api/students/${studentId.value}/fee-assignments`, { method: 'POST', body: { feePlanId, startDate: today, dueDay: 1, discount: 0 } })))
+    await loadData()
+    toast.add({ color: 'success', title: 'Selected grading fees assigned' })
+  } catch (err: any) { toast.add({ color: 'error', title: 'Could not assign grading fees', description: err.data?.statusMessage || err.message }) } finally { assigningGradingFees.value = false }
 }
 
 function openStudentFees() {
