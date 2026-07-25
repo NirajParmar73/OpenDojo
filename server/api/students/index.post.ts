@@ -27,6 +27,7 @@ const createStudentSchema = z.object({
   status: z.enum(['active', 'inactive', 'archived']).default('active'),
   // ✅ new fields
   avatar: z.string().nullable().optional(),
+  programId: z.number().int().positive().nullable().optional(),
   currentBeltRankId: z.number().int().positive().nullable().optional(),
   feePlanId: z.number().int().positive().nullable().optional(),
   autoAssignDefaultFeePlan: z.boolean().default(true),
@@ -67,6 +68,11 @@ export default defineEventHandler(async (event) => {
   }
   await assertStudentLimit(orgId, body.dojoId)
 
+  if (body.programId) {
+    const program = await db.query.organizationPrograms.findFirst({ where: eq(tables.organizationPrograms.id, body.programId) })
+    if (!program || program.organizationId !== orgId) throw createError({ statusCode: 400, statusMessage: 'Invalid program' })
+  }
+
   // Validate belt rank if provided
   if (body.currentBeltRankId) {
     const rank = await db.query.beltRanks.findFirst({
@@ -98,6 +104,7 @@ export default defineEventHandler(async (event) => {
     medicalNotes: body.medicalNotes || null,
     status: body.status,
     avatar: body.avatar || null,
+    programId: body.programId || null,
     currentBeltRankId: body.currentBeltRankId || null,
   }
 
@@ -124,10 +131,15 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create student' })
   }
 
+  const [programEnrollment] = body.programId
+    ? await db.insert(tables.studentProgramEnrollments).values({ studentId: student.id, programId: body.programId, dojoId: student.dojoId, startDate: student.joinedAt, status: 'active' }).returning()
+    : [null]
+
   if (feePlanId) {
     await db.insert(tables.studentFeeAssignments).values({
       studentId: student.id,
       feePlanId,
+      programEnrollmentId: programEnrollment?.id || null,
       startDate: student.joinedAt,
       dueDay: Math.min(Math.max(new Date(student.joinedAt).getDate(), 1), 28),
       discount: body.initialDiscount,
@@ -141,6 +153,7 @@ export default defineEventHandler(async (event) => {
     where: eq(tables.students.id, student.id),
     with: {
       dojo: true,
+      program: true,
       currentBeltRank: true,
     },
   })

@@ -1,11 +1,12 @@
 <template>
   <div class="mx-auto max-w-4xl">
-    <section class="mb-6"><p class="text-sm font-semibold text-primary">ORGANIZATION</p><h2 class="mt-1 text-2xl font-semibold">Martial arts & programs</h2><p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Manage the disciplines and styles your organization teaches.</p></section>
+    <section class="mb-6"><p class="text-sm font-semibold text-primary">ORGANIZATION</p><h2 class="mt-1 text-2xl font-semibold">Martial arts & programs</h2><p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Add martial arts, personal training, fitness, or any other program you teach.</p></section>
 
     <UCard>
-      <form class="grid gap-4 sm:grid-cols-3" @submit.prevent="saveProgram">
-        <UFormField label="Martial art" required><UInput v-model="form.martialArt" placeholder="e.g. Karate" required /></UFormField>
-        <UFormField label="Style / lineage" required><UInput v-model="form.style" placeholder="e.g. Goju-ryu" required /></UFormField>
+      <form class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" @submit.prevent="saveProgram">
+        <UFormField label="Program name" required><UInput v-model="form.displayName" placeholder="e.g. Personal Training or Karate - Goju-ryu" required /></UFormField>
+        <UFormField label="Discipline / category" required><UInput v-model="form.martialArt" placeholder="e.g. Karate or Fitness" required /></UFormField>
+        <UFormField label="Style / focus"><UInput v-model="form.style" placeholder="e.g. Goju-ryu or Strength training" /></UFormField>
         <div class="flex items-end gap-2"><UButton type="submit" :loading="saving" :icon="editingId ? 'i-lucide-save' : 'i-lucide-plus'">{{ editingId ? 'Save changes' : 'Add program' }}</UButton><UButton v-if="editingId" type="button" color="neutral" variant="ghost" @click="resetForm">Cancel</UButton></div>
       </form>
     </UCard>
@@ -31,17 +32,17 @@ const toast = useToast()
 const saving = ref(false)
 const deletingId = ref<number | null>(null)
 const editingId = ref<number | null>(null)
-const form = reactive({ martialArt: '', style: '' })
+const form = reactive({ displayName: '', martialArt: '', style: '' })
 const { data: programs, refresh } = await useFetch<Program[]>('/api/organization/programs')
 
 function resetForm() {
-  Object.assign(form, { martialArt: '', style: '' })
+  Object.assign(form, { displayName: '', martialArt: '', style: '' })
   editingId.value = null
 }
 
 function editProgram(program: Program) {
   editingId.value = program.id
-  Object.assign(form, { martialArt: program.martialArt, style: program.style })
+  Object.assign(form, { displayName: program.displayName, martialArt: program.martialArt, style: program.style })
 }
 
 async function saveProgram() {

@@ -5,7 +5,7 @@
         class="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6"
       >
         <NuxtLink to="/portal" class="font-semibold text-primary">
-          Open Dojo
+          OpenDojos
           <span class="font-normal text-slate-500">Student portal</span>
         </NuxtLink>
         <div class="flex items-center gap-3">

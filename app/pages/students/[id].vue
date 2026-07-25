@@ -99,7 +99,13 @@
           </UCard>
         </div>
 
-        <UCard v-else-if="activeTab === 'attendance'">
+        <UCard class="mt-6">
+          <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Programs</h3><p class="mt-1 text-sm text-slate-500">Add another program only when this student or client trains in more than one.</p></div><UButton size="sm" icon="i-lucide-plus" :loading="addingProgram" @click="addProgram">Add program</UButton></div></template>
+          <div class="grid gap-3 sm:grid-cols-[minmax(0,1fr)_auto]"><USelect v-model="newProgramId" :items="availableProgramOptions" placeholder="Choose an additional program" /><p class="self-center text-sm text-slate-500">One program is enough for most students.</p></div>
+          <div v-if="programEnrollments.length" class="mt-4 divide-y divide-slate-100 dark:divide-slate-800"><div v-for="enrollment in programEnrollments" :key="enrollment.id" class="flex items-center justify-between gap-3 py-3"><div><p class="font-medium">{{ enrollment.program?.displayName }}</p><p class="mt-1 text-xs text-slate-500">Started {{ formatDate(enrollment.startDate) }}</p></div><UBadge :color="enrollment.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ enrollment.status }}</UBadge></div></div>
+        </UCard>
+
+        <UCard v-if="activeTab === 'attendance'">
           <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Attendance history</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Review classes attended or share a complete report.</p></div><UButton size="sm" color="primary" variant="soft" icon="i-lucide-download" :loading="downloadingAttendanceReport" @click="downloadAttendanceReport">Download PDF</UButton></div></template>
           <div v-if="attendance.records?.length" class="divide-y divide-slate-100 dark:divide-slate-800">
             <div v-for="record in attendance.records" :key="record.id" class="flex flex-wrap items-center justify-between gap-3 py-4">
@@ -113,7 +119,7 @@
           <EmptyState v-else icon="i-lucide-calendar-x" message="No attendance has been recorded yet." />
         </UCard>
 
-        <div v-else-if="activeTab === 'fees'" class="space-y-6">
+        <div v-if="activeTab === 'fees'" class="space-y-6">
           <UCard>
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div><p class="text-sm font-semibold text-primary">SHAREABLE RECORD</p><h3 class="mt-1 font-semibold">Fee history statement</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Download a professional payment history and current balance to share with the student or guardian.</p></div>
@@ -140,7 +146,7 @@
           </UCard>
         </div>
 
-        <UCard v-else-if="activeTab === 'achievements'">
+        <UCard v-if="activeTab === 'achievements'">
           <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Tournament achievements</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record competition participation, results, medals, and certificates.</p></div><UButton size="sm" color="primary" icon="i-lucide-trophy" @click="showAchievementForm = !showAchievementForm">Record achievement</UButton></div></template>
           <form v-if="showAchievementForm" class="mb-5 grid gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-2 lg:grid-cols-3" @submit.prevent="recordAchievement">
             <UFormField label="Tournament name" required><UInput v-model="achievementForm.tournamentName" placeholder="Tournament name" /></UFormField>
@@ -162,7 +168,7 @@
           <EmptyState v-else icon="i-lucide-trophy" message="No tournament achievements have been recorded yet." />
         </UCard>
 
-        <UCard v-else-if="activeTab === 'guardians'">
+        <UCard v-if="activeTab === 'guardians'">
           <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Guardians & emergency contacts</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Keep the people responsible for this student easy to reach.</p></div><UButton size="sm" color="primary" icon="i-lucide-user-plus" @click="toggleGuardianForm">Add guardian</UButton></div></template>
           <form v-if="showGuardianForm" class="mb-5 grid gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-2" @submit.prevent="addGuardian">
             <UFormField label="Full name" required><UInput v-model="guardianForm.name" placeholder="Guardian name" /></UFormField>
@@ -176,7 +182,7 @@
           <EmptyState v-else icon="i-lucide-contact-round" message="No guardians have been added yet." />
         </UCard>
 
-        <UCard v-else-if="activeTab === 'documents'">
+        <UCard v-if="activeTab === 'documents'">
           <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Documents</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Store identity documents and supporting files securely.</p></div><UButton size="sm" color="primary" icon="i-lucide-upload" @click="toggleDocumentForm">Upload document</UButton></div></template>
           <form v-if="showDocumentForm" class="mb-5 grid gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-2" @submit.prevent="uploadDocument">
             <UFormField label="Document type" required><USelect v-model="documentForm.documentType" :items="documentTypeOptions" /></UFormField>
@@ -253,6 +259,8 @@ const tabs = [
 ]
 
 const { data: student, pending, error, refresh: refreshStudent } = await useFetch<any>(`/api/students/${studentId}`)
+const { data: programEnrollmentData, refresh: refreshProgramEnrollments } = await useAsyncData(`student-${studentId}-program-enrollments`, () => $fetch<any[]>(`/api/students/${studentId}/program-enrollments`))
+const { data: programs } = await useFetch<any[]>('/api/organization/programs')
 const { data: attendanceData } = await useAsyncData(`student-${studentId}-attendance`, () => $fetch<any>(`/api/students/${studentId}/attendance`))
 const { data: feeAssignmentData, refresh: refreshFeeAssignments } = await useAsyncData(`student-${studentId}-fee-assignments`, () => $fetch<any[]>(`/api/students/${studentId}/fee-assignments`))
 const { data: paymentData } = await useAsyncData(`student-${studentId}-payments`, () => $fetch<any[]>(`/api/students/${studentId}/payments`))
@@ -269,6 +277,10 @@ const feeAssignmentForm = reactive({ feePlanId: null as number | null, startDate
 
 const attendance = computed(() => attendanceData.value || { records: [] })
 const feeAssignments = computed(() => feeAssignmentData.value || [])
+const programEnrollments = computed(() => programEnrollmentData.value || [])
+const newProgramId = ref<number | null>(null)
+const addingProgram = ref(false)
+const availableProgramOptions = computed(() => (programs.value || []).filter(program => !programEnrollments.value.some((enrollment: any) => enrollment.programId === program.id && enrollment.status === 'active')).map(program => ({ label: program.displayName, value: program.id })))
 const payments = computed(() => paymentData.value || [])
 const guardians = computed(() => guardianData.value || [])
 const documents = computed(() => documentData.value || [])
@@ -285,6 +297,7 @@ const initials = computed(() => studentName.value.split(' ').map((name: string) 
 
 function resetFeeAssignmentForm() { Object.assign(feeAssignmentForm, { feePlanId: null, startDate: new Date().toISOString().slice(0, 10), discount: 0, discountReason: '' }); editingAssignmentId.value = null }
 function editFeeAssignment(assignment: any) { editingAssignmentId.value = assignment.id; Object.assign(feeAssignmentForm, { feePlanId: assignment.feePlanId, startDate: new Date(assignment.startDate).toISOString().slice(0, 10), discount: (assignment.discount || 0) / 100, discountReason: assignment.discountReason || '' }) }
+async function addProgram() { if (!newProgramId.value) { toast.add({ color: 'warning', title: 'Choose a program' }); return }; addingProgram.value = true; try { await $fetch(`/api/students/${studentId}/program-enrollments`, { method: 'POST', body: { programId: newProgramId.value } }); newProgramId.value = null; await refreshProgramEnrollments(); toast.add({ color: 'success', title: 'Program added' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not add program', description: error.data?.statusMessage || error.message }) } finally { addingProgram.value = false } }
 async function saveFeeAssignment() { if (!editingAssignmentId.value && !feeAssignmentForm.feePlanId) return; if (feeAssignmentForm.discount > 0 && !feeAssignmentForm.discountReason.trim()) { toast.add({ color: 'warning', title: 'Enter a discount reason' }); return }; savingFeeAssignment.value = true; try { const body = editingAssignmentId.value ? { discount: Math.round(feeAssignmentForm.discount * 100), discountReason: feeAssignmentForm.discountReason || null } : { feePlanId: feeAssignmentForm.feePlanId, startDate: feeAssignmentForm.startDate, discount: Math.round(feeAssignmentForm.discount * 100), discountReason: feeAssignmentForm.discountReason || undefined }; await $fetch(editingAssignmentId.value ? `/api/students/${studentId}/fee-assignments/${editingAssignmentId.value}` : `/api/students/${studentId}/fee-assignments`, { method: editingAssignmentId.value ? 'PATCH' : 'POST', body }); await refreshFeeAssignments(); resetFeeAssignmentForm(); toast.add({ color: 'success', title: 'Fee terms saved' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not save fee terms', description: error.data?.statusMessage || error.message }) } finally { savingFeeAssignment.value = false } }
 
 function formatDate(value?: number | string | null) {

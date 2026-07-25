@@ -141,6 +141,7 @@ export const students = pgTable('students', (t) => ({
   medicalNotes: t.text(),
   status: t.text().default('active'),
   avatar: t.text(),
+  programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
   currentBeltRankId: t.integer('current_belt_rank_id').references(() => beltRanks.id),
   joinedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
@@ -408,6 +409,19 @@ export const organizationPrograms = pgTable('organization_programs', (t) => ({
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+export const studentProgramEnrollments = pgTable('student_program_enrollments', (t) => ({
+  id: t.serial('id').primaryKey(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'restrict' }).notNull(),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
+  instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
+  startDate: t.timestamp('start_date', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  endDate: t.timestamp('end_date', { withTimezone: true }),
+  status: t.text({ enum: ['active', 'completed', 'cancelled'] }).notNull().default('active'),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
 export const instructorQualifications = pgTable('instructor_qualifications', (t) => ({
   id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
@@ -506,6 +520,10 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   dojo: one(dojos, {
     fields: [students.dojoId],
     references: [dojos.id],
+  }),
+  program: one(organizationPrograms, {
+    fields: [students.programId],
+    references: [organizationPrograms.id],
   }),
   currentBeltRank: one(beltRanks, {
     fields: [students.currentBeltRankId],
@@ -626,6 +644,7 @@ export const studentFeeAssignments = pgTable('student_fee_assignments', (t) => (
   id: t.serial('id').primaryKey(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   feePlanId: t.integer('fee_plan_id').references(() => feePlans.id, { onDelete: 'cascade' }).notNull(),
+  programEnrollmentId: t.integer('program_enrollment_id').references(() => studentProgramEnrollments.id, { onDelete: 'set null' }),
   startDate: t.timestamp({ withTimezone: true }).notNull(),
   endDate: t.timestamp({ withTimezone: true }),
   dueDay: t.integer('due_day').default(1), // day of month (1-28)
@@ -641,6 +660,7 @@ export const payments = pgTable('payments', (t) => ({
   id: t.serial('id').primaryKey(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   assignmentId: t.integer('assignment_id').references(() => studentFeeAssignments.id, { onDelete: 'set null' }),
+  programEnrollmentId: t.integer('program_enrollment_id').references(() => studentProgramEnrollments.id, { onDelete: 'set null' }),
   amount: t.integer('amount').notNull(),
   discountAmount: t.integer('discount_amount').notNull().default(0),
   paymentDate: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
@@ -679,6 +699,7 @@ export const studentFeeAssignmentsRelations = relations(studentFeeAssignments, (
     fields: [studentFeeAssignments.feePlanId],
     references: [feePlans.id],
   }),
+  programEnrollment: one(studentProgramEnrollments, { fields: [studentFeeAssignments.programEnrollmentId], references: [studentProgramEnrollments.id] }),
   payments: many(payments),
 }))
 
@@ -725,6 +746,13 @@ export const documentsRelations = relations(documents, ({ one }) => ({
   }),
 }))
 
+export const studentProgramEnrollmentsRelations = relations(studentProgramEnrollments, ({ one }) => ({
+  student: one(students, { fields: [studentProgramEnrollments.studentId], references: [students.id] }),
+  program: one(organizationPrograms, { fields: [studentProgramEnrollments.programId], references: [organizationPrograms.id] }),
+  dojo: one(dojos, { fields: [studentProgramEnrollments.dojoId], references: [dojos.id] }),
+  instructor: one(users, { fields: [studentProgramEnrollments.instructorId], references: [users.id] }),
+}))
+
 export const studentPortalAccountsRelations = relations(studentPortalAccounts, ({ one }) => ({
   student: one(students, { fields: [studentPortalAccounts.studentId], references: [students.id] }),
 }))
@@ -746,6 +774,7 @@ export const studentAchievementsRelations = relations(studentAchievements, ({ on
     fields: [studentAchievements.createdBy],
     references: [users.id],
   }),
+  programEnrollment: one(studentProgramEnrollments, { fields: [payments.programEnrollmentId], references: [studentProgramEnrollments.id] }),
 }))
 
 export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({

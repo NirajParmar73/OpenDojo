@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
 
   const payment = await db.query.payments.findFirst({
     where: eq(tables.payments.id, paymentId),
-    with: { student: { with: { dojo: true } }, assignment: { with: { feePlan: true } } },
+    with: { student: { with: { dojo: true, program: true } }, programEnrollment: { with: { program: true } }, assignment: { with: { feePlan: true } } },
   }) as any
   if (!payment || payment.student.organizationId !== organizationId) throw createError({ statusCode: 404, statusMessage: 'Payment not found' })
 
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  doc.font('Helvetica-Bold').fontSize(20).fillColor('#ffffff').text(organization?.name || 'OpenDojo', contentX + 76, 45, { width: 255 })
+  doc.font('Helvetica-Bold').fontSize(20).fillColor('#ffffff').text(organization?.name || 'OpenDojos', contentX + 76, 45, { width: 255 })
   doc.font('Helvetica').fontSize(10).fillColor('#ddd6fe').text('PAYMENT RECEIPT', contentX + 77, 72, { characterSpacing: 1.2 })
   doc.font('Helvetica-Bold').fontSize(11).fillColor('#ffffff').text('PAID', contentX + contentWidth - 78, 46, { width: 78, align: 'right' })
   doc.font('Helvetica').fontSize(9.5).fillColor('#ddd6fe').text(`Receipt ${payment.receiptNumber}`, contentX + contentWidth - 180, 67, { width: 180, align: 'right' })
@@ -110,6 +110,7 @@ export default defineEventHandler(async (event) => {
   sectionTitle('Student details', accent)
   detailCard([
     ['Student', `${payment.student.firstName} ${payment.student.lastName}`],
+    ['Program', payment.programEnrollment?.program?.displayName || payment.student.program?.displayName || 'Not assigned'],
     ['Dojo', payment.student.dojo?.name || 'Not assigned'],
   ], '#f8fafc')
 

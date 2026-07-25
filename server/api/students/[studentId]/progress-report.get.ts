@@ -13,7 +13,7 @@ export default defineEventHandler(async (event) => {
   const studentId = Number(getRouterParam(event, 'studentId'))
   const student = await db.query.students.findFirst({
     where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, session.user.organizationId)),
-    with: { dojo: true, currentBeltRank: true }
+    with: { dojo: true, program: true, currentBeltRank: true }
   })
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
   const portalStudentId = Number((session.user as unknown as Record<string, unknown>).studentId)
@@ -56,14 +56,15 @@ export default defineEventHandler(async (event) => {
       } catch { /* Ignore invalid logo files. */ }
     }
   }
-  doc.font('Helvetica-Bold').fontSize(20).fillColor('#0f172a').text(organization?.name || 'OpenDojo', 48, y, { width: contentWidth, align: 'center' })
+  doc.font('Helvetica-Bold').fontSize(20).fillColor('#0f172a').text(organization?.name || 'OpenDojos', 48, y, { width: contentWidth, align: 'center' })
   y += 29
   doc.font('Helvetica-Bold').fontSize(10).fillColor('#6366f1').text('STUDENT PROGRESS REPORT', 48, y, { width: contentWidth, align: 'center', characterSpacing: 1.2 })
   y += 34
-  doc.roundedRect(48, y, contentWidth, 72, 8).fill('#eef2ff')
+  doc.roundedRect(48, y, contentWidth, 86, 8).fill('#eef2ff')
   doc.font('Helvetica-Bold').fontSize(16).fillColor('#111827').text(`${student.firstName} ${student.lastName}`, 64, y + 15)
   doc.font('Helvetica').fontSize(9).fillColor('#4b5563').text(`Dojo: ${student.dojo?.name || 'Not assigned'} • Member since: ${student.joinedAt.toLocaleDateString('en-IN')}`, 64, y + 40)
-  y += 94
+  doc.font('Helvetica').fontSize(9).fillColor('#4b5563').text(`Program: ${student.program?.displayName || 'Not assigned'}`, 64, y + 56)
+  y += 108
 
   const statWidth = (pageWidth - 114) / 4
   const stats = [{ label: 'CURRENT RANK', value: currentRank, color: '#ede9fe' }, { label: 'KYU / DAN LEVEL', value: currentLevel, color: '#fef3c7' }, { label: 'ATTENDANCE RATE', value: `${rate}%`, color: '#dcfce7' }, { label: 'SESSIONS RECORDED', value: String(total), color: '#e0f2fe' }]

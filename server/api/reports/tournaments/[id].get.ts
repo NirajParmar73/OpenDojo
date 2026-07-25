@@ -30,7 +30,7 @@ export default defineEventHandler(async (event) => {
   const accessibleDojoIds = await getAccessibleDojoIds(session.user.id, session.user.organizationId)
   const records = await db.query.studentAchievements.findMany({
     where: and(eq(tables.studentAchievements.organizationId, session.user.organizationId), eq(tables.studentAchievements.tournamentId, tournamentId)),
-    with: { student: { with: { dojo: true } } },
+    with: { student: { with: { dojo: true, program: true } } },
   })
   const visible = records.filter(record => accessibleDojoIds === null || (record.student.dojoId !== null && accessibleDojoIds.includes(record.student.dojoId)))
   if (!visible.length) throw createError({ statusCode: 403, statusMessage: 'This tournament is outside your permitted territory' })
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
   })
 
   let y = 293
-  const headers = [['Student', 42, 135], ['Age', 177, 33], ['Dojo', 210, 94], ['Event / comp. category', 304, 115], ['Result', 419, 72], ['Medal', 491, 63]]
+  const headers = [['Student / program', 42, 135], ['Age', 177, 33], ['Dojo', 210, 94], ['Event / comp. category', 304, 115], ['Result', 419, 72], ['Medal', 491, 63]]
   const drawHeader = () => {
     doc.rect(42, y, pageWidth, 22).fill('#312e81')
     headers.forEach(([label, x, width]) => doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8.5).text(label, x as number + 6, y + 7, { width: width as number - 10 }))
@@ -83,22 +83,22 @@ export default defineEventHandler(async (event) => {
   const newPage = () => { doc.addPage(); y = 48; drawHeader() }
   drawHeader()
   visible.sort((a, b) => `${a.student.firstName} ${a.student.lastName}`.localeCompare(`${b.student.firstName} ${b.student.lastName}`)).forEach((record, index) => {
-    const rowHeight = 39
+    const rowHeight = 49
     if (y + rowHeight > doc.page.height - 54) newPage()
     if (index % 2 === 0) doc.rect(42, y, pageWidth, rowHeight).fill('#f8fafc')
     const event = [record.eventType, record.ageCategory, record.weightCategory].filter(Boolean).join(' / ') || '—'
     const cells = [
-      [`${record.student.firstName} ${record.student.lastName}`, 42, 135],
+      [`${record.student.firstName} ${record.student.lastName}\n${record.student.program?.displayName || 'Program not assigned'}`, 42, 135],
       [yearsOld(record.student.dateOfBirth, tournament.ageCutoffDate || tournament.startDate), 177, 33],
       [record.student.dojo?.name || '—', 210, 94],
       [event, 304, 115],
       [record.result || '—', 419, 72],
       [record.medalType || (record.medalsWon ? `${record.medalsWon} won` : '—'), 491, 63],
     ]
-    cells.forEach(([value, x, width], cellIndex) => doc.fillColor('#1e293b').font(cellIndex === 0 ? 'Helvetica-Bold' : 'Helvetica').fontSize(9.5).text(value as string, x as number + 6, y + 7, { width: width as number - 10, height: 28, ellipsis: true }))
+    cells.forEach(([value, x, width], cellIndex) => doc.fillColor('#1e293b').font(cellIndex === 0 ? 'Helvetica-Bold' : 'Helvetica').fontSize(cellIndex === 0 ? 8.5 : 9.5).text(value as string, x as number + 6, y + 7, { width: width as number - 10, height: 38, ellipsis: true }))
     y += rowHeight
   })
-  doc.font('Helvetica').fontSize(9).fillColor('#64748b').text(`Generated ${new Date().toLocaleString('en-IN')} | ${organization?.name || 'OpenDojo'}`, 42, doc.page.height - 65, { width: pageWidth, align: 'center' })
+  doc.font('Helvetica').fontSize(9).fillColor('#64748b').text(`Generated ${new Date().toLocaleString('en-IN')} | ${organization?.name || 'OpenDojos'}`, 42, doc.page.height - 65, { width: pageWidth, align: 'center' })
   doc.end()
 
   setHeader(event, 'Content-Type', 'application/pdf')

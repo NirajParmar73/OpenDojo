@@ -3,7 +3,7 @@ import { db, tables } from '../../../utils/database'
 import { eq } from 'drizzle-orm'
 import { getAccessibleDojoIds, getHierarchyManagementScope } from '../../../utils/permissions'
 
-const querySchema = z.object({ dojoId: z.coerce.number().int().positive().optional(), nodeId: z.coerce.number().int().positive().optional(), from: z.string().optional(), to: z.string().optional() })
+const querySchema = z.object({ dojoId: z.coerce.number().int().positive().optional(), nodeId: z.coerce.number().int().positive().optional(), programId: z.coerce.number().int().positive().optional(), from: z.string().optional(), to: z.string().optional() })
 export default defineEventHandler(async event => {
   const session = await getUserSession(event)
   if (!session?.user?.organizationId) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
@@ -30,11 +30,11 @@ export default defineEventHandler(async event => {
     query.dojoId = undefined
     ;(query as any).selectedDojoIds = selectedDojoIds
   }
-  const records = await db.query.attendance.findMany({ with: { session: true, student: true } })
+  const records = await db.query.attendance.findMany({ with: { session: true, student: { with: { program: true } } } })
   const from = query.from ? new Date(`${query.from}T00:00:00`) : null
   const to = query.to ? new Date(`${query.to}T23:59:59.999`) : null
   const selectedDojoIds = (query as any).selectedDojoIds as number[] | undefined
-  const filtered = records.filter(record => record.student.organizationId === session.user.organizationId && (!accessible || accessible.includes(record.session.dojoId)) && (!query.dojoId || record.session.dojoId === query.dojoId) && (!selectedDojoIds || selectedDojoIds.includes(record.session.dojoId)) && (!from || record.session.date >= from) && (!to || record.session.date <= to))
+  const filtered = records.filter(record => record.student.organizationId === session.user.organizationId && (!accessible || accessible.includes(record.session.dojoId)) && (!query.dojoId || record.session.dojoId === query.dojoId) && (!query.programId || record.student.programId === query.programId) && (!selectedDojoIds || selectedDojoIds.includes(record.session.dojoId)) && (!from || record.session.date >= from) && (!to || record.session.date <= to))
   const counts = { present: 0, absent: 0, late: 0, excused: 0 }
   for (const record of filtered) counts[record.status]++
   return { total: filtered.length, ...counts, attendanceRate: filtered.length ? Math.round(((counts.present + counts.late) / filtered.length) * 100) : 0 }

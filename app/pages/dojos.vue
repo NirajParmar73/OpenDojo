@@ -174,7 +174,7 @@
             <p v-if="territoryMessage" class="md:col-span-3 text-sm text-slate-500 dark:text-slate-400">{{ territoryMessage }}</p>
             <UInput v-model="editDojoForm.phone" placeholder="Phone" />
             <UInput v-model="editDojoForm.email" placeholder="Email" />
-            <USelect v-model="editDojoForm.defaultFeePlanId" :items="feePlanOptions" placeholder="Default fee plan (optional)" />
+            <UFormField label="Default fee plan" help="This plan is assigned automatically to new students at this dojo."><USelect v-model="editDojoForm.defaultFeePlanId" :items="feePlanOptions" placeholder="No default fee plan" /></UFormField>
           </div>
           <div class="flex gap-2 mt-4">
             <UButton type="submit" :loading="updatingDojo">Update</UButton>
@@ -408,7 +408,27 @@ const editNodeOptions = computed(() => {
   // visible in the edit form, while the other choices remain valid locations.
   return [{ label: getNodePath(currentNodeId), value: currentNodeId }, ...nodeOptions.value]
 })
-const feePlanOptions = computed(() => [{ label: 'No default fee plan', value: null }, ...feePlans.value.filter((plan: any) => plan.isActive).map((plan: any) => ({ label: plan.name, value: plan.id }))])
+const feePlanOptions = computed(() => {
+  const selectedDojoId = editingDojo.value?.id
+  return [
+    { label: 'No default fee plan', value: null },
+    ...feePlans.value
+      .filter((plan: any) => plan.isActive)
+      .filter((plan: any) => !plan.dojoId || plan.dojoId === selectedDojoId || plan.id === editDojoForm.defaultFeePlanId)
+      .map((plan: any) => ({ label: feePlanLabel(plan), value: plan.id })),
+  ]
+})
+
+function feeFrequencyLabel(frequency?: string) {
+  return ({ monthly: 'Monthly plan', quarterly: 'Quarterly plan', annual: 'Annual plan', 'one-time': 'One-time plan' } as Record<string, string>)[frequency || ''] || 'Fee plan'
+}
+
+function feePlanLabel(plan: any) {
+  const amount = new Intl.NumberFormat('en-IN', { maximumFractionDigits: 2 }).format(Number(plan.amount || 0) / 100)
+  const interval = ({ monthly: '/month', quarterly: '/3 months', annual: '/year', 'one-time': 'once' } as Record<string, string>)[plan.frequency] || ''
+  const assignedTo = plan.dojo?.name || 'all eligible dojos'
+  return `${feeFrequencyLabel(plan.frequency)} - ${amount}${interval ? ` ${interval}` : ''} - assigned to ${assignedTo}`
+}
 
 function getDayName(day: number): string {
   const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']

@@ -99,7 +99,7 @@
             Personal details
           </h3>
           <p class="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Your name and email are used throughout OpenDojo.
+            Your name and email are used throughout OpenDojos.
           </p>
         </div>
       </template>

@@ -16,6 +16,7 @@ export default defineEventHandler(async (event) => {
   const accessibleDojoIds = await getAccessibleDojoIds(session.user.id, organizationId)
   const managementScope = await getHierarchyManagementScope(session.user.id, organizationId)
   const selectedDojoId = Number(getQuery(event).dojoId) || null
+  const selectedProgramId = Number(getQuery(event).programId) || null
   if (selectedDojoId && accessibleDojoIds !== null && !accessibleDojoIds.includes(selectedDojoId)) {
     throw createError({ statusCode: 403, statusMessage: 'Report scope is not accessible' })
   }
@@ -33,7 +34,7 @@ export default defineEventHandler(async (event) => {
   }) as any[]
 
   const records = assignments
-    .filter(assignment => assignment.student?.organizationId === organizationId && assignment.student.status !== 'archived' && assignment.status === 'active' && (accessibleDojoIds === null || (assignment.student.dojoId !== null && accessibleDojoIds.includes(assignment.student.dojoId))) && (!selectedDojoId || assignment.student.dojoId === selectedDojoId))
+    .filter(assignment => assignment.student?.organizationId === organizationId && assignment.student.status !== 'archived' && assignment.status === 'active' && (accessibleDojoIds === null || (assignment.student.dojoId !== null && accessibleDojoIds.includes(assignment.student.dojoId))) && (!selectedDojoId || assignment.student.dojoId === selectedDojoId) && (!selectedProgramId || assignment.student.programId === selectedProgramId))
     .map((assignment) => {
       const balance = calculateFeeBalance({
         amount: assignment.feePlan.amount,
@@ -82,9 +83,9 @@ export default defineEventHandler(async (event) => {
   const payments = await db.query.payments.findMany({
     with: { student: true },
   }) as any[]
-  const organizationPayments = payments.filter(payment => payment.student?.organizationId === organizationId && (accessibleDojoIds === null || (payment.student.dojoId !== null && accessibleDojoIds.includes(payment.student.dojoId))) && (!selectedDojoId || payment.student.dojoId === selectedDojoId))
+  const organizationPayments = payments.filter(payment => payment.student?.organizationId === organizationId && (accessibleDojoIds === null || (payment.student.dojoId !== null && accessibleDojoIds.includes(payment.student.dojoId))) && (!selectedDojoId || payment.student.dojoId === selectedDojoId) && (!selectedProgramId || payment.student.programId === selectedProgramId))
   const expenses = await db.query.expenses.findMany({ where: eq(tables.expenses.organizationId, organizationId) })
-  const scopedExpenses = expenses.filter(expense => {
+  const scopedExpenses = selectedProgramId ? [] : expenses.filter(expense => {
     if (expense.status !== 'paid') return false
     // A dojo filter is intentionally strict: shared organization or hierarchy
     // costs cannot be accurately assigned to one dojo without an allocation rule.
@@ -143,6 +144,7 @@ export default defineEventHandler(async (event) => {
 
   return {
     summary: {
+      programFiltered: Boolean(selectedProgramId),
       outstandingAmount: records.reduce((sum, record) => sum + record.outstandingAmount, 0),
       overdueAmount: records.filter(record => record.overdue).reduce((sum, record) => sum + record.outstandingAmount, 0),
       pendingStudents: new Set(records.map(record => record.studentId)).size,

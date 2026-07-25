@@ -48,6 +48,7 @@ export default defineEventHandler(async (event) => {
 
   const body = await readValidatedBody(event, createPaymentSchema.parse)
 
+  let programEnrollmentId: number | null = null
   // If assignmentId provided, verify it belongs to the student
   if (body.assignmentId) {
     const assignment = await db.query.studentFeeAssignments.findFirst({
@@ -59,6 +60,11 @@ export default defineEventHandler(async (event) => {
     if (!assignment) {
       throw createError({ statusCode: 400, statusMessage: 'Invalid fee assignment' })
     }
+    programEnrollmentId = assignment.programEnrollmentId || null
+  }
+  if (!programEnrollmentId) {
+    const enrollment = await db.query.studentProgramEnrollments.findFirst({ where: and(eq(tables.studentProgramEnrollments.studentId, Number(studentId)), eq(tables.studentProgramEnrollments.status, 'active')) })
+    programEnrollmentId = enrollment?.id || null
   }
 
   // Generate a unique receipt number (e.g., RCP-YYYYMMDD-XXXX)
@@ -78,6 +84,7 @@ export default defineEventHandler(async (event) => {
     receiptNumber,
     notes: body.notes || null,
     assignmentId: body.assignmentId || null,
+    programEnrollmentId,
   }).returning() as any[]
 
   if (!payment) {

@@ -125,7 +125,7 @@ watch(loggedIn, async (isLoggedIn) => {
   if (isLoggedIn) await refreshProfile()
 })
 
-const orgName = computed(() => user.value?.organizationName || 'OpenDojo')
+const orgName = computed(() => user.value?.organizationName || 'OpenDojos')
 const orgLogo = computed(() => user.value?.organizationLogo || null)
 const formatRole = (role: string) => role === 'member' ? 'Standard access' : role === 'admin' ? 'Organization administrator' : role === 'owner' ? 'Organization owner' : role.split('_').map(part => part.charAt(0).toUpperCase() + part.slice(1)).join(' ')
 const identityLabel = computed(() => {
@@ -250,7 +250,7 @@ const currentPage = computed(() => {
   if (route.path.startsWith('/students/')) {
     return { title: 'Student profile', section: 'People' }
   }
-  return pageMeta[route.path] || { title: 'OpenDojo', section: 'Workspace' }
+  return pageMeta[route.path] || { title: 'OpenDojos', section: 'Workspace' }
 })
 const pageTitle = computed(() => currentPage.value.title)
 const sectionLabel = computed(() => currentPage.value.section)

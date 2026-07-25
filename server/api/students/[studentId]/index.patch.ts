@@ -25,6 +25,7 @@ const updateStudentSchema = z.object({
   medicalNotes: z.string().optional().nullable(),
   status: z.enum(['active', 'inactive', 'archived']).optional(),
   // ✅ new fields
+  programId: z.number().int().positive().nullable().optional(),
   currentBeltRankId: z.number().int().positive().nullable().optional(),
   avatar: z.string().nullable().optional(),
 })
@@ -80,6 +81,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'You do not have access to the selected dojo' })
   }
 
+  if (body.programId !== undefined && body.programId !== null) {
+    const program = await db.query.organizationPrograms.findFirst({ where: eq(tables.organizationPrograms.id, body.programId) })
+    if (!program || program.organizationId !== orgId) throw createError({ statusCode: 400, statusMessage: 'Invalid program' })
+  }
+
   // If belt rank provided, verify it belongs to the organization's belt system
   if (body.currentBeltRankId !== undefined && body.currentBeltRankId !== null) {
     const rank = await db.query.beltRanks.findFirst({
@@ -116,6 +122,7 @@ export default defineEventHandler(async (event) => {
     updateData.joinedAt = new Date(`${body.joinedAt}T00:00:00.000Z`)
   }
   // ✅ new fields
+  if (body.programId !== undefined) updateData.programId = body.programId
   if (body.currentBeltRankId !== undefined) updateData.currentBeltRankId = body.currentBeltRankId
   if (body.avatar !== undefined) updateData.avatar = body.avatar
 
@@ -129,12 +136,19 @@ export default defineEventHandler(async (event) => {
   if (!updated) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to update student' })
   }
+  if (body.programId !== undefined && body.programId !== null) {
+    const activeEnrollment = await db.query.studentProgramEnrollments.findFirst({ where: and(eq(tables.studentProgramEnrollments.studentId, updated.id), eq(tables.studentProgramEnrollments.status, 'active')) })
+    if (!activeEnrollment || activeEnrollment.programId !== body.programId) {
+      if (activeEnrollment) await db.update(tables.studentProgramEnrollments).set({ status: 'completed', endDate: new Date() }).where(eq(tables.studentProgramEnrollments.id, activeEnrollment.id))
+      await db.insert(tables.studentProgramEnrollments).values({ studentId: updated.id, programId: body.programId, dojoId: updated.dojoId, startDate: new Date(), status: 'active' })
+    }
+  }
   await writeAuditLog({ organizationId: orgId, actorUserId: session.user.id, action: 'student.updated', entityType: 'student', entityId: updated.id, targetLabel: `${updated.firstName} ${updated.lastName}`, scope: updated.dojoId ? { type: 'dojo', id: updated.dojoId } : { type: 'organization' }, details: Object.keys(updateData).filter(key => key !== 'updatedAt').join(', ') })
 
   // Fetch full student with relations
   const fullStudent = await db.query.students.findFirst({
     where: eq(tables.students.id, Number(id)),
-    with: { dojo: true, currentBeltRank: true },
+    with: { dojo: true, program: true, currentBeltRank: true },
   })
 
   return { success: true, student: fullStudent }

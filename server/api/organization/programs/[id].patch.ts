@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { and, eq } from 'drizzle-orm'
 import { db, tables } from '../../../utils/database'
 
-const schema = z.object({ martialArt: z.string().trim().min(1).max(100), style: z.string().trim().min(1).max(100) })
+const schema = z.object({ displayName: z.string().trim().min(1).max(100), martialArt: z.string().trim().min(1).max(100), style: z.string().trim().max(100).optional() })
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Invalid program' })
   const body = await readValidatedBody(event, schema.parse)
   const [program] = await db.update(tables.organizationPrograms)
-    .set({ martialArt: body.martialArt, style: body.style, displayName: `${body.martialArt} - ${body.style}`, updatedAt: new Date() })
+    .set({ martialArt: body.martialArt, style: body.style || body.martialArt, displayName: body.displayName, updatedAt: new Date() })
     .where(and(eq(tables.organizationPrograms.id, id), eq(tables.organizationPrograms.organizationId, session.user.organizationId)))
     .returning()
   if (!program) throw createError({ statusCode: 404, statusMessage: 'Program not found' })

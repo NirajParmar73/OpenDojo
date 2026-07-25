@@ -19,6 +19,7 @@
         <UFormField label="First name" required><UInput v-model="newStudent.firstName" required /></UFormField>
         <UFormField label="Last name" required><UInput v-model="newStudent.lastName" required /></UFormField>
         <UFormField label="Dojo" required><USelect v-model="newStudent.dojoId" :items="dojoOptions" placeholder="Select a dojo" required /></UFormField>
+        <UFormField label="Program"><USelect v-model="newStudent.programId" :items="programOptions" placeholder="Optional - choose a martial art or fitness program" /></UFormField>
         <UFormField label="Email address"><UInput v-model="newStudent.email" type="email" /></UFormField>
         <UFormField label="Phone number"><UInput v-model="newStudent.phone" /></UFormField>
         <UFormField label="Date of birth">
@@ -141,6 +142,7 @@ type FeePlan = { id: number, name: string, dojoId: number | null, dojo?: { name:
 const students = ref<any[]>([])
 const dojos = ref<any[]>([])
 const feePlans = ref<FeePlan[]>([])
+const programs = ref<any[]>([])
 const loading = ref(true)
 const loadError = ref('')
 const creating = ref(false)
@@ -162,7 +164,7 @@ const genderOptions = [
 ]
 
 const today = new Date().toISOString().slice(0, 10)
-const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: null as number | null, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
+const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, programId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: null as number | null, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
 const studentAvatarFile = ref<File | null>(null)
 const studentAvatarPreview = ref('')
 const studentCameraInput = ref<HTMLInputElement | null>(null)
@@ -180,8 +182,12 @@ const studentLimitMessage = computed(() => globalStudentLimitReached.value
   ? `Your plan includes up to ${subscription.value?.limits.students} students. Upgrade to continue enrolling students.`
   : 'Each City Starter dojo can have up to 75 students. Upgrade to City Pro to continue enrolling students.')
 const dojoOptions = computed(() => dojos.value.filter(dojo => !isCityStarter.value || (studentCountByDojo.value[dojo.id] || 0) < 75).map(dojo => ({ label: dojo.name, value: dojo.id })))
+const programOptions = computed(() => programs.value.map(program => ({ label: program.displayName, value: program.id })))
+const feeFrequencyLabel = (frequency?: string) => ({ monthly: 'every month', quarterly: 'every 3 months', annual: 'every year', 'one-time': 'one-time' } as Record<string, string>)[frequency || ''] || 'billing period'
 const availableFeePlanOptions = computed(() => feePlans.value
   .filter(plan => !plan.dojoId || plan.dojoId === newStudent.dojoId)
+  .filter(plan => plan.isActive)
+  .map(plan => ({ ...plan, name: `${plan.name} - ${feeFrequencyLabel(plan.frequency)} - ${Number(plan.amount || 0) / 100} per charge` }))
   .map(plan => ({ label: `${plan.name}${plan.dojo?.name ? ` — ${plan.dojo.name}` : ''}`, value: plan.id })))
 const dojoFilterOptions = computed(() => [{ label: 'All dojos', value: 'all' }, ...dojoOptions.value])
 const filteredStudents = computed(() => {
@@ -198,7 +204,7 @@ function resetCreateForm() {
   if (studentAvatarPreview.value) URL.revokeObjectURL(studentAvatarPreview.value)
   studentAvatarFile.value = null
   studentAvatarPreview.value = ''
-  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: null, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
+  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, programId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: null, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
   showCreate.value = false
 }
 
@@ -246,10 +252,11 @@ async function loadData() {
   loading.value = true
   loadError.value = ''
   try {
-    const [studentData, dojoData, feePlanData] = await Promise.all([$fetch('/api/students'), $fetch('/api/dojos'), $fetch('/api/fee-plans')])
+    const [studentData, dojoData, feePlanData, programData] = await Promise.all([$fetch('/api/students'), $fetch('/api/dojos'), $fetch('/api/fee-plans'), $fetch('/api/organization/programs')])
     students.value = studentData as any[]
     dojos.value = dojoData as any[]
     feePlans.value = feePlanData as FeePlan[]
+    programs.value = programData as any[]
   } catch (error: any) {
     loadError.value = error.data?.statusMessage || error.message || 'Please try again.'
   } finally {

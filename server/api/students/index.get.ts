@@ -27,6 +27,7 @@ export default defineEventHandler(async (event) => {
         ),
     with: {
       dojo: { with: { node: true } },
+      program: true,
       currentBeltRank: true,
     },
   })

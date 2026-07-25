@@ -26,7 +26,7 @@ export default defineEventHandler(async (event) => {
     where: eq(tables.payments.id, Number(paymentId)),
     with: {
       student: {
-        with: { dojo: true },
+        with: { dojo: true, program: true },
       },
       assignment: {
         with: { feePlan: true },
@@ -79,7 +79,7 @@ export default defineEventHandler(async (event) => {
   }
 
   // Organization name
-  const orgName = organization?.name || 'OpenDojo'
+  const orgName = organization?.name || 'OpenDojos'
   doc.fontSize(20).font('Helvetica-Bold').text(orgName, 0, yPos, { align: 'center' })
   yPos += 24
 
@@ -102,6 +102,8 @@ export default defineEventHandler(async (event) => {
   doc.text(`Name: ${studentName}`, 50, yPos)
   yPos += 16
   doc.text(`Dojo: ${payment.student.dojo?.name || 'N/A'}`, 50, yPos)
+  yPos += 17
+  doc.text(`Program: ${payment.student.program?.displayName || 'N/A'}`, 50, yPos)
   yPos += 20
 
   // Payment details

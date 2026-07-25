@@ -23,7 +23,7 @@
 
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
-useHead({ title: 'Getting started | OpenDojo' })
+useHead({ title: 'Getting started | OpenDojos' })
 
 const { user } = useUserSession()
 const { data: subscription } = await useFetch<any>('/api/organization/subscription')
@@ -87,10 +87,11 @@ const ownerSteps = computed(() => [
   { key: 'owner:fee-structure', title: 'Set up your fee structure', description: 'Create or confirm a fee plan that can be assigned to new students.', to: '/settings/finance/fee-plans', done: (feePlans.value?.length || 0) > 0 },
   { key: 'owner:confirm-instructor', title: 'Confirm your instructor', description: 'You are assigned to the first dojo. Add another instructor if someone else will teach.', to: '/dojos', done: !!dojoSetup.value?.hasInstructor },
   { key: 'owner:create-schedule', title: 'Create a class schedule', description: 'Add the class day and time students will attend.', to: '/dojos', done: !!dojoSetup.value?.hasSchedule },
-  { key: 'owner:program', title: 'Check your martial-art program', description: 'Make sure the discipline and style match what you teach.', to: '/settings/programs', done: (programs.value?.length || 0) > 0 },
+  { key: 'owner:program', title: 'Set up your programs', description: 'Add martial arts, personal training, or fitness programs. Assign one during enrolment, then use the student profile to add another only when needed.', to: '/settings/programs', done: (programs.value?.length || 0) > 0 },
   ...(['karate', 'taekwondo', 'judo', 'bjj', 'hapkido', 'aikido', 'kendo', 'iaido', 'tang_soo_do'].includes(programs.value?.[0]?.martialArt) ? [{ key: 'owner:belt-ranks', title: 'Review belt ranks', description: 'Your starter belt system is ready. Adjust ranks only if your school uses a different order.', to: '/settings/belts', done: (belts.value?.ranks?.length || belts.value?.length || 0) > 0 }] : []),
-  { key: 'owner:first-student', title: 'Add your first student', description: (dojos.value?.length || 0) ? 'Enrol the student in a dojo and assign their fee plan.' : 'Create a dojo first; students cannot be enrolled without one.', to: (dojos.value?.length || 0) ? '/students' : '/dojos', done: (subscription.value?.usage.students || 0) > 0 },
-  ...(isPaid.value ? [{ key: 'owner:hierarchy', title: 'Review your hierarchy', description: 'Expand locations and assign staff at the appropriate level as your organization grows.', to: '/settings/hierarchy/nodes', done: (subscription.value?.usage.hierarchyNodes || 0) > 1 }, { key: 'owner:locations-staff', title: 'Add locations and staff', description: 'Grow your organization by adding branches and assigning your team.', to: '/users', done: (users.value?.length || 0) > 1 }] : []),
+  { key: 'owner:first-student', title: 'Add your first student or client', description: (dojos.value?.length || 0) ? 'Enrol them in a dojo, select their martial art, personal training, or fitness program, and assign their fee plan.' : 'Create a dojo first; students and clients cannot be enrolled without one.', to: (dojos.value?.length || 0) ? '/students' : '/dojos', done: (subscription.value?.usage.students || 0) > 0 },
+  ...(['state-pro', 'national'].includes(plan.value) ? [{ key: 'owner:hierarchy', title: 'Review your hierarchy', description: 'Build locations in order, then assign staff at the appropriate level as your organization grows.', to: '/settings/hierarchy/nodes', done: (subscription.value?.usage.hierarchyNodes || 0) > 1 }, { key: 'owner:locations-staff', title: 'Add locations and staff', description: 'Grow your organization by adding branches and assigning your team.', to: '/users', done: (users.value?.length || 0) > 1 }] : []),
+  ...(['city-starter', 'city-pro'].includes(plan.value) ? [{ key: 'owner:city-locations', title: 'Add city locations and staff', description: plan.value === 'city-starter' ? 'You can add one more dojo in your configured city, then assign the staff who teach there.' : 'Add dojos and staff within your configured city as your organization grows.', to: '/dojos', done: (dojos.value?.length || 0) > 1 }] : []),
 ])
 const headSteps = computed(() => [
   { key: 'head:review-territory', title: `Review ${hierarchyAssignment.value?.scopeName || 'your territory'}`, description: 'Check the locations and staff already assigned below your hierarchy boundary.', to: '/settings/hierarchy/nodes', done: !!hierarchyAssignment.value },
@@ -127,5 +128,5 @@ async function setStepCompletion(stepKey: string, completed: boolean) {
   await refreshProgress()
 }
 const planLabel = computed(() => ({ 'city-starter': 'City Starter', 'city-pro': 'City Pro', 'state-pro': 'State Pro', national: 'National' }[plan.value] || 'Free Forever'))
-const paidGuidance = computed(() => plan.value === 'state-pro' ? 'When you add branches, build your State, District, and City hierarchy first, then place each dojo beneath the right city.' : plan.value === 'national' ? 'Build your federation hierarchy first, then assign states, branches, and staff to the appropriate level.' : 'Add locations as you grow, then assign staff to the dojo where they teach.')
+const paidGuidance = computed(() => plan.value === 'state-pro' ? 'When you add branches, build your State, District, and City hierarchy first, then place each dojo beneath the right city.' : plan.value === 'national' ? 'Build your federation hierarchy first, then assign states, branches, and staff to the appropriate level.' : plan.value === 'city-starter' ? 'You can manage up to two dojos in your configured city, with up to 75 students in each.' : 'Add dojos and staff within your configured city as your organization grows.')
 </script>

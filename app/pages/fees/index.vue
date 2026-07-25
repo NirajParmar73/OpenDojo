@@ -214,6 +214,7 @@ const feePlanOptions = computed(() =>
   feePlans.value
     .filter(plan => !plan.dojoId || plan.dojoId === student.value?.dojoId)
     .filter(plan => !!plan.isActive)
+    .map(plan => ({ ...plan, frequency: feeFrequencyLabel(plan.frequency) }))
     .map(plan => ({ label: `${plan.name} · ${plan.frequency} (${formatCurrency(plan.amount)})`, value: plan.id }))
 )
 const assignmentOptions = computed(() =>
@@ -228,6 +229,7 @@ const selectedAssignment = computed(() => assignments.value.find(assignment => a
 const paymentCoverage = computed(() => selectedAssignment.value ? formatFeePeriod(paymentForm.billingPeriod, selectedAssignment.value.feePlan?.frequency) : '')
 
 function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organizationSettings.value?.currency || 'USD' }).format(amount / 100) }
+function feeFrequencyLabel(frequency?: string) { return ({ monthly: 'every month', quarterly: 'every 3 months', annual: 'every year', 'one-time': 'one-time' } as Record<string, string>)[frequency || ''] || 'billing period' }
 
 function formatDate(ts: number) {
   return new Date(ts).toLocaleDateString()

@@ -4,7 +4,7 @@
       <p class="text-sm font-semibold text-primary">PLATFORM CONSOLE</p>
       <div class="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Your OpenDojo business, at a glance</h2>
+          <h2 class="text-2xl font-semibold tracking-tight sm:text-3xl">Your OpenDojos business, at a glance</h2>
           <p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Monitor customer workspaces and manage access plans without entering an organization’s account.</p>
         </div>
         <UButton icon="i-lucide-refresh-cw" variant="outline" :loading="loading" @click="refreshAll">Refresh</UButton>

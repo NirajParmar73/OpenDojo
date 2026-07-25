@@ -17,7 +17,7 @@ export default defineEventHandler(async (event) => {
 
   const student = await db.query.students.findFirst({
     where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)),
-    with: { dojo: true },
+    with: { dojo: true, program: true },
   }) as any
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
   if (student.dojoId) {
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
       y += 67
     }
   }
-  doc.font('Helvetica-Bold').fontSize(20).fillColor(colors.slate).text(organization?.name || 'OpenDojo', contentX, y, { width: contentWidth, align: 'center' })
+  doc.font('Helvetica-Bold').fontSize(20).fillColor(colors.slate).text(organization?.name || 'OpenDojos', contentX, y, { width: contentWidth, align: 'center' })
   y += 28
   doc.font('Helvetica').fontSize(12).fillColor(colors.primary).text('ATTENDANCE REPORT', contentX, y, { width: contentWidth, align: 'center', characterSpacing: 1.1 })
   y += 21
@@ -84,7 +84,7 @@ export default defineEventHandler(async (event) => {
 
   doc.roundedRect(contentX, y, contentWidth, 55, 7).fill('#eef2ff')
   doc.font('Helvetica-Bold').fontSize(11).fillColor(colors.slate).text(`${student.firstName} ${student.lastName}`, contentX + 16, y + 13)
-  doc.font('Helvetica').fontSize(10.5).fillColor(colors.muted).text(`Dojo: ${student.dojo?.name || 'Not assigned'}`, contentX + 16, y + 30)
+  doc.font('Helvetica').fontSize(10.5).fillColor(colors.muted).text(`Dojo: ${student.dojo?.name || 'Not assigned'}  |  Program: ${student.program?.displayName || 'Not assigned'}`, contentX + 16, y + 30)
   y += 75
 
   const stats = [

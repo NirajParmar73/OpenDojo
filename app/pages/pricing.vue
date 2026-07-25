@@ -33,7 +33,7 @@
 
 <script setup lang="ts">
 definePageMeta({ layout: 'legal' })
-useHead({ title: 'Pricing | OpenDojo', meta: [{ name: 'description', content: 'Monthly and yearly pricing for martial-arts organizations using OpenDojo.' }] })
+useHead({ title: 'Pricing | OpenDojos', meta: [{ name: 'description', content: 'Monthly and yearly pricing for martial-arts organizations using OpenDojos.' }] })
 
 const billingPeriod = ref<'monthly' | 'annual'>('annual')
 const currency = ref<'INR' | 'USD'>('INR')

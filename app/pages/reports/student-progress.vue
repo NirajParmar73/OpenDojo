@@ -14,6 +14,9 @@
         <UFormField label="Dojo">
           <USelect v-model="selectedDojoId" :items="dojoOptions" placeholder="All accessible dojos" />
         </UFormField>
+        <UFormField label="Program">
+          <USelect v-model="selectedProgramId" :items="programOptions" placeholder="All programs" />
+        </UFormField>
         <UFormField label="Student" class="sm:col-span-2">
           <USelect v-model="studentId" :items="studentOptions" placeholder="Select a student" searchable />
         </UFormField>
@@ -35,7 +38,9 @@ const toast = useToast()
 const studentId = ref<number | null>(null)
 const selectedNodeId = ref<number | null>(null)
 const selectedDojoId = ref<number | null>(null)
+const selectedProgramId = ref<number | null>(null)
 const { data: students } = await useFetch<any[]>('/api/students')
+const { data: programs } = await useFetch<any[]>('/api/organization/programs')
 const { data: scope } = await useFetch<{ nodes: ScopeNode[], dojos: ScopeDojo[] }>('/api/reports/scope')
 
 const nodeOptions = computed(() => [
@@ -75,7 +80,8 @@ const dojoOptions = computed(() => [
   { label: 'All accessible dojos', value: null },
   ...filteredDojos.value.map(dojo => ({ label: dojo.name, value: dojo.id }))
 ])
-const filteredStudents = computed(() => (students.value || []).filter(student => !selectedDojoId.value || student.dojoId === selectedDojoId.value).filter(student => filteredDojos.value.some(dojo => dojo.id === student.dojoId)))
+const programOptions = computed(() => [{ label: 'All programs', value: null }, ...(programs.value || []).map(program => ({ label: program.displayName, value: program.id }))])
+const filteredStudents = computed(() => (students.value || []).filter(student => !selectedDojoId.value || student.dojoId === selectedDojoId.value).filter(student => !selectedProgramId.value || student.programId === selectedProgramId.value).filter(student => filteredDojos.value.some(dojo => dojo.id === student.dojoId)))
 const studentOptions = computed(() => filteredStudents.value.map(student => ({ label: `${student.firstName} ${student.lastName}${student.dojo?.name ? ` — ${student.dojo.name}` : ''}`, value: student.id })))
 
 watch(selectedNodeId, () => {
@@ -83,6 +89,7 @@ watch(selectedNodeId, () => {
   studentId.value = null
 })
 watch(selectedDojoId, () => { studentId.value = null })
+watch(selectedProgramId, () => { studentId.value = null })
 
 async function download() {
   if (!studentId.value) return

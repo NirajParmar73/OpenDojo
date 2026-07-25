@@ -15,6 +15,7 @@
         <UFormField label="First name" required><UInput v-model="form.firstName" required /></UFormField>
         <UFormField label="Last name" required><UInput v-model="form.lastName" required /></UFormField>
         <UFormField label="Dojo"><USelect v-model="form.dojoId" :items="dojoOptions" placeholder="No dojo assigned" /></UFormField>
+        <UFormField label="Program"><USelect v-model="form.programId" :items="programOptions" placeholder="Optional - choose a martial art or fitness program" /></UFormField>
         <UFormField label="Status"><USelect v-model="form.status" :items="statusOptions" /></UFormField>
         <UFormField label="Email"><UInput v-model="form.email" type="email" /></UFormField>
         <UFormField label="Phone"><UInput v-model="form.phone" /></UFormField>
@@ -68,15 +69,19 @@ const savingFee = ref(false)
 const savingPortal = ref(false)
 const studentCameraInput = ref<HTMLInputElement | null>(null)
 const studentGalleryInput = ref<HTMLInputElement | null>(null)
-const form = reactive({ firstName: '', lastName: '', dojoId: null as number | null, status: 'active', email: '', phone: '', dateOfBirth: '', joinedAt: '', gender: undefined as string | undefined, address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '', emergencyContact: '', emergencyPhone: '', medicalNotes: '' })
+const form = reactive({ firstName: '', lastName: '', dojoId: null as number | null, programId: null as number | null, status: 'active', email: '', phone: '', dateOfBirth: '', joinedAt: '', gender: undefined as string | undefined, address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '', emergencyContact: '', emergencyPhone: '', medicalNotes: '' })
 const statusOptions = [{ label: 'Active', value: 'active' }, { label: 'Inactive', value: 'inactive' }, { label: 'Archived', value: 'archived' }]
 const genderOptions = [{ label: 'Male', value: 'male' }, { label: 'Female', value: 'female' }, { label: 'Other', value: 'other' }]
 
 const { data: student, pending, error } = await useFetch<any>(`/api/students/${studentId}`)
 const { data: dojos } = await useFetch<any[]>('/api/dojos')
+const { data: programs } = await useFetch<any[]>('/api/organization/programs')
 const { data: feePlans } = await useFetch<any[]>('/api/fee-plans')
 const dojoOptions = computed(() => (dojos.value || []).map(dojo => ({ label: dojo.name, value: dojo.id })))
-const feePlanOptions = computed(() => (feePlans.value || []).filter(plan => !plan.dojoId || plan.dojoId === form.dojoId).map(plan => ({ label: plan.name, value: plan.id })))
+const programOptions = computed(() => (programs.value || []).map(program => ({ label: program.displayName, value: program.id })))
+const feePlanOptions = computed(() => (feePlans.value || []).filter(plan => !plan.dojoId || plan.dojoId === form.dojoId).filter(plan => plan.isActive).map(plan => ({ label: feePlanLabel(plan), value: plan.id })))
+const feeFrequencyLabel = (frequency?: string) => ({ monthly: 'every month', quarterly: 'every 3 months', annual: 'every year', 'one-time': 'one-time' } as Record<string, string>)[frequency || ''] || 'billing period'
+const feePlanLabel = (plan: any) => `${plan.name} - ${feeFrequencyLabel(plan.frequency)} - ${Number(plan.amount || 0) / 100} per charge`
 const feeForm = reactive({ feePlanId: null as number | null, startDate: new Date().toISOString().slice(0, 10), discount: 0, discountReason: '' })
 const portalForm = reactive({ username: '', temporaryPassword: '', isActive: true })
 
@@ -86,6 +91,7 @@ watchEffect(() => {
     firstName: student.value.firstName,
     lastName: student.value.lastName,
     dojoId: student.value.dojoId || null,
+    programId: student.value.programId || null,
     status: student.value.status || 'active',
     email: student.value.email || '',
     phone: student.value.phone || '',

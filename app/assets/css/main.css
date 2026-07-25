@@ -29,6 +29,28 @@ body {
   min-width: 320px;
 }
 
+/* Native date/month fields and trigger labels can otherwise collapse down to
+   unreadable numeric fragments inside narrow grid and table layouts. */
+input[type='date'],
+input[type='month'],
+input[type='time'],
+[data-slot='trigger'] {
+  min-inline-size: 0;
+  max-inline-size: 100%;
+}
+
+@media (max-width: 639px) {
+  input[type='date'],
+  input[type='month'],
+  input[type='time'] {
+    font-size: 16px;
+  }
+
+  [data-slot='trigger'] {
+    min-block-size: 2.75rem;
+  }
+}
+
 ::selection {
   background: color-mix(in srgb, var(--ui-primary) 25%, transparent);
 }

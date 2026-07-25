@@ -6,7 +6,7 @@ import { currentTenant, organizationSlug, reservedSubdomains, workspaceUrl } fro
 import { sendVerificationEmail } from '../utils/email-verification'
 
 export default defineEventHandler(async (event) => {
-  if (currentTenant(event)) throw createError({ statusCode: 403, statusMessage: 'New organizations must be created from the main OpenDojo site' })
+  if (currentTenant(event)) throw createError({ statusCode: 403, statusMessage: 'New organizations must be created from the main OpenDojos site' })
   console.log('📝 Onboarding started')
   const form = await readMultipartFormData(event)
   if (!form) {
@@ -28,24 +28,28 @@ export default defineEventHandler(async (event) => {
   const branchName = getField('branchName')?.trim()
   const feeName = getField('feeName')
   const feeAmount = Number(getField('feeAmount'))
+  const feeFrequency = getField('feeFrequency')
   const currency = getField('currency')
   const name = getField('name')
   const email = getField('email')
   const password = getField('password')
   const martialArt = getField('martialArt')
   const style = getField('style')
+  const programName = getField('programName')
   const requestedTrialPlan = getField('trialPlan')
   const requestedBillingPeriod = getField('billingPeriod')
   const staffField = getField('staff')
   const logoFilePart = form.find((p) => p.name === 'logo' && p.filename)
 
-  if (!orgName?.trim() || !workspaceSlug?.trim() || !dojoName?.trim() || !dojoAddress?.trim() || !dojoCity?.trim() || !dojoStateProvince?.trim() || !dojoCountry?.trim() || !name?.trim() || !email?.trim() || !password || !martialArt?.trim() || !style?.trim() || !feeName?.trim() || !Number.isInteger(feeAmount) || feeAmount < 1) {
+  if (!orgName?.trim() || !workspaceSlug?.trim() || !dojoName?.trim() || !dojoAddress?.trim() || !dojoCity?.trim() || !dojoStateProvince?.trim() || !dojoCountry?.trim() || !name?.trim() || !email?.trim() || !password || !programName?.trim() || !martialArt?.trim() || !style?.trim() || !feeName?.trim() || !Number.isInteger(feeAmount) || feeAmount < 1) {
     throw createError({ statusCode: 400, statusMessage: 'Missing required fields' })
   }
 
   if (password.length < 8) {
     throw createError({ statusCode: 400, statusMessage: 'Password must be at least 8 characters' })
   }
+
+  if (!['monthly', 'quarterly', 'annual', 'one-time'].includes(feeFrequency || '')) throw createError({ statusCode: 400, statusMessage: 'Choose a valid fee billing interval' })
   const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'INR', 'SGD', 'AED', 'ZAR', 'BRL', 'MXN'])
   if (!currency || !supportedCurrencies.has(currency)) throw createError({ statusCode: 400, statusMessage: 'Choose a supported organization currency' })
   if (!/^\S+@\S+\.\S+$/.test(email)) throw createError({ statusCode: 400, statusMessage: 'Enter a valid owner email address' })
@@ -152,7 +156,7 @@ export default defineEventHandler(async (event) => {
     organizationId: org.id,
     martialArt,
     style,
-    displayName: `${martialArt.replaceAll('_', ' ')} - ${style.replaceAll('_', ' ')}`,
+    displayName: programName.trim(),
     isPrimary: 1,
   }).returning()
 
@@ -172,7 +176,7 @@ export default defineEventHandler(async (event) => {
   }
 
   if (dojo) {
-    const [feePlan] = await tx.insert(tables.feePlans).values({ organizationId: org.id, dojoId: dojo.id, name: feeName, amount: feeAmount * 100, frequency: 'monthly', description: 'Created during workspace setup', isActive: 1 }).returning()
+    const [feePlan] = await tx.insert(tables.feePlans).values({ organizationId: org.id, dojoId: dojo.id, name: feeName, amount: feeAmount * 100, frequency: feeFrequency as 'monthly' | 'quarterly' | 'annual' | 'one-time', description: 'Created during workspace setup', isActive: 1 }).returning()
     if (feePlan) await tx.update(tables.dojos).set({ defaultFeePlanId: feePlan.id, updatedAt: new Date() }).where(eq(tables.dojos.id, dojo.id))
   }
 

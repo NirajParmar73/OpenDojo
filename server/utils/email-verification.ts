@@ -17,7 +17,7 @@ export async function sendVerificationEmail(event: any, user: { id: number, emai
   const origin = configuredAppUrl || getRequestURL(event).origin
   const url = `${origin}/auth/verify-email?token=${token}`
   const transporter = nodemailer.createTransport({ host: process.env.SMTP_HOST, port: Number(process.env.SMTP_PORT || 465), secure: process.env.SMTP_SECURE === 'true', auth: { user: process.env.SMTP_USER, pass: process.env.SMTP_PASSWORD } })
-  await transporter.sendMail({ from: process.env.EMAIL_FROM, to: user.email, subject: 'Verify your OpenDojo email address', text: `Hello ${user.name}, verify your email address: ${url}\nThis link expires in 24 hours.`, html: `<p>Hello ${user.name},</p><p><a href="${url}">Verify your email address</a></p><p>This link expires in 24 hours.</p>` })
+  await transporter.sendMail({ from: process.env.EMAIL_FROM, to: user.email, subject: 'Verify your OpenDojos email address', text: `Hello ${user.name}, verify your email address: ${url}\nThis link expires in 24 hours.`, html: `<p>Hello ${user.name},</p><p><a href="${url}">Verify your email address</a></p><p>This link expires in 24 hours.</p>` })
 }
 
 export const verificationHash = hash

@@ -1,5 +1,6 @@
 import { and, count, eq } from 'drizzle-orm'
 import { db, tables } from './database'
+import { getLocationFromHierarchyNode } from './hierarchy-location'
 
 export const subscriptionPlans = ['free', 'city-starter', 'city-pro', 'state-pro', 'national'] as const
 export type SubscriptionPlan = typeof subscriptionPlans[number]
@@ -123,7 +124,16 @@ export async function assertDojoTerritory(orgId: number, location: { city?: stri
   }
   const firstDojo = await db.query.dojos.findFirst({ where: eq(tables.dojos.organizationId, orgId), orderBy: (dojo, { asc }) => [asc(dojo.id)] })
   if (!firstDojo) return
-  const sameCountry = normalize(firstDojo.country) === normalize(location.country)
+
+  // National workspaces created before Country was a dedicated hierarchy
+  // level can have an outdated (or empty) country on their first dojo. The
+  // hierarchy is the source of truth for that workspace's configured country.
+  const hierarchyLocation = plan === 'national'
+    ? await getLocationFromHierarchyNode(orgId, firstDojo.nodeId, true)
+    : null
+  const configuredCountry = hierarchyLocation?.country || firstDojo.country
+
+  const sameCountry = normalize(configuredCountry) === normalize(location.country)
   const sameState = normalize(firstDojo.stateProvince) === normalize(location.stateProvince)
   const sameCity = normalize(firstDojo.city) === normalize(location.city)
   if (!sameCountry || (plan === 'state-pro' && !sameState) || (requiresCity && !sameCity)) {

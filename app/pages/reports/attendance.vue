@@ -11,6 +11,9 @@
         <UFormField label="Territory">
           <USelect v-model="selectedScopeId" :items="scopeOptions" placeholder="All accessible entities" />
         </UFormField>
+        <UFormField label="Program">
+          <USelect v-model="selectedProgramId" :items="programOptions" placeholder="All programs" />
+        </UFormField>
         <div class="self-end"><UButton :loading="loadingSummary" @click="loadSummary">View summary</UButton></div>
       </div>
       <div v-if="summary" class="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-5"><div v-for="item in summaryItems" :key="item.label" class="rounded-lg bg-slate-50 p-3 text-center dark:bg-slate-800"><p class="text-xs text-slate-500">{{ item.label }}</p><p class="mt-1 text-xl font-semibold">{{ item.value }}</p></div></div>
@@ -63,16 +66,19 @@ const generating = ref(false)
 const downloadUrl = ref('')
 const scopeType = ref('dojo')
 const selectedScopeId = ref<number | null>(null)
+const selectedProgramId = ref<number | null>(null)
+const programs = ref<any[]>([])
 const reportScope = ref<{ nodes: Array<{ id: number, name: string }>, dojos: Array<{ id: number, name: string }> }>({ nodes: [], dojos: [] })
 const summary = ref<any>(null)
 const loadingSummary = ref(false)
 const scopeTypes = [{ label: 'Dojo', value: 'dojo' }, { label: 'Hierarchy entity', value: 'node' }]
 const scopeOptions = computed(() => (scopeType.value === 'dojo' ? reportScope.value.dojos : reportScope.value.nodes).map(item => ({ label: item.name, value: item.id })))
+const programOptions = computed(() => [{ label: 'All programs', value: null }, ...programs.value.map(program => ({ label: program.displayName, value: program.id }))])
 const summaryItems = computed(() => summary.value ? [{ label: 'Attendance', value: `${summary.value.attendanceRate}%` }, { label: 'Present', value: summary.value.present }, { label: 'Late', value: summary.value.late }, { label: 'Absent', value: summary.value.absent }, { label: 'Records', value: summary.value.total }] : [])
 
 const studentOptions = computed(() =>
   students.value.map((s: any) => ({
-    label: `${s.firstName} ${s.lastName}`,
+    label: `${s.firstName} ${s.lastName}${s.program?.displayName ? ` — ${s.program.displayName}` : ''}`,
     value: s.id,
   }))
 )
@@ -92,6 +98,7 @@ async function loadSummary() {
   try {
     const params = new URLSearchParams()
     if (selectedScopeId.value) params.set(scopeType.value === 'dojo' ? 'dojoId' : 'nodeId', String(selectedScopeId.value))
+    if (selectedProgramId.value) params.set('programId', String(selectedProgramId.value))
     if (dateFrom.value) params.set('from', dateFrom.value)
     if (dateTo.value) params.set('to', dateTo.value)
     summary.value = await $fetch(`/api/reports/attendance/summary?${params}`)
@@ -150,5 +157,5 @@ function downloadReport() {
   }
 }
 
-onMounted(async () => { await Promise.all([loadStudents(), $fetch('/api/reports/scope').then(data => { reportScope.value = data })]); await loadSummary() })
+onMounted(async () => { await Promise.all([loadStudents(), $fetch('/api/organization/programs').then(data => { programs.value = data }), $fetch('/api/reports/scope').then(data => { reportScope.value = data })]); await loadSummary() })
 </script>

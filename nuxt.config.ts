@@ -46,7 +46,7 @@ export default defineNuxtConfig({
       public: {
       appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
       tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
-      legalEntityName: process.env.NUXT_PUBLIC_LEGAL_ENTITY_NAME || 'OpenDojo',
+      legalEntityName: process.env.NUXT_PUBLIC_LEGAL_ENTITY_NAME || 'OpenDojos',
       supportEmail: process.env.NUXT_PUBLIC_SUPPORT_EMAIL || 'support@your-domain.com',
       supportPhone: process.env.NUXT_PUBLIC_SUPPORT_PHONE || '',
       legalAddress: process.env.NUXT_PUBLIC_LEGAL_ADDRESS || '',

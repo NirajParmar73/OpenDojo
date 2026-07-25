@@ -31,7 +31,7 @@ async function razorpayRequest<T>(path: string, init?: RequestInit): Promise<T> 
 export function getRazorpayPrice(plan: RazorpayPlan, billingPeriod: RazorpayBillingPeriod) { return prices[plan][billingPeriod] }
 
 export async function createRazorpayOrder(plan: RazorpayPlan, billingPeriod: RazorpayBillingPeriod, organizationId: number, organizationName: string) {
-  return razorpayRequest<RazorpayOrder>('/orders', { method: 'POST', body: JSON.stringify({ amount: getRazorpayPrice(plan, billingPeriod), currency: 'INR', receipt: `opendojo_${organizationId}_${Date.now()}`, notes: { organization_id: String(organizationId), organization_name: organizationName.slice(0, 50), plan, billing_period: billingPeriod } }) })
+  return razorpayRequest<RazorpayOrder>('/orders', { method: 'POST', body: JSON.stringify({ amount: getRazorpayPrice(plan, billingPeriod), currency: 'INR', receipt: `opendojos_${organizationId}_${Date.now()}`, notes: { organization_id: String(organizationId), organization_name: organizationName.slice(0, 50), plan, billing_period: billingPeriod } }) })
 }
 
 export function verifyRazorpayPaymentSignature(orderId: string, paymentId: string, signature: string) {

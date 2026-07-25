@@ -1,25 +1,30 @@
 <template>
   <div>
-    <h2 class="text-xl font-semibold mb-4">Fee Plans</h2>
+    <h2 class="text-xl font-semibold mb-1">Fee Plans</h2>
+    <p class="mb-4 text-sm text-slate-500 dark:text-slate-400">Give each plan a distinct name. The billing interval explains how often its amount is charged.</p>
 
     <UCard class="mb-6">
       <form @submit.prevent="createFeePlan">
         <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-          <UInput v-model="newPlan.name" placeholder="Plan name" required />
-          <UInput v-model.number="newPlan.amount" type="number" placeholder="Amount" required />
+          <UFormField label="Plan name" required><UInput v-model="newPlan.name" placeholder="e.g. Adult karate" required /></UFormField>
+          <UFormField label="Amount per billing period" required><UInput v-model.number="newPlan.amount" type="number" placeholder="e.g. 1500" required /></UFormField>
+          <UFormField label="Billing interval" required>
           <USelect
             v-model="newPlan.frequency"
             :items="frequencyOptions"
             placeholder="Frequency"
             required
           />
+          </UFormField>
+          <UFormField label="Applies to">
           <USelect
             v-model="newPlan.dojoId"
             :items="dojoOptions"
             :placeholder="canCreateOrganizationWide ? 'Dojo (optional: entire territory)' : 'Choose a dojo'"
             :required="!canCreateOrganizationWide"
           />
-          <UInput v-model="newPlan.description" placeholder="Description (optional)" />
+          </UFormField>
+          <UFormField label="Description"><UInput v-model="newPlan.description" placeholder="Optional details" /></UFormField>
           <UButton type="submit" :loading="creating">Add Fee Plan</UButton>
         </div>
       </form>
@@ -42,7 +47,7 @@
             <tr v-for="plan in feePlans" :key="plan.id">
               <td class="px-4 py-4">{{ plan.name }}</td>
               <td class="px-4 py-4">{{ formatAmount(plan.amount, currency) }}</td>
-              <td class="px-4 py-4">{{ plan.frequency }}</td>
+              <td class="px-4 py-4">{{ frequencyLabel(plan.frequency) }}</td>
               <td class="px-4 py-4">{{ plan.dojo?.name || plan.scopeNode?.name || 'All' }}</td>
               <td class="px-4 py-4">
                 <span :class="plan.isActive ? 'text-green-600' : 'text-gray-400'">
@@ -65,21 +70,25 @@
         <h3 class="text-lg font-semibold mb-3">Edit Fee Plan</h3>
         <form @submit.prevent="updatePlan">
           <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <UInput v-model="editForm.name" placeholder="Plan name" required />
-            <UInput v-model.number="editForm.amount" type="number" placeholder="Amount" required />
+            <UFormField label="Plan name" required><UInput v-model="editForm.name" placeholder="Plan name" required /></UFormField>
+            <UFormField label="Amount per billing period" required><UInput v-model.number="editForm.amount" type="number" placeholder="Amount" required /></UFormField>
+            <UFormField label="Billing interval" required>
             <USelect
               v-model="editForm.frequency"
               :items="frequencyOptions"
               placeholder="Frequency"
               required
             />
+            </UFormField>
+            <UFormField label="Applies to">
             <USelect
               v-model="editForm.dojoId"
               :items="dojoOptions"
               :placeholder="canCreateOrganizationWide ? 'Dojo (optional: entire territory)' : 'Choose a dojo'"
               :required="!canCreateOrganizationWide"
             />
-            <UInput v-model="editForm.description" placeholder="Description" />
+            </UFormField>
+            <UFormField label="Description"><UInput v-model="editForm.description" placeholder="Description" /></UFormField>
             <div class="flex items-center gap-2">
               <UCheckbox v-model="editForm.isActive" label="Active" />
             </div>
@@ -110,11 +119,15 @@ const territoryManagerRoles = ['country_head', 'state_head', 'district_head', 'c
 const canCreateOrganizationWide = computed(() => isOwner.value || !!profile.value?.assignments.some(assignment => territoryManagerRoles.includes(assignment.role)))
 
 const frequencyOptions = [
-  { label: 'Monthly', value: 'monthly' },
-  { label: 'Quarterly', value: 'quarterly' },
-  { label: 'Annual', value: 'annual' },
-  { label: 'One-time', value: 'one-time' },
+  { label: 'Monthly - charged every month', value: 'monthly' },
+  { label: 'Quarterly - charged every 3 months', value: 'quarterly' },
+  { label: 'Annual - charged once a year', value: 'annual' },
+  { label: 'One-time - charged once', value: 'one-time' },
 ]
+
+function frequencyLabel(frequency: string) {
+  return frequencyOptions.find(option => option.value === frequency)?.label || frequency
+}
 
 const newPlan = reactive({
   name: '',
