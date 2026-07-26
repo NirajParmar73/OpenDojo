@@ -12,6 +12,14 @@ test('student PWA starts inside the protected portal and has distinct branding',
 
   const portal = await read('app/pages/portal/index.vue')
   assert.match(portal, /middleware: 'portal-auth'/)
+
+  const adminLayout = await read('app/layouts/default.vue')
+  const portalLayout = await read('app/layouts/portal.vue')
+  const installButton = await read('app/components/PwaInstallButton.vue')
+  assert.match(adminLayout, /Install Admin app/)
+  assert.match(portalLayout, /Install Student app/)
+  assert.match(installButton, /<UButton size="sm" icon="i-lucide-download"/)
+  assert.match(installButton, /Open the browser menu/)
 })
 
 test('student sessions are constrained to student APIs and owned downloads', async () => {
@@ -19,13 +27,18 @@ test('student sessions are constrained to student APIs and owned downloads', asy
   assert.match(middleware, /Student portal sessions cannot access staff APIs/)
   assert.match(middleware, /ownProgressReport/)
   assert.match(middleware, /receiptDownload/)
+  assert.match(middleware, /ownSessionRead[\s\S]*\/api\/_auth\/session/)
 })
 
 test('service worker never caches authenticated or uploaded data', async () => {
   const worker = await read('public/sw.js')
+  const plugin = await read('app/plugins/pwa.client.ts')
   assert.match(worker, /url\.pathname\.startsWith\('\/api\/'\)/)
   assert.match(worker, /url\.pathname\.startsWith\('\/uploads\/'\)/)
   assert.match(worker, /request\.mode === 'navigate'/)
+  assert.doesNotMatch(worker, /isBuildAsset/)
+  assert.match(plugin, /import\.meta\.dev/)
+  assert.match(plugin, /registration => registration\.unregister\(\)/)
 })
 
 test('guided setup keeps tuition separate from inline additional charges', async () => {
@@ -43,9 +56,17 @@ test('production runtime has readiness, request protection and database health c
   const health = await read('server/api/health.get.ts')
   assert.match(readiness, /NUXT_SESSION_PASSWORD/)
   assert.match(readiness, /NUXT_PUBLIC_APP_URL must use HTTPS/)
+  assert.match(readiness, /statusCode >= 500 \? 'error' : 'warn'/)
   assert.match(security, /Too many requests/)
   assert.match(security, /Cross-origin request blocked/)
   assert.match(health, /select 1/)
+})
+
+test('development dependencies and repeated hierarchy deletes stay quiet', async () => {
+  const config = await read('nuxt.config.ts')
+  const deleteNode = await read('server/api/hierarchy/nodes/[id].delete.ts')
+  assert.match(config, /optimizeDeps[\s\S]*include: \['zod\/v4'\]/)
+  assert.match(deleteNode, /alreadyDeleted: true/)
 })
 
 test('Business pricing and trial expiry behavior stay consistent', async () => {
@@ -61,4 +82,30 @@ test('Business pricing and trial expiry behavior stay consistent', async () => {
   assert.match(subscription, /plan !== 'business'.*Optional location groups/)
   assert.match(pricing, /no automatic charge/i)
   assert.match(pricing, /Existing records are retained/)
+})
+
+test('location managers receive territory-scoped staff management', async () => {
+  const layout = await read('app/layouts/default.vue')
+  const staffPage = await read('app/pages/users/index.vue')
+  const avatarUpload = await read('server/api/users/[id]/avatar.post.ts')
+  const certificateUpload = await read('server/api/users/[id]/certificate.post.ts')
+
+  assert.match(layout, /const canManageStaff = computed\(\(\) =>[\s\S]*canManageLocations\.value/)
+  assert.match(layout, /staffPermissions\.value\?\.allowedRoles[\s\S]*includes\('instructor'\)/)
+  assert.match(staffPage, /v-if="user\.canEdit" class="flex items-center gap-1"/)
+  assert.match(avatarUpload, /canEditManagedUser/)
+  assert.match(certificateUpload, /canEditManagedUser/)
+})
+
+test('dojo geography inherits the manager territory without guessing across territories', async () => {
+  const permissions = await read('server/utils/permissions.ts')
+  const permissionApi = await read('server/api/users/me/permissions.ts')
+  const dojoPage = await read('app/pages/dojos.vue')
+  const createDojo = await read('server/api/dojos/index.post.ts')
+
+  assert.match(permissions, /locations\.every\(location => location\[field\] === value\)/)
+  assert.match(permissionApi, /territoryDefaults/)
+  assert.match(dojoPage, /inherited from your assigned territory/)
+  assert.match(dojoPage, /function applyTerritoryDefaults/)
+  assert.match(createDojo, /territoryDefaults\.stateProvince \|\| body\.stateProvince/)
 })

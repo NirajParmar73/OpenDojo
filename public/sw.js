@@ -1,5 +1,5 @@
 // Increment this whenever the offline page, manifest, or PWA icons change.
-const CACHE_NAME = 'opendojos-static-v5'
+const CACHE_NAME = 'opendojos-static-v6'
 const OFFLINE_URL = '/offline.html'
 const STATIC_ASSETS = [
   OFFLINE_URL,
@@ -39,9 +39,8 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
-  const isBuildAsset = url.pathname.startsWith('/_nuxt/')
   const isPwaAsset = STATIC_ASSETS.includes(url.pathname)
-  if (!isBuildAsset && !isPwaAsset) return
+  if (!isPwaAsset) return
 
   event.respondWith(
     caches.match(request).then((cached) => cached || fetch(request).then((response) => {

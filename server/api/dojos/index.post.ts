@@ -1,7 +1,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { and, eq } from 'drizzle-orm'
-import { assertNodeManagementAccess, getHierarchyManagementScope } from '../../utils/permissions'
+import { assertNodeManagementAccess, getHierarchyManagementScope, getTerritoryLocationDefaults } from '../../utils/permissions'
 import { assertDojoLimit } from '../../utils/subscription'
 
 const createDojoSchema = z.object({
@@ -44,7 +44,8 @@ export default defineEventHandler(async (event) => {
     await assertNodeManagementAccess(session.user.id, orgId, nodeId)
   }
 
-  const [dojo] = await db.insert(tables.dojos).values({ organizationId: orgId, nodeId, name: body.name, address: body.address || null, city: body.city || null, stateProvince: body.stateProvince || null, country: body.country || null, countryCode: body.countryCode || null, subdivisionCode: body.subdivisionCode || null, postalCode: body.postalCode || null, phone: body.phone || null, email: body.email || null }).returning() as any[]
+  const territoryDefaults = session.user.role === 'owner' ? {} : await getTerritoryLocationDefaults(session.user.id, orgId)
+  const [dojo] = await db.insert(tables.dojos).values({ organizationId: orgId, nodeId, name: body.name, address: body.address || null, city: territoryDefaults.city || body.city || null, stateProvince: territoryDefaults.stateProvince || body.stateProvince || null, country: territoryDefaults.country || body.country || null, countryCode: body.countryCode || null, subdivisionCode: body.subdivisionCode || null, postalCode: body.postalCode || null, phone: body.phone || null, email: body.email || null }).returning() as any[]
   if (!dojo) throw createError({ statusCode: 500, statusMessage: 'Failed to create location' })
   return { success: true, dojo }
 })

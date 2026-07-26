@@ -2,6 +2,51 @@ import { db, tables } from '../utils/database'
 import { eq, inArray } from 'drizzle-orm'
 
 export const roleHierarchy = ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']
+
+export type TerritoryLocationDefaults = {
+  city?: string
+  stateProvince?: string
+  country?: string
+}
+
+/**
+ * Return only geographic values shared by every directly assigned hierarchy
+ * territory. This safely prefills a manager covering several cities in one
+ * state without guessing a city, and returns no state when territories span
+ * multiple states.
+ */
+export async function getTerritoryLocationDefaults(userId: number, organizationId: number): Promise<TerritoryLocationDefaults> {
+  const [assignments, nodes, levels] = await Promise.all([
+    db.query.assignments.findMany({ where: eq(tables.assignments.userId, userId) }),
+    db.query.hierarchyNodes.findMany({ where: eq(tables.hierarchyNodes.organizationId, organizationId) }),
+    db.query.hierarchyLevels.findMany({ where: eq(tables.hierarchyLevels.organizationId, organizationId) }),
+  ])
+  const assignedNodeIds = [...new Set(assignments.filter(assignment => assignment.scopeType === 'node').map(assignment => assignment.scopeId))]
+  if (!assignedNodeIds.length) return {}
+
+  const nodesById = new Map(nodes.map(node => [node.id, node]))
+  const levelNames = new Map(levels.map(level => [level.id, level.name.trim().toLowerCase()]))
+  const locations = assignedNodeIds.map((nodeId) => {
+    const location: TerritoryLocationDefaults = {}
+    let node = nodesById.get(nodeId)
+    while (node) {
+      const levelName = levelNames.get(node.levelId)
+      if (levelName === 'city / town' && !location.city) location.city = node.name
+      if (levelName === 'state / province' && !location.stateProvince) location.stateProvince = node.name
+      if (levelName === 'country' && !location.country) location.country = node.name
+      node = node.parentId ? nodesById.get(node.parentId) : undefined
+    }
+    return location
+  })
+
+  const common: TerritoryLocationDefaults = {}
+  for (const field of ['city', 'stateProvince', 'country'] as const) {
+    const value = locations[0]?.[field]
+    if (value && locations.every(location => location[field] === value)) common[field] = value
+  }
+  return common
+}
+
 export async function getAccessibleFeePlanScopeNodeIds(userId: number, organizationId: number) {
   const accessibleDojos = await getAccessibleDojoIds(userId, organizationId)
   if (accessibleDojos === null) return null

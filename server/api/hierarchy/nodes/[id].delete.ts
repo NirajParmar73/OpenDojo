@@ -24,7 +24,9 @@ export default defineEventHandler(async (event) => {
     ),
   })
   if (!existing) {
-    throw createError({ statusCode: 404, statusMessage: 'Node not found' })
+    // DELETE is idempotent. A stale tree or a repeated click should converge
+    // on the requested state instead of producing a noisy 404.
+    return { success: true, alreadyDeleted: true }
   }
   await assertHierarchyNodeModificationAccess(session.user.id, session.user.organizationId!, existing.id)
   await assertFederationManagementAccess(session.user.organizationId!)
@@ -46,7 +48,7 @@ export default defineEventHandler(async (event) => {
     .returning() as any[]
 
   if (!deleted) {
-    throw createError({ statusCode: 404, statusMessage: 'Node not found' })
+    return { success: true, alreadyDeleted: true }
   }
   await writeAuditLog({ organizationId: session.user.organizationId!, actorUserId: session.user.id, action: 'hierarchy_node.deleted', entityType: 'hierarchy_node', entityId: deleted.id, targetLabel: deleted.name, scope: existing.parentId ? { type: 'node', id: existing.parentId } : { type: 'organization' } })
 

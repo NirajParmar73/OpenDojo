@@ -23,12 +23,14 @@ export default defineNitroPlugin((nitroApp) => {
 
   nitroApp.hooks.hook('error', (error, context) => {
     const event = context.event
-    console.error(JSON.stringify({
-      level: 'error',
+    const statusCode = (error as { statusCode?: number }).statusCode || 500
+    const log = statusCode >= 500 ? console.error : console.warn
+    log(JSON.stringify({
+      level: statusCode >= 500 ? 'error' : 'warn',
       requestId: event?.context.requestId,
       method: event?.method,
       path: event?.path,
-      statusCode: (error as { statusCode?: number }).statusCode || 500,
+      statusCode,
       message: error.message,
       timestamp: new Date().toISOString(),
     }))

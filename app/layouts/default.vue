@@ -86,7 +86,7 @@
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
-          <PwaInstallButton />
+          <PwaInstallButton label="Install Admin app" />
           <button
             class="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
             :aria-label="colorMode.value === 'dark' ? 'Use light mode' : 'Use dark mode'"
@@ -120,10 +120,11 @@ const mobileNavigationOpen = ref(false)
 const publicPaths = new Set(['/', '/pricing', '/terms', '/privacy', '/refund-policy', '/contact'])
 const isPublicLanding = computed(() => publicPaths.has(route.path) && !loggedIn.value)
 const { data: profile, refresh: refreshProfile } = await useFetch<any>('/api/user/profile', { immediate: false })
+const { data: staffPermissions, refresh: refreshStaffPermissions } = await useFetch<any>('/api/users/me/permissions', { immediate: false })
 
-if (loggedIn.value) await refreshProfile()
+if (loggedIn.value) await Promise.all([refreshProfile(), refreshStaffPermissions()])
 watch(loggedIn, async (isLoggedIn) => {
-  if (isLoggedIn) await refreshProfile()
+  if (isLoggedIn) await Promise.all([refreshProfile(), refreshStaffPermissions()])
 })
 
 const orgName = computed(() => user.value?.organizationName || 'OpenDojos')
@@ -137,7 +138,11 @@ const identityLabel = computed(() => {
 const territoryManagerRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
 const canManageLocations = computed(() => (profile.value?.assignments || []).some((assignment: { role: string }) => territoryManagerRoles.includes(assignment.role)))
 const canManageFeePlans = computed(() => !['owner', 'admin'].includes(user.value?.role || '') && (profile.value?.assignments || []).some((assignment: { role: string }) => territoryManagerRoles.includes(assignment.role)))
-const canManageStaff = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
+const canManageStaff = computed(() =>
+  ['owner', 'admin'].includes(user.value?.role || '')
+  || canManageLocations.value
+  || (staffPermissions.value?.allowedRoles || []).includes('instructor')
+)
 const canUseFinance = computed(() => canManageStaff.value || canManageLocations.value)
 
 const allNavigation = [

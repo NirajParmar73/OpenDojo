@@ -1,4 +1,4 @@
-import { getAllowedAssignmentsForCreator, getHierarchyManagementScope } from '../../../utils/permissions'
+import { getAllowedAssignmentsForCreator, getHierarchyManagementScope, getTerritoryLocationDefaults } from '../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -11,8 +11,11 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'User has no organization' })
   }
 
-  const permissions = await getAllowedAssignmentsForCreator(session.user.id, orgId)
-  const scope = await getHierarchyManagementScope(session.user.id, orgId)
+  const [permissions, scope, territoryDefaults] = await Promise.all([
+    getAllowedAssignmentsForCreator(session.user.id, orgId),
+    getHierarchyManagementScope(session.user.id, orgId),
+    getTerritoryLocationDefaults(session.user.id, orgId),
+  ])
 
-  return { ...permissions, managedParentNodeIds: scope.managedParentNodeIds }
+  return { ...permissions, managedParentNodeIds: scope.managedParentNodeIds, territoryDefaults }
 })

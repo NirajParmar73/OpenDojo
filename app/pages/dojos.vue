@@ -192,7 +192,7 @@ definePageMeta({ middleware: 'auth' })
 const toast = useToast()
 const { user } = useUserSession()
 const { data: subscription } = await useFetch<{ plan: string, limits: { dojos: number | null } }>('/api/organization/subscription')
-const { data: hierarchyPermissions } = await useFetch<{ managedParentNodeIds: number[] }>('/api/users/me/permissions')
+const { data: hierarchyPermissions } = await useFetch<{ managedParentNodeIds: number[], territoryDefaults: Partial<LocationFields> }>('/api/users/me/permissions')
 const isFreePlan = computed(() => subscription.value?.plan === 'free')
 const canCreateDojo = computed(() => !!subscription.value && (subscription.value.limits.dojos === null || dojos.value.length < subscription.value.limits.dojos))
 // The existing hierarchy remains available for advanced grouping, but normal
@@ -221,7 +221,16 @@ const updatingSchedule = ref(false)
 const assigningInstructor = ref(false)
 
 const territoryAnchor = computed(() => dojos.value[0] || null)
-const territoryMessage = computed(() => null)
+const territoryMessage = computed(() => {
+  const defaults = hierarchyPermissions.value?.territoryDefaults
+  if (!defaults || !Object.keys(defaults).length) return null
+  const fields = [
+    defaults.country && 'country',
+    defaults.stateProvince && 'state / province',
+    defaults.city && 'city',
+  ].filter(Boolean)
+  return `${fields.join(', ')} ${fields.length === 1 ? 'is' : 'are'} inherited from your assigned territory.`
+})
 
 // ----- Form states -----
 const newDojo = reactive({
@@ -272,10 +281,16 @@ function getLocationFromNode(nodeId: number | null): Partial<LocationFields> | n
 }
 
 function isLocationFieldLocked(nodeId: number | null, field: keyof LocationFields) {
-  return Boolean(getLocationFromNode(nodeId)?.[field])
+  return Boolean(getLocationFromNode(nodeId)?.[field] || (!nodeId && hierarchyPermissions.value?.territoryDefaults?.[field]))
 }
 
-function applyTerritoryDefaults(_target: LocationFields = newDojo, _nodeId: number | null = newDojo.nodeId) {}
+function applyTerritoryDefaults(target: LocationFields = newDojo, nodeId: number | null = newDojo.nodeId) {
+  const inherited = getLocationFromNode(nodeId) || (!nodeId ? hierarchyPermissions.value?.territoryDefaults : null)
+  if (!inherited) return
+  if (inherited.city) target.city = inherited.city
+  if (inherited.stateProvince) target.stateProvince = inherited.stateProvince
+  if (inherited.country) target.country = inherited.country
+}
 
 watch(() => newDojo.nodeId, nodeId => applyTerritoryDefaults(newDojo, nodeId))
 watch(() => editDojoForm.nodeId, nodeId => {
@@ -283,6 +298,7 @@ watch(() => editDojoForm.nodeId, nodeId => {
 })
 
 watch([isCityPlan, isStatePlan, isNationalPlan, territoryAnchor], () => applyTerritoryDefaults())
+watch(() => hierarchyPermissions.value?.territoryDefaults, () => applyTerritoryDefaults(), { deep: true })
 
 const scheduleForm = reactive({
   dayOfWeek: undefined as number | undefined,  // ✅ changed from null

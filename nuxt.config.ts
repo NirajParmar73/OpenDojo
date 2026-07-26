@@ -9,6 +9,12 @@ export default defineNuxtConfig({
 
   css: ['~/assets/css/main.css'],
 
+  vite: {
+    optimizeDeps: {
+      include: ['zod/v4']
+    }
+  },
+
   routeRules: {
     // Workflow aliases keep future navigation changes backwards-compatible.
     '/people/students': { redirect: '/students' },

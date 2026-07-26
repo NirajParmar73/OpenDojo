@@ -6,6 +6,21 @@ interface BeforeInstallPromptEvent extends Event {
 export default defineNuxtPlugin(() => {
   if (!import.meta.client || !('serviceWorker' in navigator)) return
 
+  if (import.meta.dev) {
+    // A development service worker can keep serving old Nuxt modules after a
+    // source edit. Remove only OpenDojos registrations and caches on localhost;
+    // PWA installation should be tested with the production preview instead.
+    window.addEventListener('load', async () => {
+      const registrations = await navigator.serviceWorker.getRegistrations()
+      await Promise.all(registrations.map(registration => registration.unregister()))
+      if ('caches' in window) {
+        const cacheNames = await caches.keys()
+        await Promise.all(cacheNames.filter(name => name.startsWith('opendojos-')).map(name => caches.delete(name)))
+      }
+    })
+    return
+  }
+
   // This event can fire before a component's mounted hook. Keep the native
   // browser prompt in app state so the visible Install button can always use it.
   const deferredPrompt = useState<BeforeInstallPromptEvent | null>('pwa-install-prompt', () => null)

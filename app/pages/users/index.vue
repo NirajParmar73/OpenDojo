@@ -110,11 +110,11 @@
                 <div class="flex flex-wrap gap-1">
                   <UButton v-if="user.canEdit" :to="`/users/${user.id}/edit`" color="primary" variant="ghost" size="sm">Edit</UButton>
                   <UButton v-if="user.canDelete" color="error" variant="ghost" size="sm" @click="deleteUser(user.id)">Delete</UButton>
-                  <div class="flex items-center gap-1">
+                  <div v-if="user.canEdit" class="flex items-center gap-1">
                     <UInput type="file" accept="image/*" :id="`avatar-${user.id}`" class="hidden" @change="(e) => uploadAvatar(user.id, e)" />
                     <UButton size="xs" color="secondary" @click="triggerFileInput(`avatar-${user.id}`)">Upload Avatar</UButton>
                   </div>
-                  <div class="flex items-center gap-1">
+                  <div v-if="user.canEdit" class="flex items-center gap-1">
                     <UInput type="file" accept=".pdf,.jpg,.jpeg,.png" :id="`cert-${user.id}`" class="hidden" @change="(e) => uploadCertificate(user.id, e)" />
                     <UButton size="xs" color="secondary" @click="triggerFileInput(`cert-${user.id}`)">Upload Cert</UButton>
                   </div>
