@@ -3,7 +3,7 @@
   <div v-else class="mx-auto max-w-7xl">
     <div class="mb-6 flex items-center justify-between gap-3">
       <UButton to="/students" color="neutral" variant="ghost" icon="i-lucide-arrow-left">All students</UButton>
-      <div class="flex gap-2"><UButton v-if="['owner', 'admin'].includes(user?.role || '')" :to="`/students/${studentId}/portal-access`" color="neutral" variant="soft" icon="i-lucide-key-round">Portal access</UButton><UButton :href="`/api/students/${studentId}/progress-report`" target="_blank" color="neutral" variant="soft" icon="i-lucide-file-down">Progress report</UButton><UButton :to="`/fees?id=${studentId}`" color="primary" variant="soft" icon="i-lucide-wallet-cards">Manage fees</UButton></div>
+      <div class="flex flex-wrap gap-2"><UButton v-if="['owner', 'admin'].includes(user?.role || '')" :to="`/students/${studentId}/portal-access`" color="neutral" variant="soft" icon="i-lucide-key-round">Portal access</UButton><UButton :href="`/api/students/${studentId}/progress-report`" target="_blank" color="neutral" variant="soft" icon="i-lucide-file-down">Progress report</UButton><UButton :to="`/grading-exams?studentId=${studentId}`" color="neutral" variant="soft" icon="i-lucide-award">Add to grading</UButton><UButton :to="`/fees?id=${studentId}`" color="primary" icon="i-lucide-circle-dollar-sign">Record payment</UButton></div>
     </div>
 
     <div v-if="pending" class="grid gap-5 lg:grid-cols-[280px_1fr]">
@@ -71,7 +71,7 @@
             <dl class="grid gap-x-6 gap-y-5 sm:grid-cols-2">
               <InfoItem label="Email" :value="student.email" />
               <InfoItem label="Phone" :value="student.phone" />
-              <InfoItem label="Date of birth" :value="student.dateOfBirth ? formatDate(student.dateOfBirth) : null" />
+              <InfoItem label="Date of birth" :value="student.dateOfBirth ? formatDate(student.dateOfBirth) : undefined" />
               <InfoItem label="Gender" :value="student.gender" capitalize />
               <InfoItem label="Address" :value="student.address" />
               <InfoItem label="Emergency contact" :value="student.emergencyContact" />
@@ -141,13 +141,13 @@
           </UCard>
           <UCard>
             <template #header><h3 class="font-semibold">Payment history</h3></template>
-            <div v-if="payments.length" class="divide-y divide-slate-100 dark:divide-slate-800"><div v-for="payment in payments" :key="payment.id" class="flex flex-wrap items-center justify-between gap-3 py-4"><div><p class="font-medium">{{ formatCurrency(payment.amount) }}</p><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ formatDate(payment.paymentDate) }} · {{ payment.assignment?.feePlan?.name || 'Unassigned payment' }}</p></div><UBadge color="neutral" variant="subtle" class="capitalize">{{ payment.method }}</UBadge></div></div>
+            <div v-if="payments.length" class="divide-y divide-slate-100 dark:divide-slate-800"><div v-for="payment in payments" :key="payment.id" class="flex flex-wrap items-center justify-between gap-3 py-4"><div><p class="font-medium">{{ formatCurrency(payment.amount) }}</p><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ formatDate(payment.paymentDate) }} · {{ payment.assignment?.feePlan?.name || 'Unassigned payment' }}<span v-if="payment.feeItems?.length"> · {{ payment.feeItems.length }} additional fee{{ payment.feeItems.length === 1 ? '' : 's' }}</span></p></div><UBadge color="neutral" variant="subtle" class="capitalize">{{ payment.method }}</UBadge></div></div>
             <EmptyState v-else icon="i-lucide-receipt-text" message="No payments have been recorded yet." />
           </UCard>
         </div>
 
         <UCard v-if="activeTab === 'achievements'">
-          <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Tournament achievements</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record competition participation, results, medals, and certificates.</p></div><UButton size="sm" color="primary" icon="i-lucide-trophy" @click="showAchievementForm = !showAchievementForm">Record achievement</UButton></div></template>
+          <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Tournament achievements</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record competition participation, results, medals, and certificates.</p></div><UButton size="sm" color="primary" icon="i-lucide-trophy" @click="showAchievementForm = !showAchievementForm; void 0">Record achievement</UButton></div></template>
           <form v-if="showAchievementForm" class="mb-5 grid gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-2 lg:grid-cols-3" @submit.prevent="recordAchievement">
             <UFormField label="Tournament name" required><UInput v-model="achievementForm.tournamentName" placeholder="Tournament name" /></UFormField>
             <UFormField label="Tournament level" required><UInput v-model="achievementForm.tournamentLevel" placeholder="e.g. District, State" /></UFormField>
@@ -162,7 +162,7 @@
             <UFormField label="Medals won"><UInput v-model.number="achievementForm.medalsWon" type="number" min="0" step="1" /></UFormField>
             <UFormField label="Certificate"><UInput type="file" accept="application/pdf,image/*" @change="onAchievementCertificateChange" /></UFormField>
             <UFormField label="Notes" class="sm:col-span-2 lg:col-span-3"><UTextarea v-model="achievementForm.notes" placeholder="Optional notes" /></UFormField>
-            <div class="flex justify-end gap-2 sm:col-span-2 lg:col-span-3"><UButton color="neutral" variant="ghost" @click="showAchievementForm = false">Cancel</UButton><UButton type="submit" color="primary" :loading="savingAchievement">Save achievement</UButton></div>
+            <div class="flex justify-end gap-2 sm:col-span-2 lg:col-span-3"><UButton color="neutral" variant="ghost" @click="showAchievementForm = false; void 0">Cancel</UButton><UButton type="submit" color="primary" :loading="savingAchievement">Save achievement</UButton></div>
           </form>
           <div v-if="achievements.length" class="space-y-3"><div v-for="achievement in achievements" :key="achievement.id" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><div class="flex items-start justify-between gap-3"><div><p class="font-medium">{{ achievement.tournamentName }}</p><p class="mt-1 text-sm text-primary">{{ achievement.tournamentLevel }}<span v-if="achievement.venue"> · {{ achievement.venue }}</span></p></div><div class="flex items-center gap-2"><a v-if="achievement.certificateUrl" :href="achievement.certificateUrl" target="_blank"><UButton size="xs" color="neutral" variant="soft" icon="i-lucide-file-badge">Certificate</UButton></a><UButton size="xs" color="primary" variant="soft" icon="i-lucide-file-down" @click="downloadAchievementCard(achievement.id)">Card</UButton><UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" @click="deleteAchievement(achievement.id)" /></div></div><div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-300"><span>{{ formatDate(achievement.startDate) }}<template v-if="achievement.endDate"> – {{ formatDate(achievement.endDate) }}</template></span><span v-if="achievement.eventType">{{ achievement.eventType }}</span><span v-if="achievement.ageCategory">{{ achievement.ageCategory }}</span><span v-if="achievement.weightCategory">{{ achievement.weightCategory }}</span><span v-if="achievement.result" class="font-medium">{{ achievement.result }}</span><span v-if="achievement.medalType" class="font-medium">{{ achievement.medalType }}</span><span v-if="achievement.medalsWon">{{ achievement.medalsWon }} medal{{ achievement.medalsWon === 1 ? '' : 's' }}</span></div><p v-if="achievement.notes" class="mt-3 text-sm">{{ achievement.notes }}</p></div></div>
           <EmptyState v-else icon="i-lucide-trophy" message="No tournament achievements have been recorded yet." />
@@ -204,8 +204,6 @@
             <UFormField label="Examiner"><UInput v-model="gradingForm.examiner" placeholder="Instructor or examiner" /></UFormField>
             <UFormField label="Certificate number"><UInput v-model="gradingForm.certificateNumber" placeholder="e.g. KGI-2026-00124" /></UFormField>
             <UFormField label="Certificate"><UInput type="file" accept="application/pdf,image/*" @change="onCertificateFileChange" /></UFormField>
-            <UFormField v-if="!editingGradingId" label="Grading-fee discount"><UInput v-model.number="gradingForm.gradingDiscount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField>
-            <UFormField v-if="!editingGradingId" label="Discount reason" :required="gradingForm.gradingDiscount > 0"><UInput v-model="gradingForm.gradingDiscountReason" placeholder="Required when discounted" /></UFormField>
             <UFormField label="Notes" class="sm:col-span-2"><UTextarea v-model="gradingForm.notes" placeholder="Assessment notes (optional)" /></UFormField>
             <div class="flex justify-end gap-2 sm:col-span-2"><UButton color="neutral" variant="ghost" @click="cancelGradingEdit">Cancel</UButton><UButton type="submit" color="primary" :loading="savingGrading">{{ editingGradingId ? 'Save changes' : 'Save grading' }}</UButton></div>
           </form>
@@ -241,7 +239,7 @@ const showAchievementForm = ref(false)
 const savingAchievement = ref(false)
 const guardianForm = reactive({ name: '', relationship: '', phone: '', email: '', address: '' })
 const documentForm = reactive({ documentType: 'other', documentNumber: '', notes: '', file: null as File | null })
-const gradingForm = reactive({ beltRankId: undefined as number | undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null as File | null, gradingDiscount: 0, gradingDiscountReason: '' })
+const gradingForm = reactive({ beltRankId: undefined as number | undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null as File | null })
 const achievementForm = reactive({ tournamentName: '', tournamentLevel: '', venue: '', startDate: new Date().toISOString().slice(0, 10), endDate: '', eventType: '', ageCategory: '', weightCategory: '', result: '', medalType: '', medalsWon: 0, notes: '', certificate: null as File | null })
 const documentTypeOptions = [
   { label: 'National ID', value: 'national_id' },
@@ -364,7 +362,7 @@ function toggleDocumentForm() {
 }
 
 function resetGradingForm() {
-  Object.assign(gradingForm, { beltRankId: undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null, gradingDiscount: 0, gradingDiscountReason: '' })
+  Object.assign(gradingForm, { beltRankId: undefined, awardedDate: new Date().toISOString().slice(0, 10), examiner: '', certificateNumber: '', notes: '', certificate: null })
 }
 
 function openNewGrading() {
@@ -388,8 +386,6 @@ function editGrading(grading: any) {
     certificateNumber: grading.certificateNumber || '',
     notes: grading.notes || '',
     certificate: null,
-    gradingDiscount: 0,
-    gradingDiscountReason: '',
   })
   showGradingForm.value = true
 }
@@ -510,7 +506,6 @@ async function recordGrading() {
     toast.add({ color: 'warning', title: 'Awarded rank and date are required' })
     return
   }
-  if (!editingGradingId.value && gradingForm.gradingDiscount > 0 && !gradingForm.gradingDiscountReason.trim()) { toast.add({ color: 'warning', title: 'Enter a grading-fee discount reason' }); return }
   savingGrading.value = true
   try {
     const formData = new FormData()
@@ -519,9 +514,9 @@ async function recordGrading() {
     if (gradingForm.examiner.trim()) formData.append('examiner', gradingForm.examiner.trim())
     if (gradingForm.certificateNumber.trim()) formData.append('certificateNumber', gradingForm.certificateNumber.trim())
     if (gradingForm.notes.trim()) formData.append('notes', gradingForm.notes.trim())
-    if (!editingGradingId.value && gradingForm.gradingDiscount > 0) { formData.append('gradingDiscount', String(Math.round(gradingForm.gradingDiscount * 100))); formData.append('gradingDiscountReason', gradingForm.gradingDiscountReason.trim()) }
     if (gradingForm.certificate) formData.append('certificate', gradingForm.certificate)
-    await $fetch(`/api/students/${studentId}/gradings${editingGradingId.value ? `/${editingGradingId.value}` : ''}`, { method: editingGradingId.value ? 'PATCH' : 'POST', body: formData })
+    if (editingGradingId.value) await $fetch(`/api/students/${studentId}/gradings/${editingGradingId.value}`, { method: 'PATCH', body: formData })
+    else await $fetch(`/api/students/${studentId}/gradings`, { method: 'POST', body: formData })
     const wasEditing = editingGradingId.value !== null
     cancelGradingEdit()
     await Promise.all([refreshGradings(), refreshStudent()])

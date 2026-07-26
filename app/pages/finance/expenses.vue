@@ -14,7 +14,7 @@
       </div>
       <UButton
         icon="i-lucide-plus"
-        @click="showForm = !showForm"
+        @click="showForm = !showForm; void 0"
       >
         Record expense
       </UButton>
@@ -75,7 +75,7 @@
           <USelect
             v-model="form.scopeType"
             :items="scopeOptions"
-            @update:model-value="form.scopeId = null"
+            @update:model-value="form.scopeId = undefined"
           />
         </UFormField>
         <UFormField
@@ -136,7 +136,7 @@
           <UButton
             color="neutral"
             variant="ghost"
-            @click="showForm = false"
+            @click="showForm = false; void 0"
           >
             Cancel
           </UButton><UButton
@@ -262,7 +262,7 @@ const scopeOptions = computed(() => [
 ])
 const statusOptions = [{ label: 'Due / unpaid', value: 'due' }, { label: 'Paid', value: 'paid' }]
 const paymentMethods = ['cash', 'bank_transfer', 'card', 'upi', 'other'].map(value => ({ label: value.replaceAll('_', ' '), value }))
-const form = reactive({ category: 'other', description: '', amount: undefined as number | undefined, scopeType: user.value?.role === 'owner' ? 'organization' : 'node', scopeId: null as number | null, dueAt: '', paidAt: '', paymentMethod: 'cash', status: 'due', affiliationId: null as number | null, payee: '', invoiceNumber: '', notes: '' })
+const form = reactive({ category: 'other', description: '', amount: undefined as number | undefined, scopeType: user.value?.role === 'owner' ? 'organization' : 'node', scopeId: undefined as number | undefined, dueAt: '', paidAt: '', paymentMethod: 'cash', status: 'due', affiliationId: null as number | null, payee: '', invoiceNumber: '', notes: '' })
 const { data: expenses, pending, error, refresh } = await useFetch<Expense[]>('/api/finance/expenses')
 const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const { data: affiliations } = await useFetch<Array<{ id: number, governingBody: { name: string } }>>('/api/affiliations')
@@ -305,7 +305,7 @@ async function createExpense() {
       paymentMethod: form.status === 'paid' ? form.paymentMethod : undefined,
     }
     await $fetch(editingExpenseId.value ? `/api/finance/expenses/${editingExpenseId.value}` : '/api/finance/expenses', { method: editingExpenseId.value ? 'PATCH' : 'POST', body: editingExpenseId.value ? payload : { ...payload, incurredAt: new Date().toISOString().slice(0, 10) } })
-    Object.assign(form, { category: 'other', description: '', amount: undefined, scopeType: user.value?.role === 'owner' ? 'organization' : 'node', scopeId: null, dueAt: '', paidAt: '', paymentMethod: 'cash', status: 'due', affiliationId: null, payee: '', invoiceNumber: '', notes: '' })
+    Object.assign(form, { category: 'other', description: '', amount: undefined, scopeType: user.value?.role === 'owner' ? 'organization' : 'node', scopeId: undefined, dueAt: '', paidAt: '', paymentMethod: 'cash', status: 'due', affiliationId: null, payee: '', invoiceNumber: '', notes: '' })
     showForm.value = false
     editingExpenseId.value = null
     await refresh()

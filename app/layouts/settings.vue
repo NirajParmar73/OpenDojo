@@ -2,6 +2,8 @@
   <div class="max-w-6xl mx-auto p-6">
     <h1 class="text-2xl font-bold mb-6">Organization Settings</h1>
 
+    <PageArtwork />
+
     <div class="border-b border-gray-200 mb-6">
       <nav class="flex space-x-8">
         <NuxtLink

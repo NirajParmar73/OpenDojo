@@ -40,7 +40,7 @@ export default defineEventHandler(async (event) => {
     let currentParentId: number | null = targetParentId
     while (currentParentId) {
       if (currentParentId === id) throw createError({ statusCode: 400, statusMessage: 'A node cannot be moved below one of its descendants.' })
-      const parent = await db.query.hierarchyNodes.findFirst({ where: and(eq(tables.hierarchyNodes.id, currentParentId), eq(tables.hierarchyNodes.organizationId, orgId)) })
+      const parent: typeof node | undefined = await db.query.hierarchyNodes.findFirst({ where: and(eq(tables.hierarchyNodes.id, currentParentId), eq(tables.hierarchyNodes.organizationId, orgId)) })
       if (!parent) throw createError({ statusCode: 400, statusMessage: 'Invalid parent node.' })
       const parentLevel = await db.query.hierarchyLevels.findFirst({ where: eq(tables.hierarchyLevels.id, parent.levelId) })
       if (!parentLevel || parentLevel.order >= targetLevel.order) throw createError({ statusCode: 400, statusMessage: 'A child node must be at a lower hierarchy level than its parent.' })

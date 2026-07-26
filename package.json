@@ -6,8 +6,9 @@
     "build": "nuxt build",
     "dev": "nuxt dev",
     "preview": "nuxt preview",
+    "test": "node --test tests/*.test.mjs",
     "postinstall": "nuxt prepare",
-    "lint": "eslint .",
+    "lint": "eslint app server shared tests public/sw.js nuxt.config.ts drizzle.config.ts eslint.config.mjs",
     "typecheck": "nuxt typecheck",
     "migrations:generate": "drizzle-kit generate",
     "migrations:migrate": "drizzle-kit migrate",
@@ -33,18 +34,9 @@
     "@types/pdfkit": "^0.17.6",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.7.0",
-    "typescript": "^6.0.3",
+    "typescript": "5.9.3",
     "vite": "7.3.6",
     "vue-tsc": "^3.3.7"
-  },
-  "overrides": {
-    "@babel/core": "7.29.7",
-    "esbuild": "0.28.1",
-    "js-yaml": "4.3.0",
-    "launch-editor": "2.14.1",
-    "shell-quote": "1.10.0",
-    "tar": "7.5.20",
-    "vite": "7.3.6"
   },
   "packageManager": "pnpm@11.9.0"
 }

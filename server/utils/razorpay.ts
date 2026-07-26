@@ -3,7 +3,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 export const razorpayPlans = ['growth', 'business'] as const
 export type RazorpayPlan = typeof razorpayPlans[number]
 export type RazorpayBillingPeriod = 'monthly' | 'annual'
-const prices: Record<RazorpayPlan, Record<RazorpayBillingPeriod, number>> = { growth: { monthly: 99900, annual: 999000 }, business: { monthly: 399900, annual: 3999000 } }
+const prices: Record<RazorpayPlan, Record<RazorpayBillingPeriod, number>> = { growth: { monthly: 99900, annual: 999000 }, business: { monthly: 199900, annual: 1999000 } }
 type RazorpayOrder = { id: string, amount: number, currency: string, status: string, notes?: Record<string, string> }
 function config() { const runtimeConfig = useRuntimeConfig(); if (!runtimeConfig.razorpayKeyId || !runtimeConfig.razorpayKeySecret) throw createError({ statusCode: 503, statusMessage: 'Razorpay billing is not configured yet.' }); return runtimeConfig }
 async function razorpayRequest<T>(path: string, init?: RequestInit): Promise<T> { const runtimeConfig = config(); const authorization = Buffer.from(`${runtimeConfig.razorpayKeyId}:${runtimeConfig.razorpayKeySecret}`).toString('base64'); const response = await fetch(`https://api.razorpay.com/v1${path}`, { ...init, headers: { Authorization: `Basic ${authorization}`, 'Content-Type': 'application/json', ...(init?.headers || {}) } }); const payload = await response.json().catch(() => null); if (!response.ok) throw createError({ statusCode: 502, statusMessage: payload?.error?.description || 'Razorpay could not create the payment order.' }); return payload as T }

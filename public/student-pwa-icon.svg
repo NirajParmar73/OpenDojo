@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>OpenDojos Student</title>
+  <rect width="512" height="512" rx="112" fill="#b42318"/>
+  <circle cx="256" cy="170" r="62" fill="#fff"/>
+  <path fill="#fff" d="M132 395c10-88 58-142 124-142s114 54 124 142H132z"/>
+  <path fill="#f5d08a" d="M158 315h196v34H158z"/>
+  <path fill="#b42318" d="M239 315h34v80h-34z"/>
+</svg>

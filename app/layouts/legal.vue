@@ -4,7 +4,7 @@
       <PlatformBrand />
       <NuxtLink to="/auth/login" class="text-sm font-medium text-primary hover:underline">Sign in</NuxtLink>
     </header>
-    <main class="mx-auto w-full max-w-4xl px-5 pb-16 pt-8 sm:px-8 sm:pt-12"><slot /></main>
+    <main class="mx-auto w-full max-w-4xl px-5 pb-16 pt-8 sm:px-8 sm:pt-12"><PageArtwork /><slot /></main>
     <footer class="border-t border-slate-200 dark:border-slate-800">
       <div class="mx-auto flex max-w-5xl flex-col gap-3 px-5 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8 dark:text-slate-400">
         <span>© {{ new Date().getFullYear() }} OpenDojos</span>

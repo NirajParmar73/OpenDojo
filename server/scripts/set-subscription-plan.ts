@@ -8,6 +8,7 @@ if (!Number.isInteger(organizationId) || !subscriptionPlans.includes(plan as typ
   console.error(`Usage: bun run subscription:set <organization-id> <${subscriptionPlans.join('|')}>`)
   process.exit(1)
 }
+const selectedPlan = plan as typeof subscriptionPlans[number]
 
 const connectionString = process.env.DATABASE_URL
 if (!connectionString) {
@@ -18,10 +19,10 @@ if (!connectionString) {
 const database = postgres(connectionString, { max: 1 })
 const result = await database`
   UPDATE organizations
-  SET subscription_plan = ${plan},
-      subscription_status = ${plan === 'free' ? 'free' : 'active'},
-      billing_period = CASE WHEN ${plan} = 'free' THEN NULL ELSE billing_period END,
-      subscription_started_at = CASE WHEN ${plan} = 'free' THEN NULL ELSE COALESCE(subscription_started_at, NOW()) END,
+  SET subscription_plan = ${selectedPlan},
+      subscription_status = ${selectedPlan === 'free' ? 'free' : 'active'},
+      billing_period = CASE WHEN ${selectedPlan} = 'free' THEN NULL ELSE billing_period END,
+      subscription_started_at = CASE WHEN ${selectedPlan} = 'free' THEN NULL ELSE COALESCE(subscription_started_at, NOW()) END,
       subscription_ends_at = NULL,
       cancel_at_period_end = false,
       updated_at = NOW()
@@ -34,4 +35,4 @@ if (result.count !== 1) {
   process.exit(1)
 }
 
-console.log(`Organization ${organizationId} is now on the ${plan} plan.`)
+console.log(`Organization ${organizationId} is now on the ${selectedPlan} plan.`)

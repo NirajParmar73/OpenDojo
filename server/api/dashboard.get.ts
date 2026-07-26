@@ -66,7 +66,7 @@ export default defineEventHandler(async (event) => {
   const preferredLevel = levels.find(level => /state|region/i.test(level.name))
   const childLevelIds = new Set(
     allNodes
-      .filter(node => scopedNodeIds.includes(node.parentId))
+      .filter(node => node.parentId !== null && scopedNodeIds.includes(node.parentId))
       .map(node => node.levelId)
   )
   const breakdownLevel = isOrganizationWide

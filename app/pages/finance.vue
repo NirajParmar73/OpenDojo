@@ -3,8 +3,12 @@
   <div v-else class="mx-auto max-w-7xl">
     <section class="mb-7 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
       <div><p class="text-sm font-semibold text-primary">FINANCE</p><h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Collections overview</h2><p class="mt-2 text-sm text-slate-500 dark:text-slate-400">See who needs a follow-up before their fee balance falls behind.</p></div>
-      <div class="flex gap-3"><USelect v-model="selectedDojoId" :items="dojoOptions" placeholder="All accessible dojos" class="w-52" /><UButton to="/settings/finance/fee-plans" color="primary" variant="soft" icon="i-lucide-wallet-cards">Manage fee plans</UButton></div>
+      <div class="flex flex-wrap gap-2"><USelect v-model="selectedDojoId" :items="dojoOptions" placeholder="All accessible dojos" class="w-52" /><UButton to="/fees" icon="i-lucide-circle-dollar-sign">Record payment</UButton></div>
     </section>
+
+    <nav class="mb-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <NuxtLink v-for="action in financeActions" :key="action.to" :to="action.to" class="group rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-primary/40 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"><div class="flex items-center gap-3"><span class="rounded-xl bg-primary/10 p-2 text-primary"><UIcon :name="action.icon" class="h-5 w-5" /></span><div><p class="font-medium group-hover:text-primary">{{ action.label }}</p><p class="mt-0.5 text-xs text-slate-500">{{ action.description }}</p></div></div></NuxtLink>
+    </nav>
 
     <div v-if="pending" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><USkeleton v-for="index in 4" :key="index" class="h-28 rounded-2xl" /></div>
     <UAlert v-else-if="error" color="error" title="Unable to load collections" :description="error.message" />
@@ -46,10 +50,18 @@
 <script setup lang="ts">
 definePageMeta({ middleware: 'auth' })
 
-const search = ref('')
-const filter = ref('all')
+const route = useRoute()
+const router = useRouter()
+const search = ref(typeof route.query.search === 'string' ? route.query.search : '')
+const filter = ref(typeof route.query.status === 'string' ? route.query.status : 'all')
 const filterOptions = [{ label: 'All records', value: 'all' }, { label: 'Paid', value: 'paid' }, { label: 'Pending', value: 'pending' }, { label: 'Overdue', value: 'overdue' }]
-const selectedDojoId = ref<number | null>(null)
+const financeActions = [
+  { label: 'Payments', description: 'Record student payments', to: '/fees', icon: 'i-lucide-circle-dollar-sign' },
+  { label: 'Pending fees', description: 'Follow up outstanding balances', to: '/finance/pending-fees', icon: 'i-lucide-clock-alert' },
+  { label: 'Receipts', description: 'Find and download receipts', to: '/receipts', icon: 'i-lucide-receipt-text' },
+  { label: 'Finance report', description: 'Revenue and expense analysis', to: '/reports/finance', icon: 'i-lucide-chart-line' },
+]
+const selectedDojoId = ref<number | null>(Number(route.query.dojoId) || null)
 const { data: reportScope } = await useFetch<any>('/api/reports/scope')
 const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const dojoOptions = computed(() => [{ label: 'All accessible dojos', value: null }, ...((reportScope.value?.dojos || []).map((dojo: any) => ({ label: dojo.name, value: dojo.id })))] )
@@ -60,9 +72,17 @@ const filteredRecords = computed(() => (overview.value?.records || []).filter((r
   const matchesFilter = filter.value === 'all' || record.collectionStatus === filter.value
   return matchesSearch && matchesFilter
 }))
+watch([search, filter, selectedDojoId], () => {
+  router.replace({
+    query: {
+      ...(search.value ? { search: search.value } : {}),
+      ...(filter.value !== 'all' ? { status: filter.value } : {}),
+      ...(selectedDojoId.value ? { dojoId: String(selectedDojoId.value) } : {}),
+    },
+  })
+})
 function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organization.value?.currency || 'USD' }).format(amount / 100) }
 function formatCompactCurrency(amount: number) { return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(amount / 100) }
-function formatDate(value: string | number | null) { return value ? new Date(value).toLocaleDateString() : '—' }
 function trendHeight(amount: number) {
   const maximum = Math.max(...(overview.value?.revenueTrend || []).map((month: any) => month.amount), 1)
   return amount === 0 ? 3 : Math.max(8, Math.round((amount / maximum) * 100))

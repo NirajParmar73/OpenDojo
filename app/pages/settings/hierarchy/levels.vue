@@ -136,7 +136,7 @@ async function updateLevel() {
 
   updating.value = true
   try {
-    const response = await $fetch(`/api/hierarchy/levels/${editingLevel.value.id}`, {
+    const response = await $fetch<{ success: boolean }>(`/api/hierarchy/levels/${editingLevel.value.id}`, {
       method: 'PATCH',
       body: {
         name: editForm.name.trim(),

@@ -17,8 +17,8 @@ export default defineEventHandler(async (event) => {
     orderBy: (level, { asc }) => [asc(level.order)]
   })
   const existingNames = new Set(levels.map(level => level.name.trim().toLowerCase()))
-  const allowed = await getAllowedHierarchyLevelNames(organizationId)
-  const planLevels = allowed === null ? commonLevels : commonLevels.filter(name => allowed.includes(name))
+  await getAllowedHierarchyLevelNames(organizationId)
+  const planLevels = commonLevels
   const missing = planLevels.filter(name => !existingNames.has(name.toLowerCase()))
 
   if (!missing.length) return { success: true, created: 0 }

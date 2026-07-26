@@ -138,7 +138,7 @@ definePageMeta({ middleware: 'auth' })
 const toast = useToast()
 type Subscription = { plan: string, limits: { students: number | null, studentsPerDojo: number | null }, usage: { students: number } }
 const { data: subscription } = await useFetch<Subscription>('/api/organization/subscription')
-type FeePlan = { id: number, name: string, dojoId: number | null, dojo?: { name: string } | null }
+type FeePlan = { id: number, name: string, dojoId: number | null, isActive: number | null, frequency: string | null, amount: number, dojo?: { name: string } | null }
 const students = ref<any[]>([])
 const dojos = ref<any[]>([])
 const feePlans = ref<FeePlan[]>([])
@@ -164,7 +164,7 @@ const genderOptions = [
 ]
 
 const today = new Date().toISOString().slice(0, 10)
-const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, programId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: null as number | null, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
+const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, programId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: undefined as number | undefined, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
 const studentAvatarFile = ref<File | null>(null)
 const studentAvatarPreview = ref('')
 const studentCameraInput = ref<HTMLInputElement | null>(null)
@@ -178,7 +178,7 @@ const studentLimitReached = computed(() => globalStudentLimitReached.value)
 const studentLimitMessage = computed(() => `Your plan includes up to ${subscription.value?.limits.students} students. Upgrade to continue enrolling students.`)
 const dojoOptions = computed(() => dojos.value.map(dojo => ({ label: dojo.name, value: dojo.id })))
 const programOptions = computed(() => programs.value.map(program => ({ label: program.displayName, value: program.id })))
-const feeFrequencyLabel = (frequency?: string) => ({ monthly: 'every month', quarterly: 'every 3 months', annual: 'every year', 'one-time': 'one-time' } as Record<string, string>)[frequency || ''] || 'billing period'
+const feeFrequencyLabel = (frequency?: string | null) => ({ monthly: 'every month', quarterly: 'every 3 months', annual: 'every year', 'one-time': 'one-time' } as Record<string, string>)[frequency || ''] || 'billing period'
 const availableFeePlanOptions = computed(() => feePlans.value
   .filter(plan => !plan.dojoId || plan.dojoId === newStudent.dojoId)
   .filter(plan => plan.isActive)
@@ -199,7 +199,7 @@ function resetCreateForm() {
   if (studentAvatarPreview.value) URL.revokeObjectURL(studentAvatarPreview.value)
   studentAvatarFile.value = null
   studentAvatarPreview.value = ''
-  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, programId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: null, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
+  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, programId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: undefined, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
   showCreate.value = false
 }
 
@@ -250,7 +250,7 @@ async function loadData() {
     const [studentData, dojoData, feePlanData, programData] = await Promise.all([$fetch('/api/students'), $fetch('/api/dojos'), $fetch('/api/fee-plans'), $fetch('/api/organization/programs')])
     students.value = studentData as any[]
     dojos.value = dojoData as any[]
-    feePlans.value = feePlanData as FeePlan[]
+    feePlans.value = feePlanData as unknown as FeePlan[]
     programs.value = programData as any[]
   } catch (error: any) {
     loadError.value = error.data?.statusMessage || error.message || 'Please try again.'
@@ -297,7 +297,7 @@ async function createStudent() {
 watch(() => newStudent.dojoId, (dojoId) => {
   const dojo = dojos.value.find(item => item.id === dojoId)
   const defaultPlanIsAvailable = dojo?.defaultFeePlanId && availableFeePlanOptions.value.some(plan => plan.value === dojo.defaultFeePlanId)
-  newStudent.feePlanId = defaultPlanIsAvailable ? dojo.defaultFeePlanId : null
+  newStudent.feePlanId = defaultPlanIsAvailable ? dojo.defaultFeePlanId : undefined
 })
 
 async function archiveStudent(student: any) {

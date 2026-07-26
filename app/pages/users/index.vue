@@ -230,14 +230,6 @@ function isDojoRole(role: string): boolean {
   return roleScopeMap[role] === 'dojo'
 }
 
-const levelNameMap = computed(() => {
-  const map: Record<string, number> = {}
-  for (const level of levels.value) {
-    map[level.name] = level.id
-  }
-  return map
-})
-
 function flattenTree(tree: any[]): any[] {
   let result: any[] = []
   for (const node of tree) {

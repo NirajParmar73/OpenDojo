@@ -17,13 +17,19 @@ export default defineEventHandler(async (event)=>{
         email: body.email,
         passwordHash: hashedPassword,
     }).returning()
+    if (!user) throw createError({ statusCode: 500, statusMessage: 'Failed to create account' })
 
     await setUserSession(event, {
         user:{
-            id: user?.id,
-            name: user?.name,
-            email: user?.email,
-            isPlatformAdmin: isPlatformAdminEmail(user?.email)
+            id: user.id,
+            name: user.name,
+            email: user.email,
+            role: user.role,
+            organizationId: user.organizationId,
+            organizationName: null,
+            organizationLogo: null,
+            avatar: user.avatar,
+            isPlatformAdmin: isPlatformAdminEmail(user.email)
         },
         lastLoggedIn: new Date()
     })

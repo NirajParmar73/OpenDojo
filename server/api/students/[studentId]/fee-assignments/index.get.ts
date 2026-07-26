@@ -45,7 +45,7 @@ export default defineEventHandler(async (event) => {
 
   // Calculate balance
   const assignmentsWithBalance = assignments.map(assignment => {
-    const totalPaid = assignment.payments?.reduce((sum: number, p: any) => sum + p.amount, 0) || 0
+    const totalPaid = assignment.payments?.reduce((sum: number, p: any) => sum + (p.tuitionAmount ?? p.amount), 0) || 0
     const netAmount = assignment.feePlan.amount - (assignment.discount || 0)
     return {
       ...assignment,

@@ -89,10 +89,12 @@ export default defineEventHandler(async (event) => {
     for (const payment of filteredPayments) {
       if (y > doc.page.height - 85) { doc.addPage(); y = 55 }
       const feePeriod = formatFeePeriod(payment.billingPeriod, payment.paymentDate, payment.assignment?.feePlan?.frequency, 'short')
+      const additionalFeeCount = Array.isArray(payment.feeItems) ? payment.feeItems.length : 0
+      const paymentFor = `${payment.assignment?.feePlan?.name || 'General payment'}${additionalFeeCount ? ` + ${additionalFeeCount} add-on${additionalFeeCount === 1 ? '' : 's'}` : ''}`
       doc.font('Helvetica').fontSize(10).fillColor('#111827')
       doc.text(new Date(payment.paymentDate).toLocaleDateString('en-IN'), columns[0]!, y, { width: 70 })
       doc.text(feePeriod, columns[1]!, y, { width: 95 })
-      doc.text(payment.assignment?.feePlan?.name || 'General payment', columns[2]!, y, { width: 120 })
+      doc.text(paymentFor, columns[2]!, y, { width: 120 })
       doc.text(String(payment.method || 'cash').replaceAll('_', ' '), columns[3]!, y, { width: 80 })
       doc.text(formatAmount(payment.amount, currency), columns[4]!, y, { width: 85, align: 'right' })
       y += 21

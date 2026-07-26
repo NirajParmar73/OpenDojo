@@ -19,5 +19,5 @@ export async function requirePlatformAdmin(event: H3Event) {
   if (!session?.user || !isPlatformAdminEmail(session.user.email)) {
     throw createError({ statusCode: 403, statusMessage: 'Platform administrator access required' })
   }
-  return session
+  return { ...session, user: session.user }
 }

@@ -8,7 +8,7 @@
         variant="ghost"
         size="xs"
         :aria-label="expanded ? `Collapse ${node.name}` : `Expand ${node.name}`"
-        @click="expanded = !expanded"
+        @click="expanded = !expanded; void 0"
       />
       <span v-else class="flex h-6 w-6 items-center justify-center text-slate-400"><UIcon name="i-lucide-map-pin" class="h-3.5 w-3.5" /></span>
 

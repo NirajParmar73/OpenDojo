@@ -66,7 +66,7 @@ export default defineEventHandler(async (event) => {
     await assertDojoManagementAccess(session.user.id, orgId, body.dojoId)
     selectedDojo = dojo
   }
-  await assertStudentLimit(orgId, body.dojoId)
+  await assertStudentLimit(orgId)
 
   if (body.programId) {
     const program = await db.query.organizationPrograms.findFirst({ where: eq(tables.organizationPrograms.id, body.programId) })
@@ -129,6 +129,15 @@ export default defineEventHandler(async (event) => {
 
   if (!student) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create student' })
+  }
+
+  if (body.currentBeltRankId) {
+    await db.insert(tables.studentGradings).values({
+      studentId: student.id,
+      beltRankId: body.currentBeltRankId,
+      awardedDate: student.joinedAt,
+      notes: 'Initial rank recorded when the student joined',
+    })
   }
 
   const [programEnrollment] = body.programId

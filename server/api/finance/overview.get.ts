@@ -69,15 +69,15 @@ export default defineEventHandler(async (event) => {
         daysOverdue,
         paidThisMonth: assignment.payments.reduce((sum: number, payment: any) => {
           const paymentDate = new Date(payment.paymentDate)
-          return paymentDate >= monthStart && paymentDate < nextMonthStart ? sum + payment.amount : sum
+          return paymentDate >= monthStart && paymentDate < nextMonthStart ? sum + (payment.tuitionAmount ?? payment.amount) : sum
         }, 0),
         ...balance,
         collectionStatus: balance.outstandingAmount === 0 ? 'paid' : balance.overdue ? 'overdue' : 'pending',
       }
     })
     .sort((a, b) => {
-      const order = { overdue: 0, pending: 1, paid: 2 }
-      return order[a.collectionStatus] - order[b.collectionStatus] || b.outstandingAmount - a.outstandingAmount
+      const order: Record<string, number> = { overdue: 0, pending: 1, paid: 2 }
+      return (order[a.collectionStatus] ?? 99) - (order[b.collectionStatus] ?? 99) || b.outstandingAmount - a.outstandingAmount
     })
 
   const payments = await db.query.payments.findMany({

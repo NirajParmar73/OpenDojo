@@ -22,6 +22,12 @@ export default defineEventHandler(async (event) => {
       await clearUserSession(event)
       throw createError({ statusCode: 401, statusMessage: 'Your student portal access changed. Please sign in again.' })
     }
+
+    const ownProgressReport = event.path === `/api/students/${studentId}/progress-report`
+    const receiptDownload = /^\/api\/payments\/\d+\/receipt(?:\?.*)?$/.test(event.path)
+    if (!event.path.startsWith('/api/portal/') && !ownProgressReport && !receiptDownload) {
+      throw createError({ statusCode: 403, statusMessage: 'Student portal sessions cannot access staff APIs.' })
+    }
     return
   }
 

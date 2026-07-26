@@ -71,6 +71,7 @@ export default defineEventHandler(async (event) => {
     notes: field('notes') || null,
     createdBy: session.user.id,
   }).returning()
+  if (!achievement) throw createError({ statusCode: 500, statusMessage: 'Failed to record achievement' })
   await writeAuditLog({
     organizationId: session.user.organizationId,
     actorUserId: session.user.id,

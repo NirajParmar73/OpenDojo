@@ -7,6 +7,12 @@ import { writeAuditLog } from '../../../../utils/audit'
 
 const createPaymentSchema = z.object({
   amount: z.number().int().positive(),
+  tuitionAmount: z.number().int().positive().optional(),
+  feeItems: z.array(z.object({
+    type: z.enum(['grading_exam', 'miscellaneous']),
+    label: z.string().trim().min(1).max(100),
+    amount: z.number().int().positive(),
+  })).max(20).default([]),
   discountAmount: z.number().int().nonnegative().default(0),
   paymentDate: z.string(),
   billingPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Select the month in which the fee period begins'),
@@ -47,6 +53,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const body = await readValidatedBody(event, createPaymentSchema.parse)
+  const tuitionAmount = body.tuitionAmount ?? body.amount
+  const feeItemsTotal = body.feeItems.reduce((sum, item) => sum + item.amount, 0)
+  if (body.amount !== tuitionAmount + feeItemsTotal) {
+    throw createError({ statusCode: 400, statusMessage: 'Payment total does not match tuition and additional fees' })
+  }
 
   let programEnrollmentId: number | null = null
   // If assignmentId provided, verify it belongs to the student
@@ -76,6 +87,8 @@ export default defineEventHandler(async (event) => {
   const [payment] = await db.insert(tables.payments).values({
     studentId: Number(studentId),
     amount: body.amount,
+    tuitionAmount,
+    feeItems: body.feeItems,
     discountAmount: body.discountAmount,
     paymentDate: new Date(body.paymentDate),
     billingPeriod: body.billingPeriod,

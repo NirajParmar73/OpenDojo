@@ -136,6 +136,14 @@ export default defineEventHandler(async (event) => {
   if (!updated) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to update student' })
   }
+  if (body.currentBeltRankId && body.currentBeltRankId !== existing.currentBeltRankId) {
+    await db.insert(tables.studentGradings).values({
+      studentId: updated.id,
+      beltRankId: body.currentBeltRankId,
+      awardedDate: new Date(),
+      notes: 'Rank corrected by an administrator from the student profile',
+    })
+  }
   if (body.programId !== undefined && body.programId !== null) {
     const activeEnrollment = await db.query.studentProgramEnrollments.findFirst({ where: and(eq(tables.studentProgramEnrollments.studentId, updated.id), eq(tables.studentProgramEnrollments.status, 'active')) })
     if (!activeEnrollment || activeEnrollment.programId !== body.programId) {

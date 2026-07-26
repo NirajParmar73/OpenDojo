@@ -25,7 +25,13 @@ export default defineEventHandler(async (event) => {
   let y = 145
   if (student.avatar) {
     const avatarPath = path.join(process.cwd(), 'public', student.avatar)
-    if (fs.existsSync(avatarPath)) { try { doc.image(avatarPath, 48, y, { fit: [90, 90] }) } catch {} }
+    if (fs.existsSync(avatarPath)) {
+      try {
+        doc.image(avatarPath, 48, y, { fit: [90, 90] })
+      } catch (error) {
+        console.warn('Could not render achievement-report avatar.', error)
+      }
+    }
   }
   doc.fillColor('#111827').font('Helvetica-Bold').fontSize(20).text(`${student.firstName} ${student.lastName}`, 158, y + 8)
   doc.font('Helvetica').fontSize(10).fillColor('#475569').text(`Dojo: ${student.dojo?.name || 'Not assigned'}`, 158, y + 39)
@@ -36,7 +42,7 @@ export default defineEventHandler(async (event) => {
   doc.font('Helvetica').fontSize(10).fillColor('#334155').text(`${achievement.tournamentLevel}${achievement.venue ? ` · ${achievement.venue}` : ''}`, 64, y + 36)
   doc.text(`${new Date(achievement.startDate).toLocaleDateString('en-IN')}${achievement.endDate ? ` – ${new Date(achievement.endDate).toLocaleDateString('en-IN')}` : ''}`, 64, y + 54)
   y += 120
-  const fields = [
+  const fields: Array<[string, string | null]> = [
     ['Event', achievement.eventType], ['Age category', achievement.ageCategory], ['Weight category', achievement.weightCategory],
     ['Place/result', achievement.result], ['Medal', achievement.medalType], ['Medals won', String(achievement.medalsWon || 0)],
   ]

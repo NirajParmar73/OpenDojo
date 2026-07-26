@@ -11,8 +11,13 @@ export default defineEventHandler(async (event) => {
   const exam = await db.query.gradingExams.findFirst({ where: and(eq(tables.gradingExams.id, examId), eq(tables.gradingExams.organizationId, session.user.organizationId)) })
   if (!exam || !await isDojoAccessible(session.user.id, session.user.organizationId, exam.dojoId)) throw createError({ statusCode: 403, statusMessage: 'Access denied' })
   if (body.targetBeltRankId) {
-    const rank = await db.query.beltRanks.findFirst({ where: eq(tables.beltRanks.id, body.targetBeltRankId), with: { system: true } })
+    const existingAttempt = await db.query.gradingExamAttempts.findFirst({ where: and(eq(tables.gradingExamAttempts.id, attemptId), eq(tables.gradingExamAttempts.examId, examId)), with: { student: { with: { currentBeltRank: true } } } }) as any
+    if (!existingAttempt) throw createError({ statusCode: 404, statusMessage: 'Candidate not found' })
+    const rank = await db.query.beltRanks.findFirst({ where: eq(tables.beltRanks.id, body.targetBeltRankId), with: { system: true } }) as any
     if (!rank || rank.system.organizationId !== session.user.organizationId) throw createError({ statusCode: 400, statusMessage: 'Invalid target rank' })
+    if (existingAttempt.student.currentBeltRank && (rank.systemId !== existingAttempt.student.currentBeltRank.systemId || rank.order <= existingAttempt.student.currentBeltRank.order)) {
+      throw createError({ statusCode: 400, statusMessage: 'Target rank must be higher than the student’s current belt in the same belt structure' })
+    }
   }
   const patch: any = { ...body }
   if (body.paymentStatus === 'paid') {

@@ -247,6 +247,7 @@ const editDojoForm = reactive({
   country: '',
   phone: '',
   email: '',
+  defaultFeePlanId: null as number | null,
 })
 
 type LocationFields = Pick<typeof newDojo, 'city' | 'stateProvince' | 'country'>
@@ -541,7 +542,7 @@ async function deleteDojo(id: number) {
     await $fetch(`/api/dojos/${id}`, { method: 'DELETE' })
     toast.add({ color: 'success', title: 'Dojo deleted' })
     // Remove schedules cache for this dojo
-    delete schedules.value[id]
+    Reflect.deleteProperty(schedules.value, id)
     await loadData()
   } catch (error: any) {
     toast.add({ color: 'error', title: 'Deletion failed', description: error.data?.statusMessage || error.message })

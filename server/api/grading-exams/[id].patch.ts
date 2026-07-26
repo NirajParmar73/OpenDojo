@@ -13,6 +13,7 @@ export default defineEventHandler(async event => {
   if (!exam || !await isDojoAccessible(session.user.id, session.user.organizationId, exam.dojoId)) throw createError({ statusCode: 404, statusMessage: 'Grading exam not found' })
   const atNoon = (date: string) => new Date(`${date}T12:00:00.000Z`)
   const [updated] = await db.update(tables.gradingExams).set({ ...body, scheduledAt: atNoon(body.scheduledAt) }).where(eq(tables.gradingExams.id, id)).returning()
+  if (!updated) throw createError({ statusCode: 500, statusMessage: 'Failed to update grading exam' })
   await writeAuditLog({ organizationId: session.user.organizationId, actorUserId: session.user.id, action: 'grading_exam.updated', entityType: 'grading_exam', entityId: id, targetLabel: updated.name, scope: { type: 'dojo', id: exam.dojoId } })
   return updated
 })

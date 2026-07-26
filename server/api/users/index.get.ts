@@ -8,14 +8,15 @@ export default defineEventHandler(async (event) => {
   if (!session?.user) {
     throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   }
+  const currentUser = session.user
 
 
-  const orgId = session.user.organizationId
+  const orgId = currentUser.organizationId
   if (!orgId) {
     throw createError({ statusCode: 400, statusMessage: 'User has no organization' })
   }
-  const allowed = await getAllowedAssignmentsForCreator(session.user.id, orgId)
-  if (session.user.role !== 'owner' && allowed.allowedNodeIds.length === 0 && allowed.allowedDojoIds.length === 0) throw createError({ statusCode: 403, statusMessage: 'No staff management territory is assigned to this account' })
+  const allowed = await getAllowedAssignmentsForCreator(currentUser.id, orgId)
+  if (currentUser.role !== 'owner' && allowed.allowedNodeIds.length === 0 && allowed.allowedDojoIds.length === 0) throw createError({ statusCode: 403, statusMessage: 'No staff management territory is assigned to this account' })
 
   const users = await db.query.users.findMany({
   where: eq(tables.users.organizationId, orgId),
@@ -25,7 +26,7 @@ export default defineEventHandler(async (event) => {
 })
 
   // For each assignment, fetch scope name
-  const scopedUsers = users.filter(user => canViewManagedUser(session.user.id, session.user.role, user, allowed))
+  const scopedUsers = users.filter(user => canViewManagedUser(currentUser.id, currentUser.role, user, allowed))
   const usersWithAssignments = await Promise.all(
     scopedUsers.map(async (user) => {
       const assignmentsWithScope = await Promise.all(
@@ -52,8 +53,8 @@ export default defineEventHandler(async (event) => {
       return {
         ...user,
         assignments: assignmentsWithScope,
-        canEdit: canEditManagedUser(session.user.id, session.user.role, user, allowed),
-        canDelete: canDeleteManagedUser(session.user.id, session.user.role, user, allowed),
+        canEdit: canEditManagedUser(currentUser.id, currentUser.role, user, allowed),
+        canDelete: canDeleteManagedUser(currentUser.id, currentUser.role, user, allowed),
         passwordHash: undefined, // hide password hash
       }
     })

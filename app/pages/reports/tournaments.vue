@@ -30,7 +30,7 @@ definePageMeta({ middleware: 'auth' })
 
 type Tournament = { id: number, name: string, level: string, venue: string | null, startDate: string, ageCutoffDate: string | null, participants: number }
 const toast = useToast()
-const selectedTournamentId = ref<number | null>(null)
+const selectedTournamentId = ref<number | undefined>()
 const downloading = ref(false)
 const { data: tournaments } = await useFetch<Tournament[]>('/api/reports/tournaments')
 const tournamentOptions = computed(() => (tournaments.value || []).map(tournament => ({ label: `${tournament.name} — ${tournament.level} (${new Date(tournament.startDate).toLocaleDateString('en-IN')})`, value: tournament.id })))

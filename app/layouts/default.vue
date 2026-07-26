@@ -104,6 +104,7 @@
       </header>
 
       <main class="mx-auto w-full max-w-[1600px] p-4 sm:p-6 lg:p-8">
+        <PageArtwork />
         <slot />
       </main>
     </div>
@@ -136,6 +137,8 @@ const identityLabel = computed(() => {
 const territoryManagerRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
 const canManageLocations = computed(() => (profile.value?.assignments || []).some((assignment: { role: string }) => territoryManagerRoles.includes(assignment.role)))
 const canManageFeePlans = computed(() => !['owner', 'admin'].includes(user.value?.role || '') && (profile.value?.assignments || []).some((assignment: { role: string }) => territoryManagerRoles.includes(assignment.role)))
+const canManageStaff = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
+const canUseFinance = computed(() => canManageStaff.value || canManageLocations.value)
 
 const allNavigation = [
   { label: 'Workspace', items: [{ label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' }, { label: 'Getting started', to: '/getting-started', icon: 'i-lucide-list-checks' }] },
@@ -153,7 +156,6 @@ const allNavigation = [
       { label: 'Dojos & schedules', to: '/dojos', icon: 'i-lucide-building-2' },
       { label: 'Attendance', to: '/attendance', icon: 'i-lucide-calendar-check-2' },
       { label: 'Grading exams', to: '/grading-exams', icon: 'i-lucide-award' },
-      { label: 'Promotion eligibility', to: '/promotion-eligibility', icon: 'i-lucide-list-checks' },
       { label: 'Tournament setup', to: '/tournaments', icon: 'i-lucide-trophy' },
       { label: 'Tournament results', to: '/tournament-results', icon: 'i-lucide-medal' },
     ],
@@ -161,11 +163,8 @@ const allNavigation = [
   {
     label: 'Finance',
     items: [
-      { label: 'Record payment', to: '/fees', icon: 'i-lucide-circle-dollar-sign' },
-      { label: 'Recent receipts', to: '/receipts', icon: 'i-lucide-receipt-text' },
-      { label: 'Collections overview', to: '/finance', icon: 'i-lucide-chart-no-axes-combined' },
-      { label: 'Revenue analytics', to: '/reports/finance', icon: 'i-lucide-chart-line' },
-      { label: 'Pending fees', to: '/finance/pending-fees', icon: 'i-lucide-clock-alert' },
+      { label: 'Finance overview', to: '/finance', icon: 'i-lucide-chart-no-axes-combined' },
+      { label: 'Payments', to: '/fees', icon: 'i-lucide-circle-dollar-sign' },
       { label: 'Expenses', to: '/finance/expenses', icon: 'i-lucide-receipt-indian-rupee' },
     ],
   },
@@ -190,6 +189,8 @@ const navigation = computed(() => {
       ]
     : allNavigation
   return items.map(section => {
+  if (section.label === 'People' && !canManageStaff.value) return { ...section, items: section.items.filter(item => item.to === '/students') }
+  if (section.label === 'Finance' && !canUseFinance.value) return { ...section, items: [] }
   if (section.label === 'Finance' && canManageFeePlans.value) {
     return { ...section, items: [...section.items, { label: 'Fee plans', to: '/settings/finance/fee-plans', icon: 'i-lucide-wallet-cards' }] }
   }

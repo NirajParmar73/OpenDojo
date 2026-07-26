@@ -26,6 +26,11 @@ COPY --from=build /app/public ./public
 # Application code writes uploads to public/uploads. The symbolic link makes
 # them available through Nuxt's production static directory as well.
 RUN mkdir -p /app/public/uploads && ln -s /app/public/uploads /app/.output/public/uploads
+RUN chown -R node:node /app
+
+USER node
 
 EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=5s --start-period=30s --retries=3 \
+  CMD node -e "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"
 CMD ["sh", "-c", "./node_modules/.bin/drizzle-kit migrate && node .output/server/index.mjs"]

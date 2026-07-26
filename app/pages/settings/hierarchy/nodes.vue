@@ -129,7 +129,6 @@ const { user } = useUserSession()
 const { data: subscription } = await useFetch<{ plan: string }>('/api/organization/subscription')
 const { data: permissions, refresh: refreshPermissions } = await useFetch<{ allowedNodeIds: number[], managedParentNodeIds: number[] }>('/api/users/me/permissions')
 const levels = ref<any[]>([])
-const nodes = ref<any[]>([])
 const tree = ref<any[]>([])
 
 const creatingRoot = ref(false)

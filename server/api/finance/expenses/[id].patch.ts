@@ -13,17 +13,18 @@ const schema = z.object({
 export default defineEventHandler(async event => {
   const session = await getUserSession(event)
   if (!session?.user?.organizationId) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
+  const user = session.user
   const id = Number(getRouterParam(event, 'id'))
   const body = await readValidatedBody(event, schema.parse)
-  const existing = await db.query.expenses.findFirst({ where: and(eq(tables.expenses.id, id), eq(tables.expenses.organizationId, session.user.organizationId)) })
+  const existing = await db.query.expenses.findFirst({ where: and(eq(tables.expenses.id, id), eq(tables.expenses.organizationId, user.organizationId!)) })
   if (!existing) throw createError({ statusCode: 404, statusMessage: 'Expense not found' })
   const assertScope = async (scopeType: string, scopeId: number | null) => {
-    if (scopeType === 'organization' && session.user.role !== 'owner') throw createError({ statusCode: 403, statusMessage: 'Only the owner can manage organization-wide expenses' })
-    if (scopeType === 'node') await assertNodeManagementAccess(session.user.id, session.user.organizationId!, scopeId!)
-    if (scopeType === 'dojo') await assertDojoManagementAccess(session.user.id, session.user.organizationId!, scopeId!)
+    if (scopeType === 'organization' && user.role !== 'owner') throw createError({ statusCode: 403, statusMessage: 'Only the owner can manage organization-wide expenses' })
+    if (scopeType === 'node') await assertNodeManagementAccess(user.id, user.organizationId!, scopeId!)
+    if (scopeType === 'dojo') await assertDojoManagementAccess(user.id, user.organizationId!, scopeId!)
   }
   await assertScope(existing.scopeType, existing.scopeId)
   await assertScope(body.scopeType, body.scopeId)
-  const [expense] = await db.update(tables.expenses).set({ ...body, dueAt: body.dueAt ? new Date(body.dueAt) : null, paidAt: body.status === 'paid' ? (body.paidAt ? new Date(body.paidAt) : new Date()) : null, updatedAt: new Date() }).where(and(eq(tables.expenses.id, id), eq(tables.expenses.organizationId, session.user.organizationId))).returning()
+  const [expense] = await db.update(tables.expenses).set({ ...body, dueAt: body.dueAt ? new Date(body.dueAt) : null, paidAt: body.status === 'paid' ? (body.paidAt ? new Date(body.paidAt) : new Date()) : null, updatedAt: new Date() }).where(and(eq(tables.expenses.id, id), eq(tables.expenses.organizationId, user.organizationId!))).returning()
   return { success: true, expense }
 })

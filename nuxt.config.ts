@@ -1,5 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
 export default defineNuxtConfig({
+  buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils'],
 
   devtools: {
@@ -47,7 +48,7 @@ export default defineNuxtConfig({
       appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
       tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
       legalEntityName: process.env.NUXT_PUBLIC_LEGAL_ENTITY_NAME || 'OpenDojos',
-      supportEmail: process.env.NUXT_PUBLIC_SUPPORT_EMAIL || 'support@your-domain.com',
+      supportEmail: process.env.NUXT_PUBLIC_SUPPORT_EMAIL || 'opendojos@gmail.com',
       supportPhone: process.env.NUXT_PUBLIC_SUPPORT_PHONE || '',
       legalAddress: process.env.NUXT_PUBLIC_LEGAL_ADDRESS || '',
       razorpayKeyId: process.env.NUXT_RAZORPAY_KEY_ID || '',

@@ -24,12 +24,6 @@
         </div>
       </UCard>
 
-      <UCard v-if="gradingFeeOptions.length" class="mb-6">
-        <template #header><div><h2 class="font-semibold">Grading fees for this dojo</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Select individual grading fees configured for {{ student.dojo?.name }}, or assign all available grading fees at once.</p></div></template>
-        <div class="flex flex-wrap gap-3"><UCheckbox :model-value="allGradingFeesSelected" label="Select all grading fees" @update:model-value="toggleAllGradingFees" /></div>
-        <div class="mt-4 grid gap-3 sm:grid-cols-2"><UCheckbox v-for="item in gradingFeeOptions" :key="item.feePlanId" :model-value="selectedGradingFeePlanIds.includes(item.feePlanId)" :label="`${item.beltRank?.name || 'Grading'} · ${formatCurrency(item.feePlan?.amount || 0)}`" @update:model-value="toggleGradingFee(item.feePlanId, $event)" /></div>
-        <div class="mt-5 flex justify-end"><UButton :disabled="!selectedGradingFeePlanIds.length" :loading="assigningGradingFees" icon="i-lucide-plus" @click="assignSelectedGradingFees">Assign selected grading fees</UButton></div>
-      </UCard>
       <UCard class="mb-6">
         <div class="mb-4"><h2 class="text-lg font-semibold">Fee plans for this student</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Assign the monthly, quarterly, annual, or one-time plan that applies to this student. End an active plan before starting a replacement so their payment history remains clear.</p></div>
         <form @submit.prevent="addAssignment" class="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -79,16 +73,20 @@
 
       <!-- Payments Section -->
       <UCard>
-        <div class="mb-3"><h2 class="text-lg font-semibold">Record payment</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Enter the amount received and how it was paid. A receipt is created automatically.</p></div>
+        <div class="mb-3"><h2 class="text-lg font-semibold">Record payment</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record tuition and add one-off charges to the same payment. A receipt is created automatically.</p></div>
         <form @submit.prevent="recordPayment" class="mb-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <UFormField label="Payment for" required><USelect v-model="paymentForm.assignmentId" :items="assignmentOptions" placeholder="Choose a fee plan" required /></UFormField>
-          <UFormField label="Amount received" required><UInput v-model.number="paymentForm.amount" type="number" min="0.01" step="0.01" placeholder="0.00" required /></UFormField>
+          <UFormField label="Tuition received" required><UInput v-model.number="paymentForm.amount" type="number" min="0.01" step="0.01" placeholder="0.00" required /></UFormField>
           <UFormField label="Payment received on" required><UInput v-model="paymentForm.paymentDate" type="date" required /></UFormField>
           <UFormField label="Fee period begins" required help="The coverage range is calculated from the selected fee plan."><UInput v-model="paymentForm.billingPeriod" type="month" required /></UFormField>
           <p v-if="selectedAssignment" class="text-sm text-slate-500 dark:text-slate-400 sm:col-span-2 xl:col-span-4">Coverage: <span class="font-medium text-slate-700 dark:text-slate-200">{{ paymentCoverage }}</span></p>
+          <PaymentAdditionalFees v-model="paymentForm.feeItems" class="sm:col-span-2 xl:col-span-4" />
           <UFormField label="Payment method" required><USelect v-model="paymentForm.method" :items="paymentMethods" class="min-w-40" :ui="{ content: 'min-w-40' }" required /></UFormField>
           <UFormField label="Reference"><UInput v-model="paymentForm.referenceNumber" placeholder="Optional reference" /></UFormField>
-          <div class="self-end xl:col-span-2"><UButton type="submit" class="w-full" :loading="recordingPayment">Save payment</UButton></div>
+          <div class="rounded-xl bg-primary/5 p-4 sm:col-span-2 xl:col-span-4">
+            <div class="grid gap-2 text-sm sm:grid-cols-3"><div><p class="text-slate-500">Tuition</p><p class="font-semibold">{{ formatCurrency(toMinor(paymentForm.amount)) }}</p></div><div><p class="text-slate-500">Additional fees</p><p class="font-semibold">{{ formatCurrency(toMinor(additionalFeesTotal)) }}</p></div><div><p class="text-slate-500">Total received</p><p class="text-lg font-semibold text-primary">{{ formatCurrency(paymentTotal) }}</p></div></div>
+          </div>
+          <div class="self-end sm:col-span-2 xl:col-span-4"><UButton type="submit" class="w-full justify-center" icon="i-lucide-circle-check-big" :loading="recordingPayment">Record payment · {{ formatCurrency(paymentTotal) }}</UButton></div>
         </form>
 
         <div class="overflow-x-auto">
@@ -107,7 +105,7 @@
               <tr v-for="pay in payments" :key="pay.id">
                 <td class="px-3 py-2">{{ pay.receiptNumber }}</td>
                 <td class="px-3 py-2">{{ formatDate(pay.paymentDate) }}</td>
-                <td class="px-3 py-2">{{ formatCurrency(pay.amount) }}</td>
+                <td class="px-3 py-2"><p>{{ formatCurrency(pay.amount) }}</p><p v-if="pay.feeItems?.length" class="mt-1 text-xs text-slate-500">{{ pay.feeItems.length }} additional fee{{ pay.feeItems.length === 1 ? '' : 's' }}</p></td>
                 <td class="px-3 py-2">{{ pay.method }}</td>
                 <td class="px-3 py-2">{{ pay.referenceNumber || '-' }}</td>
                 <td class="px-3 py-2">
@@ -149,15 +147,13 @@ const selectedHierarchyId = ref<number | 'all'>('all')
 const selectedDojoId = ref<number | 'all'>('all')
 const { data: studentDirectory } = await useFetch<any[]>('/api/students')
 const { data: organizationSettings } = await useFetch<{ currency?: string }>('/api/organization/settings')
+const { toMinor } = useMoney(() => organizationSettings.value?.currency)
 
 const toast = useToast()
 const student = ref<any>(null)
 const assignments = ref<any[]>([])
 const payments = ref<any[]>([])
 const feePlans = ref<any[]>([])
-const gradingSchedules = ref<any[]>([])
-const selectedGradingFeePlanIds = ref<number[]>([])
-const assigningGradingFees = ref(false)
 const organization = ref<any>({})
 const loading = ref(true)
 const error = ref('')
@@ -184,6 +180,7 @@ const paymentForm = reactive({
   billingPeriod: currentMonth,
   method: 'cash',
   referenceNumber: '',
+  feeItems: [] as Array<{ id: number, type: 'grading_exam' | 'miscellaneous', label: string, amount: number | undefined }>,
 })
 const recordingPayment = ref(false)
 
@@ -213,7 +210,12 @@ const filteredStudents = computed(() => (studentDirectory.value || []).filter(st
   && (selectedDojoId.value === 'all' || student.dojoId === selectedDojoId.value)
 ))
 const studentOptions = computed(() => filteredStudents.value.map(student => ({
-  label: `${student.firstName} ${student.lastName}${student.dojo?.name ? ` · ${student.dojo.name}` : ''}`,
+  label: [
+    `${student.firstName} ${student.lastName}`,
+    student.dojo?.name,
+    student.program?.displayName,
+    student.currentBeltRank?.name,
+  ].filter(Boolean).join(' · '),
   value: student.id,
 })))
 
@@ -236,11 +238,13 @@ const assignmentOptions = computed(() =>
     }))
 )
 const selectedAssignment = computed(() => assignments.value.find(assignment => assignment.id === paymentForm.assignmentId))
-const gradingFeeOptions = computed(() => gradingSchedules.value.filter(schedule => schedule.dojoId === student.value?.dojoId && schedule.feePlan?.isActive && !assignments.value.some(assignment => assignment.feePlanId === schedule.feePlanId && assignment.status === 'active')))
-const allGradingFeesSelected = computed(() => gradingFeeOptions.value.length > 0 && gradingFeeOptions.value.every(item => selectedGradingFeePlanIds.value.includes(item.feePlanId)))
-function toggleGradingFee(feePlanId: number, checked: boolean) { selectedGradingFeePlanIds.value = checked ? [...new Set([...selectedGradingFeePlanIds.value, feePlanId])] : selectedGradingFeePlanIds.value.filter(id => id !== feePlanId) }
-function toggleAllGradingFees(checked: boolean) { selectedGradingFeePlanIds.value = checked ? gradingFeeOptions.value.map(item => item.feePlanId) : [] }
 const paymentCoverage = computed(() => selectedAssignment.value ? formatFeePeriod(paymentForm.billingPeriod, selectedAssignment.value.feePlan?.frequency) : '')
+const additionalFeesTotal = computed(() => paymentForm.feeItems.reduce((sum, item) => sum + (Number(item.amount) || 0), 0))
+const paymentTotal = computed(() => Math.round(((Number(paymentForm.amount) || 0) + additionalFeesTotal.value) * 100))
+watch(() => paymentForm.assignmentId, () => {
+  const outstanding = selectedAssignment.value?.outstanding
+  paymentForm.amount = typeof outstanding === 'number' && outstanding > 0 ? outstanding / 100 : undefined
+})
 
 function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organizationSettings.value?.currency || 'USD' }).format(amount / 100) }
 function feeFrequencyLabel(frequency?: string) { return ({ monthly: 'every month', quarterly: 'every 3 months', annual: 'every year', 'one-time': 'one-time' } as Record<string, string>)[frequency || ''] || 'billing period' }
@@ -272,21 +276,18 @@ async function loadData() {
   loading.value = true
   error.value = ''
   try {
-    const [studentData, assignmentsData, paymentsData, feePlansData, orgData, schedules] = await Promise.all([
+    const [studentData, assignmentsData, paymentsData, feePlansData, orgData] = await Promise.all([
       $fetch(`/api/students/${studentId.value}`),
       $fetch(`/api/students/${studentId.value}/fee-assignments`),
       $fetch(`/api/students/${studentId.value}/payments`),
       $fetch('/api/fee-plans'),
       $fetch('/api/organization/settings'),
-      $fetch('/api/grading-fee-schedules'),
     ])
     student.value = studentData
     assignments.value = assignmentsData
     payments.value = paymentsData
     feePlans.value = feePlansData
     organization.value = orgData
-    gradingSchedules.value = schedules as any[]
-    selectedGradingFeePlanIds.value = []
   } catch (err: any) {
     error.value = err.data?.statusMessage || err.message || 'Failed to load data'
     toast.add({ color: 'error', title: 'Failed to load data', description: error.value })
@@ -320,19 +321,10 @@ async function addAssignment() {
     newAssignment.discount = 0
     newAssignment.discountReason = ''
   } catch (err: any) {
-    toast.add({ color: 'error', title: 'Failed to add assignment', description: err.message })
+    toast.add({ color: 'error', title: 'Failed to add assignment', description: apiErrorMessage(err) })
   } finally {
     addingAssignment.value = false
   }
-}
-
-async function assignSelectedGradingFees() {
-  assigningGradingFees.value = true
-  try {
-    await Promise.all(selectedGradingFeePlanIds.value.map(feePlanId => $fetch(`/api/students/${studentId.value}/fee-assignments`, { method: 'POST', body: { feePlanId, startDate: today, dueDay: 1, discount: 0 } })))
-    await loadData()
-    toast.add({ color: 'success', title: 'Selected grading fees assigned' })
-  } catch (err: any) { toast.add({ color: 'error', title: 'Could not assign grading fees', description: err.data?.statusMessage || err.message }) } finally { assigningGradingFees.value = false }
 }
 
 function openStudentFees() {
@@ -347,7 +339,7 @@ async function endAssignment(assignmentId: number) {
     toast.add({ color: 'success', title: 'Fee plan ended' })
     await loadData()
   } catch (err: any) {
-    toast.add({ color: 'error', title: 'Deletion failed', description: err.message })
+    toast.add({ color: 'error', title: 'Could not end fee plan', description: apiErrorMessage(err) })
   }
 }
 
@@ -356,12 +348,24 @@ async function recordPayment() {
     toast.add({ color: 'warning', title: 'Fee assignment, amount, payment date, and fee-period start are required' })
     return
   }
+  if (paymentForm.feeItems.some(item => !item.label.trim() || !item.amount || item.amount <= 0)) {
+    toast.add({ color: 'warning', title: 'Complete each additional fee' })
+    return
+  }
   recordingPayment.value = true
   try {
+    const tuitionAmount = Math.round(paymentForm.amount * 100)
+    const feeItems = paymentForm.feeItems.map(item => ({
+      type: item.type,
+      label: item.label.trim(),
+      amount: Math.round(Number(item.amount) * 100),
+    }))
     await $fetch(`/api/students/${studentId.value}/payments`, {
       method: 'POST' as any,
       body: {
-        amount: Math.round(paymentForm.amount * 100),
+        amount: tuitionAmount + feeItems.reduce((sum, item) => sum + item.amount, 0),
+        tuitionAmount,
+        feeItems,
         assignmentId: paymentForm.assignmentId,
         paymentDate: paymentForm.paymentDate,
         billingPeriod: paymentForm.billingPeriod,
@@ -377,8 +381,9 @@ async function recordPayment() {
     paymentForm.billingPeriod = currentMonth
     paymentForm.method = 'cash'
     paymentForm.referenceNumber = ''
+    paymentForm.feeItems = []
   } catch (err: any) {
-    toast.add({ color: 'error', title: 'Payment failed', description: err.message })
+    toast.add({ color: 'error', title: 'Payment failed', description: apiErrorMessage(err) })
   } finally {
     recordingPayment.value = false
   }
@@ -407,7 +412,7 @@ async function downloadReceipt(payment: any) {
     toast.add({ color: 'success', title: 'Receipt downloaded' })
   } catch (err: any) {
     console.error('Receipt error:', err)
-    toast.add({ color: 'error', title: 'Receipt download failed', description: err.message || 'Unknown error' })
+    toast.add({ color: 'error', title: 'Receipt download failed', description: apiErrorMessage(err, 'Unknown error') })
   } finally {
     downloadingReceipt.value = false
   }
@@ -431,7 +436,7 @@ async function downloadFeeReport() {
     toast.add({ color: 'success', title: 'Fee statement ready to preview' })
   } catch (error: any) {
     preview?.close()
-    toast.add({ color: 'error', title: 'Could not download fee statement', description: error.message })
+    toast.add({ color: 'error', title: 'Could not download fee statement', description: apiErrorMessage(error) })
   } finally {
     downloadingReport.value = false
   }

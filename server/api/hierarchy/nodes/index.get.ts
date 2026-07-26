@@ -1,5 +1,5 @@
 import { db, tables } from '../../../../server/utils/database'
-import { eq, and, isNull } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import { formatHierarchyNodeLabel } from '../../../utils/hierarchy-label'
 
 export default defineEventHandler(async (event) => {

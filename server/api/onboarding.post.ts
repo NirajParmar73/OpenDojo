@@ -150,7 +150,7 @@ export default defineEventHandler(async (event) => {
     programId: program?.id,
     name: 'Default Belt System',
   }).returning()
-  if (beltSystem) await tx.insert(tables.beltRanks).values(rankNames.map((rank, index) => ({ systemId: beltSystem.id, name: rank.includes('Kyu') || rank.includes('Dan') ? rank : `${rank} Belt`, level: rank.toLowerCase().replaceAll(' ', '_'), order: index + 1, type: rank.includes('Dan') || rank === 'Black' ? 'dan' : 'kyu', danNumber: rank.includes('Dan') || rank === 'Black' ? 1 : null, color: rank.toLowerCase().replaceAll(' belt', '') })))
+  if (beltSystem) await tx.insert(tables.beltRanks).values(rankNames.map((rank, index) => ({ systemId: beltSystem.id, name: rank.includes('Kyu') || rank.includes('Dan') ? rank : `${rank} Belt`, level: rank.toLowerCase().replaceAll(' ', '_'), order: index + 1, type: (rank.includes('Dan') || rank === 'Black' ? 'dan' : 'kyu') as 'dan' | 'kyu', danNumber: rank.includes('Dan') || rank === 'Black' ? 1 : null, color: rank.toLowerCase().replaceAll(' belt', '') })))
   }
 
   if (dojo) {
@@ -200,6 +200,7 @@ await setUserSession(event, {
     organizationName: org.name,
     organizationLogo: org.logo ?? null, // 👈 add this
     avatar: null,
+    isPlatformAdmin: false,
   },
   lastLoggedIn: new Date(),
 })

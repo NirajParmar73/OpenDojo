@@ -22,7 +22,7 @@ useHead(() => ({
   ],
   link: [
     { rel: 'icon', type: 'image/png', href: '/brand/opendojos-mark.png' },
-    { rel: 'apple-touch-icon', href: '/brand/opendojos-mark.png' },
+    { rel: 'apple-touch-icon', href: isStudentPortal.value ? '/pwa-icon-192.png' : '/brand/opendojos-mark.png' },
     { rel: 'manifest', href: isStudentPortal.value ? '/portal/manifest.webmanifest' : '/manifest.webmanifest' },
   ],
 }))

@@ -38,7 +38,7 @@ export default defineEventHandler(async (event) => {
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath)
     }
-  } catch (e) { /* ignore */ }
+  } catch { /* Missing files are safe to ignore after the database record is removed. */ }
 
   await db.delete(tables.documents)
     .where(eq(tables.documents.id, Number(documentId)))

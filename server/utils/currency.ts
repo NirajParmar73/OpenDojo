@@ -1,15 +1,7 @@
-// utils/currency.ts
 export function formatAmount(amount: number, currency: string = 'INR'): string {
-  const symbols: Record<string, string> = {
-    INR: '₹',
-    USD: '$',
-    EUR: '€',
-    GBP: '£',
-    JPY: '¥',
-  }
-  const symbol = symbols[currency] || currency
-  // amount is in minor units, divide by 100
-  return `${symbol}${(amount / 100).toFixed(2)}`
+  // PDFKit's built-in fonts cannot reliably render every currency glyph.
+  if (currency === 'INR') return `INR ${(amount / 100).toFixed(2)}`
+  return new Intl.NumberFormat('en', { style: 'currency', currency }).format(amount / 100)
 }
 
 export function toMinorUnits(amount: number): number {

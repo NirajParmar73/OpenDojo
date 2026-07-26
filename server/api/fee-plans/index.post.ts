@@ -39,7 +39,8 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 403, statusMessage: 'A territory-wide plan requires one assigned hierarchy territory.' })
   }
   if (territoryNodeIds.length === 1) {
-    const scopeNode = await db.query.hierarchyNodes.findFirst({ where: eq(tables.hierarchyNodes.id, territoryNodeIds[0]) })
+    const territoryNodeId = territoryNodeIds[0]!
+    const scopeNode = await db.query.hierarchyNodes.findFirst({ where: eq(tables.hierarchyNodes.id, territoryNodeId) })
     if (!scopeNode || scopeNode.organizationId !== orgId) {
       throw createError({ statusCode: 403, statusMessage: 'Your assigned fee-plan territory is invalid.' })
     }
@@ -62,7 +63,7 @@ export default defineEventHandler(async (event) => {
     amount: body.amount,
     frequency: body.frequency,
     dojoId: body.dojoId || null,
-    scopeNodeId: body.dojoId ? null : (session.user.role === 'owner' ? null : territoryNodeIds[0]),
+    scopeNodeId: body.dojoId ? null : (session.user.role === 'owner' ? null : territoryNodeIds[0]!),
     description: body.description || null,
     isActive: body.isActive ? 1 : 0
   }).returning()

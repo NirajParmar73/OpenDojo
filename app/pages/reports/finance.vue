@@ -16,7 +16,7 @@ const programOptions = computed(() => [{ label: 'All programs', value: null }, .
 const { data: overview, pending, error } = await useFetch<any>(() => { const query = new URLSearchParams(); if (selectedDojoId.value) query.set('dojoId', String(selectedDojoId.value)); if (selectedProgramId.value) query.set('programId', String(selectedProgramId.value)); return `/api/finance/overview${query.size ? `?${query}` : ''}` })
 const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const currency = computed(() => organization.value?.currency || 'INR')
-const currencyFractionDigits = computed(() => new Intl.NumberFormat('en', { style: 'currency', currency: currency.value }).resolvedOptions().maximumFractionDigits)
+const currencyFractionDigits = computed(() => new Intl.NumberFormat('en', { style: 'currency', currency: currency.value }).resolvedOptions().maximumFractionDigits ?? 2)
 function formatCurrency(amount: number) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: currency.value }).format(amount / (10 ** currencyFractionDigits.value)) }
 function height(amount: number) { const max = Math.max(...(overview.value?.revenueTrend || []).map((item: any) => item.amount), 1); return amount ? Math.max(8, Math.round((amount / max) * 100)) : 3 }
 function csvCell(value: string | number) { return `"${String(value).replaceAll('"', '""')}"` }

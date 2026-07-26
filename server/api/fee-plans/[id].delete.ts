@@ -39,11 +39,17 @@ export default defineEventHandler(async (event) => {
     }
   }
 
-  // Optional: check if there are any active student assignments before deleting?
-  // We'll allow deletion; if assignments exist, they become orphaned, but we can handle that.
+  const assignments = await db.query.studentFeeAssignments.findMany({
+    where: eq(tables.studentFeeAssignments.feePlanId, Number(id)),
+    columns: { id: true },
+  })
+  if (assignments.length) {
+    await db.update(tables.feePlans)
+      .set({ isActive: 0, updatedAt: new Date() })
+      .where(eq(tables.feePlans.id, Number(id)))
+    return { success: true, action: 'archived' }
+  }
 
-  await db.delete(tables.feePlans)
-    .where(eq(tables.feePlans.id, Number(id)))
-
-  return { success: true }
+  await db.delete(tables.feePlans).where(eq(tables.feePlans.id, Number(id)))
+  return { success: true, action: 'deleted' }
 })

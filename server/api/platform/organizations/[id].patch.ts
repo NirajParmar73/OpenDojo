@@ -40,6 +40,7 @@ export default defineEventHandler(async (event) => {
     })
     .where(eq(tables.organizations.id, id))
     .returning({ id: tables.organizations.id, name: tables.organizations.name, slug: tables.organizations.slug, subscriptionPlan: tables.organizations.subscriptionPlan })
+  if (!organization) throw createError({ statusCode: 500, statusMessage: 'Failed to update organization' })
 
   await writeAuditLog({
     organizationId: organization.id,

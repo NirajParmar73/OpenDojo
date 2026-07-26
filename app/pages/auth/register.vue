@@ -51,7 +51,7 @@ async function onRegister(event: FormSubmitEvent<Schema>) {
     await fetch()
     navigateTo(user.value?.isPlatformAdmin ? '/platform' : '/')
 
-   } catch (error) {
+   } catch {
     toast.add({
         color: 'error',
         title: 'Failed to create account',

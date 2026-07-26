@@ -1,5 +1,5 @@
 // server/database/schema.ts
-import { pgTable, uniqueIndex } from 'drizzle-orm/pg-core'
+import { pgTable, uniqueIndex, type AnyPgColumn } from 'drizzle-orm/pg-core'
 import { relations } from 'drizzle-orm'
 
 // ---------- TABLE DEFINITIONS (all tables first) ----------
@@ -60,11 +60,11 @@ export const hierarchyLevels = pgTable('hierarchy_levels', (t) => ({
 }))
 
 // Hierarchy Nodes
-export const hierarchyNodes: any = pgTable('hierarchy_nodes', (t) => ({
+export const hierarchyNodes = pgTable('hierarchy_nodes', (t) => ({
   id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   levelId: t.integer('level_id').references(() => hierarchyLevels.id, { onDelete: 'cascade' }).notNull(),
-  parentId: t.integer('parent_id').references(() => hierarchyNodes.id, { onDelete: 'cascade' }),
+  parentId: t.integer('parent_id').references((): AnyPgColumn => hierarchyNodes.id, { onDelete: 'cascade' }),
   name: t.text().notNull(),
   countryCode: t.varchar('country_code', { length: 2 }),
   subdivisionCode: t.text('subdivision_code'),
@@ -88,7 +88,7 @@ export const dojos = pgTable('dojos', (t) => ({
   postalCode: t.text('postal_code'),
   phone: t.text(),
   email: t.text(),
-  defaultFeePlanId: t.integer('default_fee_plan_id').references(() => feePlans.id, { onDelete: 'set null' }),
+  defaultFeePlanId: t.integer('default_fee_plan_id').references((): AnyPgColumn => feePlans.id, { onDelete: 'set null' }),
   createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
@@ -413,7 +413,7 @@ export const studentProgramEnrollments = pgTable('student_program_enrollments', 
   id: t.serial('id').primaryKey(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'restrict' }).notNull(),
-  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
+  dojoId: t.integer('dojo_id').references((): AnyPgColumn => dojos.id, { onDelete: 'set null' }),
   instructorId: t.integer('instructor_id').references(() => users.id, { onDelete: 'set null' }),
   startDate: t.timestamp('start_date', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   endDate: t.timestamp('end_date', { withTimezone: true }),
@@ -450,7 +450,107 @@ export const dojoInstructors = pgTable('dojo_instructors', (t) => ({
 
 // ---------- RELATIONS (all relations after all tables) ----------
 
-export const organizationsRelations = relations(organizations, ({ many }): any => ({
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// ---------- Fee Plans ----------
+export const feePlans = pgTable('fee_plans', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  amount: t.integer('amount').notNull(), // in smallest currency unit (e.g., paisa for INR)
+  frequency: t.text({ enum: ['monthly', 'quarterly', 'half-annually', 'annual', 'one-time'] }).default('monthly'),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
+  // When set, this plan applies to every dojo below this hierarchy node.
+  // Both scopeNodeId and dojoId being null means organization-wide.
+  scopeNodeId: t.integer('scope_node_id').references(() => hierarchyNodes.id, { onDelete: 'set null' }),
+  description: t.text(),
+  isActive: t.integer('is_active').default(1),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- Student Fee Assignments ----------
+export const studentFeeAssignments = pgTable('student_fee_assignments', (t) => ({
+  id: t.serial('id').primaryKey(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  feePlanId: t.integer('fee_plan_id').references(() => feePlans.id, { onDelete: 'cascade' }).notNull(),
+  programEnrollmentId: t.integer('program_enrollment_id').references(() => studentProgramEnrollments.id, { onDelete: 'set null' }),
+  startDate: t.timestamp({ withTimezone: true }).notNull(),
+  endDate: t.timestamp({ withTimezone: true }),
+  dueDay: t.integer('due_day').default(1), // day of month (1-28)
+  discount: t.integer('discount').default(0), // discount amount in same currency unit
+  discountReason: t.text('discount_reason'),
+  status: t.text({ enum: ['active', 'expired', 'cancelled'] }).default('active'),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- Payments ----------
+export const payments = pgTable('payments', (t) => ({
+  id: t.serial('id').primaryKey(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  assignmentId: t.integer('assignment_id').references(() => studentFeeAssignments.id, { onDelete: 'set null' }),
+  programEnrollmentId: t.integer('program_enrollment_id').references(() => studentProgramEnrollments.id, { onDelete: 'set null' }),
+  amount: t.integer('amount').notNull(),
+  // The total received can include one-off charges. Keep the tuition portion
+  // separate so add-ons never reduce the recurring fee-plan balance.
+  tuitionAmount: t.integer('tuition_amount'),
+  feeItems: t.jsonb('fee_items').$type<Array<{
+    type: 'grading_exam' | 'miscellaneous'
+    label: string
+    amount: number
+  }>>().notNull().default([]),
+  discountAmount: t.integer('discount_amount').notNull().default(0),
+  paymentDate: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  billingPeriod: t.text('billing_period'), // YYYY-MM start month; coverage range comes from the assigned fee plan
+  method: t.text({ enum: ['cash', 'bank_transfer', 'card', 'other'] }).default('cash'),
+  referenceNumber: t.text(),
+  receiptNumber: t.text().notNull(),
+  notes: t.text(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- Relations for Financial Tables ----------
+
+
+
+// ---------- Documents ----------
+export const documents = pgTable('documents', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }),
+  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
+  documentType: t.text().notNull(), // e.g. 'national_id', 'passport', 'driving_license', 'voter_registration', 'other'
+  documentNumber: t.text(),
+  fileUrl: t.text().notNull(),
+  issuedDate: t.timestamp({ withTimezone: true }),
+  expiryDate: t.timestamp({ withTimezone: true }),
+  notes: t.text(),
+  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+// ---------- Relations ----------
+
+// ---------- RELATIONS (declared after every table for complete inference) ----------
+
+export const organizationsRelations = relations(organizations, ({ many }) => ({
   users: many(users),
   hierarchyLevels: many(hierarchyLevels),
   hierarchyNodes: many(hierarchyNodes),
@@ -459,11 +559,11 @@ export const organizationsRelations = relations(organizations, ({ many }): any =
   auditLogs: many(auditLogs),
 }))
 
-export const hierarchyLevelsRelations = relations(hierarchyLevels, ({ many }): any => ({
+export const hierarchyLevelsRelations = relations(hierarchyLevels, ({ many }) => ({
   nodes: many(hierarchyNodes),
 }))
 
-export const hierarchyNodesRelations = relations(hierarchyNodes, ({ one, many }): any => ({
+export const hierarchyNodesRelations = relations(hierarchyNodes, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [hierarchyNodes.organizationId],
     references: [organizations.id],
@@ -622,58 +722,6 @@ export const attendanceRelations = relations(attendance, ({ one }) => ({
   }),
 }))
 
-// ---------- Fee Plans ----------
-export const feePlans = pgTable('fee_plans', (t) => ({
-  id: t.serial('id').primaryKey(),
-  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  name: t.text().notNull(),
-  amount: t.integer('amount').notNull(), // in smallest currency unit (e.g., paisa for INR)
-  frequency: t.text({ enum: ['monthly', 'quarterly', 'half-annually', 'annual', 'one-time'] }).default('monthly'),
-  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
-  // When set, this plan applies to every dojo below this hierarchy node.
-  // Both scopeNodeId and dojoId being null means organization-wide.
-  scopeNodeId: t.integer('scope_node_id').references(() => hierarchyNodes.id, { onDelete: 'set null' }),
-  description: t.text(),
-  isActive: t.integer('is_active').default(1),
-  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
-}))
-
-// ---------- Student Fee Assignments ----------
-export const studentFeeAssignments = pgTable('student_fee_assignments', (t) => ({
-  id: t.serial('id').primaryKey(),
-  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
-  feePlanId: t.integer('fee_plan_id').references(() => feePlans.id, { onDelete: 'cascade' }).notNull(),
-  programEnrollmentId: t.integer('program_enrollment_id').references(() => studentProgramEnrollments.id, { onDelete: 'set null' }),
-  startDate: t.timestamp({ withTimezone: true }).notNull(),
-  endDate: t.timestamp({ withTimezone: true }),
-  dueDay: t.integer('due_day').default(1), // day of month (1-28)
-  discount: t.integer('discount').default(0), // discount amount in same currency unit
-  discountReason: t.text('discount_reason'),
-  status: t.text({ enum: ['active', 'expired', 'cancelled'] }).default('active'),
-  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
-}))
-
-// ---------- Payments ----------
-export const payments = pgTable('payments', (t) => ({
-  id: t.serial('id').primaryKey(),
-  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
-  assignmentId: t.integer('assignment_id').references(() => studentFeeAssignments.id, { onDelete: 'set null' }),
-  programEnrollmentId: t.integer('program_enrollment_id').references(() => studentProgramEnrollments.id, { onDelete: 'set null' }),
-  amount: t.integer('amount').notNull(),
-  discountAmount: t.integer('discount_amount').notNull().default(0),
-  paymentDate: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
-  billingPeriod: t.text('billing_period'), // YYYY-MM start month; coverage range comes from the assigned fee plan
-  method: t.text({ enum: ['cash', 'bank_transfer', 'card', 'other'] }).default('cash'),
-  referenceNumber: t.text(),
-  receiptNumber: t.text().notNull(),
-  notes: t.text(),
-  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
-}))
-
-// ---------- Relations for Financial Tables ----------
 export const feePlansRelations = relations(feePlans, ({ one, many }) => ({
   organization: one(organizations, {
     fields: [feePlans.organizationId],
@@ -718,23 +766,6 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   }),
 }))
 
-// ---------- Documents ----------
-export const documents = pgTable('documents', (t) => ({
-  id: t.serial('id').primaryKey(),
-  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }),
-  userId: t.integer('user_id').references(() => users.id, { onDelete: 'cascade' }),
-  documentType: t.text().notNull(), // e.g. 'national_id', 'passport', 'driving_license', 'voter_registration', 'other'
-  documentNumber: t.text(),
-  fileUrl: t.text().notNull(),
-  issuedDate: t.timestamp({ withTimezone: true }),
-  expiryDate: t.timestamp({ withTimezone: true }),
-  notes: t.text(),
-  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
-}))
-
-// ---------- Relations ----------
 export const documentsRelations = relations(documents, ({ one }) => ({
   organization: one(organizations, {
     fields: [documents.organizationId],
@@ -749,18 +780,6 @@ export const documentsRelations = relations(documents, ({ one }) => ({
     references: [users.id],
   }),
 }))
-
-// A dojo can charge a different one-time grading fee for each awarded belt.
-// The linked fee plan keeps the charge visible in the existing finance flow.
-export const gradingFeeSchedules = pgTable('grading_fee_schedules', (t) => ({
-  id: t.serial('id').primaryKey(),
-  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }).notNull(),
-  beltRankId: t.integer('belt_rank_id').references(() => beltRanks.id, { onDelete: 'cascade' }).notNull(),
-  feePlanId: t.integer('fee_plan_id').references(() => feePlans.id, { onDelete: 'cascade' }).notNull(),
-  createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
-  updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
-}), (t) => ({ dojoRankUnique: uniqueIndex('grading_fee_schedules_dojo_rank_unique').on(t.dojoId, t.beltRankId) }))
 
 export const studentProgramEnrollmentsRelations = relations(studentProgramEnrollments, ({ one }) => ({
   student: one(students, { fields: [studentProgramEnrollments.studentId], references: [students.id] }),

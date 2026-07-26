@@ -4,7 +4,8 @@
       <p class="text-sm font-semibold text-primary">SIMPLE, TRANSPARENT PRICING</p>
       <h1 class="mt-3 text-4xl font-semibold tracking-tight sm:text-5xl">Pricing that grows with your organization.</h1>
       <p class="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">Start free, then scale when you need more locations and students.</p>
-      <p class="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary"><UIcon name="i-lucide-sparkles" class="h-4 w-4" />All paid plans include a 14-day free trial. No credit card required.</p>
+      <p class="mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-medium text-primary"><UIcon name="i-lucide-sparkles" class="h-4 w-4" />All paid plans include a 14-day free trial. No card and no automatic charge.</p>
+      <p class="mt-3 text-sm text-slate-500">After the trial, the workspace returns to Free unless the owner purchases a plan. Existing records are retained.</p>
       <div class="mt-7 inline-flex rounded-xl bg-slate-100 p-1 dark:bg-slate-800"><button class="rounded-lg px-4 py-2 text-sm font-medium" :class="billingPeriod === 'monthly' ? 'bg-white shadow-sm dark:bg-slate-950' : ''" @click="billingPeriod = 'monthly'">Monthly</button><button class="rounded-lg px-4 py-2 text-sm font-medium" :class="billingPeriod === 'annual' ? 'bg-white shadow-sm dark:bg-slate-950' : ''" @click="billingPeriod = 'annual'">Yearly <span class="text-primary">Save 2 months</span></button></div>
     </div>
     <div class="mx-auto mt-12 grid max-w-5xl gap-5 md:grid-cols-3">
@@ -19,7 +20,7 @@ const billingPeriod = ref<'monthly' | 'annual'>('monthly')
 const plans = [
   { key: 'free', name: 'Free', monthly: 0, annual: 0, limit: '1 dojo location · up to 20 students', description: 'Everything a new dojo needs to get started.', features: ['Attendance', 'Fees and grading', 'Basic reports'] },
   { key: 'growth', name: 'Growth', monthly: 999, annual: 9990, limit: 'Up to 3 dojo locations · up to 150 students', description: 'For a growing school with multiple locations.', featured: true, features: ['Location-specific fees and schedules', 'Staff access', 'Organization-wide reporting'] },
-  { key: 'business', name: 'Business', monthly: 3999, annual: 39990, limit: 'Unlimited dojo locations · unlimited students', description: 'For established multi-location organizations.', features: ['Everything in Growth', 'Optional location groups', 'Advanced permissions and reports'] },
+  { key: 'business', name: 'Business', monthly: 1999, annual: 19990, limit: 'Unlimited dojo locations · unlimited students', description: 'For established multi-location organizations.', features: ['Everything in Growth', 'Optional location groups', 'Advanced permissions and reports'] },
 ]
 function priceFor(plan: typeof plans[number]) { return new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(billingPeriod.value === 'annual' ? plan.annual : plan.monthly) }
 function trialHref(plan: string) { return { path: '/onboarding', query: { trialPlan: plan, billingPeriod: billingPeriod.value } } }

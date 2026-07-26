@@ -60,7 +60,7 @@ export default defineEventHandler(async (event) => {
   doc.font('Helvetica').fontSize(11.5).fillColor('#475569').text(`${tournament.level} | ${tournament.venue || 'Venue not recorded'} | ${start}${end}`, 42, 166, { width: pageWidth })
   doc.font('Helvetica').fontSize(9.5).fillColor('#64748b').text(`Age cut-off date: ${ageCutoff}`, 42, 184, { width: pageWidth })
 
-  const stats = [
+  const stats: Array<[string, string, string, string]> = [
     ['Students', String(summary.participants), '#ede9fe', '#5b21b6'],
     ['Gold', String(summary.gold), '#fef3c7', '#92400e'],
     ['Silver', String(summary.silver), '#f1f5f9', '#334155'],
@@ -74,7 +74,7 @@ export default defineEventHandler(async (event) => {
   })
 
   let y = 293
-  const headers = [['Student / program', 42, 135], ['Age', 177, 33], ['Dojo', 210, 94], ['Event / comp. category', 304, 115], ['Result', 419, 72], ['Medal', 491, 63]]
+  const headers: Array<[string, number, number]> = [['Student / program', 42, 135], ['Age', 177, 33], ['Dojo', 210, 94], ['Event / comp. category', 304, 115], ['Result', 419, 72], ['Medal', 491, 63]]
   const drawHeader = () => {
     doc.rect(42, y, pageWidth, 22).fill('#312e81')
     headers.forEach(([label, x, width]) => doc.fillColor('#ffffff').font('Helvetica-Bold').fontSize(8.5).text(label, x as number + 6, y + 7, { width: width as number - 10 }))
@@ -87,7 +87,7 @@ export default defineEventHandler(async (event) => {
     if (y + rowHeight > doc.page.height - 54) newPage()
     if (index % 2 === 0) doc.rect(42, y, pageWidth, rowHeight).fill('#f8fafc')
     const event = [record.eventType, record.ageCategory, record.weightCategory].filter(Boolean).join(' / ') || '—'
-    const cells = [
+    const cells: Array<[string, number, number]> = [
       [`${record.student.firstName} ${record.student.lastName}\n${record.student.program?.displayName || 'Program not assigned'}`, 42, 135],
       [yearsOld(record.student.dateOfBirth, tournament.ageCutoffDate || tournament.startDate), 177, 33],
       [record.student.dojo?.name || '—', 210, 94],

@@ -31,6 +31,8 @@ const { data: profile } = await useFetch<{ assignments: { role: string, scopeNam
 const { data: programs } = await useFetch<any[]>('/api/organization/programs', { immediate: user.value?.role === 'owner' })
 const { data: belts } = await useFetch<any>('/api/belt-ranks', { immediate: user.value?.role === 'owner' })
 const { data: feePlans } = await useFetch<any[]>('/api/fee-plans', { immediate: user.value?.role === 'owner' })
+const { data: financeOverview } = await useFetch<{ paymentCount: number }>('/api/finance/overview', { immediate: user.value?.role === 'owner' })
+const { data: gradingExams } = await useFetch<any[]>('/api/grading-exams', { immediate: user.value?.role === 'owner' })
 const { data: users } = await useFetch<any[]>('/api/users')
 const { data: dojos } = await useFetch<any[]>('/api/dojos')
 const { data: nodes } = await useFetch<any[]>('/api/hierarchy/nodes')
@@ -84,12 +86,14 @@ const guideDescription = computed(() => {
 
 const ownerSteps = computed(() => [
   { key: 'owner:review-dojo', title: 'Review your dojo', description: 'Check the location details created during setup before enrolling students.', to: '/dojos', done: (dojos.value?.length || 0) > 0 },
-  { key: 'owner:fee-structure', title: 'Set up your fee structure', description: 'Create or confirm a fee plan that can be assigned to new students.', to: '/settings/finance/fee-plans', done: (feePlans.value?.length || 0) > 0 },
+  { key: 'owner:fee-structure', title: 'Confirm your tuition plan', description: 'Fee plans contain recurring tuition only. Grading and miscellaneous charges are added later while recording a payment.', to: '/settings/finance/fee-plans', done: (feePlans.value || []).some(plan => plan.isActive !== 0) },
   { key: 'owner:confirm-instructor', title: 'Confirm your instructor', description: 'You are assigned to the first dojo. Add another instructor if someone else will teach.', to: '/dojos', done: !!dojoSetup.value?.hasInstructor },
   { key: 'owner:create-schedule', title: 'Create a class schedule', description: 'Add the class day and time students will attend.', to: '/dojos', done: !!dojoSetup.value?.hasSchedule },
   { key: 'owner:program', title: 'Set up your programs', description: 'Add martial arts, personal training, or fitness programs. Assign one during enrolment, then use the student profile to add another only when needed.', to: '/settings/programs', done: (programs.value?.length || 0) > 0 },
   ...(['karate', 'taekwondo', 'judo', 'bjj', 'hapkido', 'aikido', 'kendo', 'iaido', 'tang_soo_do'].includes(programs.value?.[0]?.martialArt) ? [{ key: 'owner:belt-ranks', title: 'Review belt ranks', description: 'Your starter belt system is ready. Adjust ranks only if your school uses a different order.', to: '/settings/belts', done: (belts.value?.ranks?.length || belts.value?.length || 0) > 0 }] : []),
   { key: 'owner:first-student', title: 'Add your first student or client', description: (dojos.value?.length || 0) ? 'Enrol them in a dojo, select their martial art, personal training, or fitness program, and assign their fee plan.' : 'Create a dojo first; students and clients cannot be enrolled without one.', to: (dojos.value?.length || 0) ? '/students' : '/dojos', done: (subscription.value?.usage.students || 0) > 0 },
+  { key: 'owner:first-payment', title: 'Record your first payment', description: 'Record tuition and add grading exam or miscellaneous charges inline when needed. Additional charges remain separate from the tuition balance.', to: '/fees', done: (financeOverview.value?.paymentCount || 0) > 0 },
+  ...((belts.value?.ranks?.length || belts.value?.length || 0) > 0 ? [{ key: 'owner:first-grading', title: 'Prepare your first grading exam', description: 'Schedule an exam, select a student, confirm their current belt, and choose only a higher target belt from the organization rank order.', to: '/grading-exams', done: (gradingExams.value?.length || 0) > 0 }] : []),
   ...(['growth', 'business'].includes(plan.value) ? [{ key: 'owner:locations-staff', title: 'Add locations and staff', description: 'Each location can have its own fees, schedules, staff, and students.', to: '/dojos', done: (dojos.value?.length || 0) > 1 }] : []),
   ...(plan.value === 'business' ? [{ key: 'owner:location-groups', title: 'Organize location groups', description: 'Optional groups help with shared reporting and delegated management.', to: '/settings/hierarchy/nodes', done: (subscription.value?.usage.hierarchyNodes || 0) > (dojos.value?.length || 0) }] : []),
 ])
@@ -127,6 +131,6 @@ async function setStepCompletion(stepKey: string, completed: boolean) {
   await $fetch('/api/getting-started/progress', { method: 'PUT', body: { stepKey, completed } })
   await refreshProgress()
 }
-const planLabel = computed(() => ({ growth: 'Growth', business: 'Business' }[plan.value] || 'Free'))
+const planLabel = computed(() => plan.value === 'business' ? 'Business' : plan.value === 'growth' ? 'Growth' : 'Free')
 const paidGuidance = computed(() => plan.value === 'business' ? 'Add locations freely. Use optional location groups only when shared reporting or delegated management would help.' : 'Add up to three locations; each can have independent fees, schedules, staff, and students.')
 </script>

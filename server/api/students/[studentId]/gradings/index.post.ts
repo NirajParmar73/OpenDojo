@@ -48,8 +48,6 @@ export default defineEventHandler(async (event) => {
   const examiner = getField('examiner')
   const certificateNumber = getField('certificateNumber')
   const notes = getField('notes')
-  const gradingDiscount = Number(getField('gradingDiscount') || 0)
-  const gradingDiscountReason = getField('gradingDiscountReason')?.trim() || null
   const certificateFile = form.find(p => p.name === 'certificate' && p.filename)
 
   if (!beltRankId || !awardedDate) {
@@ -99,7 +97,6 @@ export default defineEventHandler(async (event) => {
   if (!grading) {
     throw createError({ statusCode: 500, statusMessage: 'Failed to create grading' })
   }
-  if (!Number.isInteger(gradingDiscount) || gradingDiscount < 0 || (gradingDiscount > 0 && !gradingDiscountReason)) throw createError({ statusCode: 400, statusMessage: 'A discount reason is required for a grading-fee discount' })
   await writeAuditLog({
     organizationId: orgId,
     actorUserId: session.user.id,
@@ -113,17 +110,5 @@ export default defineEventHandler(async (event) => {
 
   await syncCurrentBeltRank(Number(studentId))
 
-  // A configured dojo/belt schedule becomes a one-time charge as soon as the
-  // grading is recorded. Existing schedules and historic fee assignments stay
-  // untouched; only new gradings create this entry.
-  let gradingFeeAssignment = null
-  if (student.dojoId) {
-    const schedule = await db.query.gradingFeeSchedules.findFirst({ where: and(eq(tables.gradingFeeSchedules.organizationId, orgId), eq(tables.gradingFeeSchedules.dojoId, student.dojoId), eq(tables.gradingFeeSchedules.beltRankId, rank.id)) })
-    if (schedule) {
-      const [assignment] = await db.insert(tables.studentFeeAssignments).values({ studentId: Number(studentId), feePlanId: schedule.feePlanId, startDate: new Date(awardedDate), dueDay: 1, discount: gradingDiscount, discountReason: gradingDiscount ? gradingDiscountReason : null, status: 'active' }).returning()
-      gradingFeeAssignment = assignment || null
-    }
-  }
-
-  return { success: true, grading, gradingFeeAssignment }
+  return { success: true, grading }
 })

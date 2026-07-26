@@ -1,4 +1,4 @@
-import { and, count, eq } from 'drizzle-orm'
+import { count, eq } from 'drizzle-orm'
 import { db, tables } from './database'
 
 // Plans are intentionally based on business scale, never on geography.  The
@@ -64,7 +64,14 @@ export async function assertDojoLimit(orgId: number) { const { plan, limits } = 
 export async function assertDojoTerritory(_orgId: number, _location: Record<string, unknown>) {}
 export async function assertStaffAccountLimit(orgId: number) { const { limits } = await getSubscription(orgId); if (limits.instructorsPerDojo === null) return; const [result] = await db.select({ value: count() }).from(tables.users).where(eq(tables.users.organizationId, orgId)); if ((result?.value || 0) >= 1) throw createError({ statusCode: 402, statusMessage: 'Free includes one owner account. Upgrade to add staff.' }) }
 export async function assertInstructorLimit(orgId: number, dojoId: number) { const { limits } = await getSubscription(orgId); if (limits.instructorsPerDojo !== null && await getInstructorCount(dojoId) >= limits.instructorsPerDojo) throw createError({ statusCode: 402, statusMessage: 'Free includes one owner/instructor. Upgrade to add staff.' }) }
-export async function assertFederationManagementAccess(_orgId: number) {}
-export async function assertHierarchyLevelAllowed(_orgId: number, _levelName: string) {}
-export async function getAllowedHierarchyLevelNames(_orgId: number) { return null }
+export async function assertFederationManagementAccess(orgId: number) {
+  const { plan } = await getSubscription(orgId)
+  if (plan !== 'business') throw createError({ statusCode: 402, statusMessage: 'Optional location groups are available on the Business plan.' })
+}
+export async function assertHierarchyLevelAllowed(orgId: number, _levelName: string) {
+  await assertFederationManagementAccess(orgId)
+}
+export async function getAllowedHierarchyLevelNames(orgId: number): Promise<string[] | null> {
+  return (await getSubscription(orgId)).plan === 'business' ? null : []
+}
 export async function getSubscriptionUsage(orgId: number) { const [{ plan, limits }, students, dojos, hierarchyNodes] = await Promise.all([getSubscription(orgId), getStudentCount(orgId), getDojoCount(orgId), getHierarchyNodeCount(orgId)]); return { plan, limits, usage: { students, dojos, hierarchyNodes } } }

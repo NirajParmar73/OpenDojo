@@ -10,12 +10,13 @@
         <div class="rounded-xl bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-sparkles" class="h-5 w-5" /></div>
         <div class="min-w-0 flex-1"><p class="font-semibold">A new version is ready</p><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Refresh to use the latest OpenDojos features.</p></div>
       </div>
-      <div class="mt-4 flex justify-end gap-2"><UButton color="neutral" variant="ghost" size="sm" @click="updateAvailable = false">Later</UButton><UButton size="sm" icon="i-lucide-refresh-cw" @click="refresh">Refresh now</UButton></div>
+      <div class="mt-4 flex justify-end gap-2"><UButton color="neutral" variant="ghost" size="sm" @click="dismiss">Later</UButton><UButton size="sm" icon="i-lucide-refresh-cw" @click="refresh">Refresh now</UButton></div>
     </div>
   </Transition>
 </template>
 
 <script setup lang="ts">
 const updateAvailable = useState<boolean>('pwa-update-available', () => false)
+function dismiss() { updateAvailable.value = false }
 function refresh() { window.location.reload() }
 </script>

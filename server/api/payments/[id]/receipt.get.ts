@@ -102,6 +102,10 @@ export default defineEventHandler(async (event) => {
   const detailCard = (items: Array<[string, string]>, tint: string) => {
     const rowHeight = 31
     const height = 20 + items.length * rowHeight
+    if (y + height > pageHeight - 105) {
+      doc.addPage()
+      y = 55
+    }
     doc.roundedRect(contentX, y, contentWidth, height, 12).fill(tint)
     items.forEach(([label, value], index) => {
       const rowY = y + 14 + index * rowHeight
@@ -120,8 +124,11 @@ export default defineEventHandler(async (event) => {
   ], '#f8fafc')
 
   sectionTitle('Payment details', '#14b8a6')
+  const feeItems = Array.isArray(payment.feeItems) ? payment.feeItems : []
   detailCard([
     ['Fee plan', payment.assignment?.feePlan?.name || 'General payment'],
+    ['Tuition', formatReceiptAmount(payment.tuitionAmount ?? payment.amount, organization?.currency || 'INR')],
+    ...feeItems.map((item: { label: string, amount: number }) => [item.label, formatReceiptAmount(item.amount, organization?.currency || 'INR')] as [string, string]),
     ['Fee period', formatFeePeriod(payment.billingPeriod, payment.paymentDate, payment.assignment?.feePlan?.frequency)],
     ['Payment method', String(payment.method || 'cash').replaceAll('_', ' ')],
     ...(payment.referenceNumber ? [['Reference', payment.referenceNumber] as [string, string]] : []),

@@ -1,7 +1,6 @@
 import { z } from 'zod'
 import { eq } from 'drizzle-orm'
 import { db, tables } from '../../../utils/database'
-import { writePlatformAuditLog } from '../../../utils/platform-audit'
 import { requirePlatformAdmin } from '../../../utils/platform-admin'
 import { removeTenantUploads } from '../../../utils/tenant-files'
 
@@ -17,7 +16,7 @@ export default defineEventHandler(async (event) => {
 
   const [users, students, documents, gradings, achievements, affiliations, expenses, qualifications] = await Promise.all([
     db.query.users.findMany({ where: eq(tables.users.organizationId, organizationId), columns: { avatar: true, certificateUrl: true } }),
-    db.query.students.findMany({ where: eq(tables.students.organizationId, organizationId), columns: { avatar: true, certificateUrl: true } }),
+    db.query.students.findMany({ where: eq(tables.students.organizationId, organizationId), columns: { avatar: true } }),
     db.query.documents.findMany({ where: eq(tables.documents.organizationId, organizationId), columns: { fileUrl: true } }),
     db.query.studentGradings.findMany({ columns: { certificateUrl: true }, with: { student: { columns: { organizationId: true } } } }),
     db.query.studentAchievements.findMany({ where: eq(tables.studentAchievements.organizationId, organizationId), columns: { certificateUrl: true } }),
@@ -25,7 +24,7 @@ export default defineEventHandler(async (event) => {
     db.query.expenses.findMany({ where: eq(tables.expenses.organizationId, organizationId), columns: { receiptUrl: true } }),
     db.query.instructorQualifications.findMany({ where: eq(tables.instructorQualifications.organizationId, organizationId), columns: { certificateUrl: true } }),
   ])
-  const files = [organization.logo, ...users.flatMap(row => [row.avatar, row.certificateUrl]), ...students.flatMap(row => [row.avatar, row.certificateUrl]), ...documents.map(row => row.fileUrl), ...gradings.filter(row => row.student.organizationId === organizationId).map(row => row.certificateUrl), ...achievements.map(row => row.certificateUrl), ...affiliations.map(row => row.documentUrl), ...expenses.map(row => row.receiptUrl), ...qualifications.map(row => row.certificateUrl)]
+  const files = [organization.logo, ...users.flatMap(row => [row.avatar, row.certificateUrl]), ...students.map(row => row.avatar), ...documents.map(row => row.fileUrl), ...gradings.filter(row => row.student.organizationId === organizationId).map(row => row.certificateUrl), ...achievements.map(row => row.certificateUrl), ...affiliations.map(row => row.documentUrl), ...expenses.map(row => row.receiptUrl), ...qualifications.map(row => row.certificateUrl)]
 
   // Write the platform audit entry first. If the operator belongs to the
   // tenant being deleted, its foreign key changes actorUserId to NULL during
