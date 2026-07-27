@@ -70,6 +70,11 @@ test('refunds preserve original payments and flow through balances and reports',
   assert.match(receipts, /The original receipt will be preserved/)
 })
 
+test('database migrations remain in strictly increasing journal order', async () => {
+  const journal = JSON.parse(await read('server/database/drizzle-postgres/meta/_journal.json'))
+  assert.ok(journal.entries.every((entry, index) => index === 0 || entry.when > journal.entries[index - 1].when))
+})
+
 test('production runtime has readiness, request protection and database health checks', async () => {
   const readiness = await read('server/plugins/production-readiness.ts')
   const security = await read('server/middleware/request-security.ts')
