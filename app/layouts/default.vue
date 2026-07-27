@@ -221,6 +221,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/': { title: 'Dashboard', section: 'Workspace' },
   '/profile': { title: 'Your profile', section: 'Account' },
   '/students': { title: 'Students', section: 'People' },
+  '/students/import': { title: 'Import students', section: 'People' },
   '/users': { title: 'Staff & access', section: 'People' },
   '/users/instructors': { title: 'Instructors', section: 'People' },
   '/dojos': { title: 'Dojos & schedules', section: 'Operations' },

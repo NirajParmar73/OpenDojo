@@ -18,7 +18,7 @@ definePageMeta({ layout: 'legal' })
 useHead({ title: 'Pricing | OpenDojos' })
 const billingPeriod = ref<'monthly' | 'annual'>('monthly')
 const plans = [
-  { key: 'free', name: 'Free', monthly: 0, annual: 0, limit: '1 dojo location · up to 20 students', description: 'Everything a new dojo needs to get started.', features: ['Attendance', 'Fees and grading', 'Basic reports'] },
+  { key: 'free', name: 'Free', monthly: 0, annual: 0, limit: '1 dojo location · up to 20 students', description: 'Everything a new dojo needs to get started.', features: ['Attendance', 'Fees and grading', 'CSV student import', 'Basic reports'] },
   { key: 'growth', name: 'Growth', monthly: 999, annual: 9990, limit: 'Up to 3 dojo locations · up to 150 students', description: 'For a growing school with multiple locations.', featured: true, features: ['Location-specific fees and schedules', 'Staff access', 'Organization-wide reporting'] },
   { key: 'business', name: 'Business', monthly: 1999, annual: 19990, limit: 'Unlimited dojo locations · unlimited students', description: 'For established multi-location organizations.', features: ['Everything in Growth', 'Optional location groups', 'Advanced permissions and reports'] },
 ]

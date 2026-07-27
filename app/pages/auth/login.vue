@@ -42,9 +42,9 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
       window.location.assign(response.workspaceUrl)
       return
     }
-    // Platform operators begin in the platform console; everyone else uses
-    // their organization workspace dashboard.
-    window.location.assign('/')
+    // A newly provisioned workspace continues into its role-specific guide.
+    // Returning users begin on the dashboard as usual.
+    window.location.assign(route.query.created === '1' ? '/getting-started?welcome=1' : '/')
   } catch (error: any) {
     toast.add({
       color: 'error',

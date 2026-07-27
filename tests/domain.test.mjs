@@ -14,6 +14,7 @@ async function importTypeScript(file) {
 const fees = await importTypeScript('server/utils/fees.ts')
 const currency = await importTypeScript('server/utils/currency.ts')
 const refunds = await importTypeScript('server/utils/refunds.ts')
+const csv = await importTypeScript('server/utils/csv.ts')
 
 test('additional payment charges do not reduce tuition balance', () => {
   const balance = fees.calculateFeeBalance({
@@ -69,4 +70,15 @@ test('money conversion consistently rounds to minor units', () => {
   assert.equal(currency.toMinorUnits(750.255), 75026)
   assert.equal(currency.fromMinorUnits(75026), 750.26)
   assert.equal(currency.formatAmount(75000, 'INR'), 'INR 750.00')
+})
+
+test('student CSV parsing preserves quoted commas, quotes, and line breaks', () => {
+  const rows = csv.parseCsv('First Name,Last Name,Notes\r\nAarav,Sharma,"Needs ""extra"" support, evenings"\r\nPriya,Patel,"Line one\nLine two"')
+  assert.deepEqual(rows, [
+    ['First Name', 'Last Name', 'Notes'],
+    ['Aarav', 'Sharma', 'Needs "extra" support, evenings'],
+    ['Priya', 'Patel', 'Line one\nLine two'],
+  ])
+  assert.equal(csv.toCsv(rows), 'First Name,Last Name,Notes\r\nAarav,Sharma,"Needs ""extra"" support, evenings"\r\nPriya,Patel,"Line one\nLine two"')
+  assert.equal(csv.csvCell('=HYPERLINK("https://example.com")'), '"\'=HYPERLINK(""https://example.com"")"')
 })

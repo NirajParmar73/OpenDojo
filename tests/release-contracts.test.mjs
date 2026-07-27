@@ -44,10 +44,24 @@ test('service worker never caches authenticated or uploaded data', async () => {
 test('guided setup keeps tuition separate from inline additional charges', async () => {
   const onboarding = await read('app/pages/onboarding.vue')
   const guide = await read('app/pages/getting-started.vue')
+  const login = await read('app/pages/auth/login.vue')
   assert.match(onboarding, /Grading exam fees and miscellaneous charges are added only while recording a payment/)
   assert.doesNotMatch(onboarding, /hierarchyStep|subscriptionPlan === 'national'/)
   assert.match(guide, /Additional charges remain separate from the tuition balance/)
   assert.match(guide, /choose only a higher target belt/)
+  assert.match(guide, /Open your first receipt/)
+  assert.match(guide, /requiredSteps\.value/)
+  assert.match(login, /created === '1' \? '\/getting-started\?welcome=1'/)
+})
+
+test('guided setup and getting started surface the student spreadsheet importer', async () => {
+  const onboarding = await read('app/pages/onboarding.vue')
+  const guide = await read('app/pages/getting-started.vue')
+
+  assert.match(onboarding, /guided CSV importer/)
+  assert.match(onboarding, /Getting Started will take you directly to the importer/)
+  assert.match(guide, /secondaryTo: .*'\/students\/import'/)
+  assert.match(guide, /Import spreadsheet/)
 })
 
 test('refunds preserve original payments and flow through balances and reports', async () => {
@@ -142,4 +156,24 @@ test('dojo geography inherits the manager territory without guessing across terr
   assert.match(dojoPage, /inherited from your assigned territory/)
   assert.match(dojoPage, /function applyTerritoryDefaults/)
   assert.match(createDojo, /territoryDefaults\.stateProvince \|\| body\.stateProvince/)
+})
+
+test('student spreadsheet imports preview safely and reuse transactional enrolment', async () => {
+  const studentPage = await read('app/pages/students/index.vue')
+  const importPage = await read('app/pages/students/import.vue')
+  const preview = await read('server/api/student-imports/preview.post.ts')
+  const commit = await read('server/api/student-imports/commit.post.ts')
+  const enrollment = await read('server/services/student-enrollment.ts')
+  const studentCreate = await read('server/api/students/index.post.ts')
+
+  assert.match(studentPage, /to="\/students\/import"/)
+  assert.match(importPage, /Nothing is saved until you review the preview/)
+  assert.match(preview, /MAX_FILE_SIZE/)
+  assert.match(preview, /MAX_ROWS/)
+  assert.match(commit, /prepareStudentImportRows/)
+  assert.match(commit, /students\.import/)
+  assert.match(enrollment, /db\.transaction/)
+  assert.match(enrollment, /tables\.studentProgramEnrollments/)
+  assert.match(enrollment, /tables\.studentFeeAssignments/)
+  assert.match(studentCreate, /enrollStudent/)
 })

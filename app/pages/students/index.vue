@@ -6,9 +6,12 @@
         <h2 class="mt-1 text-2xl font-semibold tracking-tight sm:text-3xl">Student directory</h2>
         <p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Find students quickly, update essential details, and open their full record.</p>
       </div>
-      <UButton color="primary" icon="i-lucide-user-plus" size="lg" :disabled="studentLimitReached" @click="toggleCreateForm">
-        {{ studentLimitReached ? 'Student limit reached' : (showCreate ? 'Close form' : 'Add student') }}
-      </UButton>
+      <div class="flex flex-wrap gap-2">
+        <UButton to="/students/import" color="neutral" variant="outline" icon="i-lucide-file-spreadsheet" size="lg">Import CSV</UButton>
+        <UButton color="primary" icon="i-lucide-user-plus" size="lg" :disabled="studentLimitReached" @click="toggleCreateForm">
+          {{ studentLimitReached ? 'Student limit reached' : (showCreate ? 'Close form' : 'Add student') }}
+        </UButton>
+      </div>
     </section>
 
     <UAlert v-if="studentLimitReached" class="mb-6" color="warning" title="Student limit reached" :description="studentLimitMessage" :actions="[{ label: 'View upgrade options', to: '/settings/subscription', color: 'primary' }]" />

@@ -4,13 +4,18 @@
       <p class="text-sm font-semibold text-primary">GETTING STARTED</p>
       <h1 class="mt-2 text-3xl font-semibold tracking-tight">{{ guideTitle }}</h1>
       <p class="mt-2 max-w-2xl text-sm leading-6 text-slate-600 dark:text-slate-300">{{ guideDescription }}</p>
-      <div class="mt-6"><div class="flex justify-between text-sm font-medium"><span>{{ completedSteps }} of {{ steps.length }} complete</span><span>{{ progress }}%</span></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800"><div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${progress}%` }" /></div></div>
+      <div class="mt-6"><div class="flex justify-between text-sm font-medium"><span>{{ completedSteps }} of {{ requiredSteps.length }} essential steps complete</span><span>{{ progress }}%</span></div><div class="mt-2 h-2 overflow-hidden rounded-full bg-white/70 dark:bg-slate-800"><div class="h-full rounded-full bg-primary transition-all" :style="{ width: `${progress}%` }" /></div></div>
     </section>
+
+    <UAlert v-if="showWelcome" class="mt-5" color="success" variant="subtle" icon="i-lucide-sparkles" title="Your workspace foundation is ready" description="We created your first dojo, program, tuition plan, and owner instructor assignment. Review them below, then add a schedule and add or import your students." />
 
     <section class="mt-7 space-y-3">
       <article v-for="(item, index) in steps" :key="item.key" class="flex items-start gap-4 rounded-2xl border border-slate-200 bg-white p-5 transition hover:border-primary/40 dark:border-slate-800 dark:bg-slate-900">
         <span class="flex h-7 w-7 shrink-0 items-center justify-center rounded-full" :class="item.done ? 'bg-primary text-white' : 'bg-slate-100 text-slate-500 dark:bg-slate-800'"><UIcon v-if="item.done" name="i-lucide-check" class="h-4 w-4" /><span v-else>{{ index + 1 }}</span></span>
-        <NuxtLink :to="item.to" class="min-w-0 flex-1"><span class="font-semibold">{{ item.title }}</span><span class="mt-1 block text-sm leading-5 text-slate-500 dark:text-slate-400">{{ item.description }}</span></NuxtLink>
+        <div class="min-w-0 flex-1">
+          <NuxtLink :to="item.to" class="block"><span class="flex items-center gap-2 font-semibold">{{ item.title }}<UBadge v-if="item.optional" color="neutral" variant="subtle" size="xs">Optional</UBadge></span><span class="mt-1 block text-sm leading-5 text-slate-500 dark:text-slate-400">{{ item.description }}</span></NuxtLink>
+          <UButton v-if="item.secondaryTo" class="mt-3" :to="item.secondaryTo" color="neutral" variant="outline" size="xs" :icon="item.secondaryIcon">{{ item.secondaryLabel }}</UButton>
+        </div>
         <button v-if="!item.done" type="button" class="mt-0.5 shrink-0 rounded-lg border border-primary/30 px-3 py-1.5 text-xs font-semibold text-primary hover:bg-primary/5" @click="setStepCompletion(item.key, true)">Mark complete</button>
         <button v-else-if="item.manuallyCompleted" type="button" class="mt-0.5 shrink-0 text-xs text-slate-500 hover:text-primary" @click="setStepCompletion(item.key, false)">Mark incomplete</button>
         <UIcon name="i-lucide-chevron-right" class="mt-1 h-5 w-5 text-slate-400" />
@@ -26,11 +31,13 @@ definePageMeta({ middleware: 'auth' })
 useHead({ title: 'Getting started | OpenDojos' })
 
 const { user } = useUserSession()
+const route = useRoute()
 const { data: subscription } = await useFetch<any>('/api/organization/subscription')
 const { data: profile } = await useFetch<{ assignments: { role: string, scopeName: string }[] }>('/api/user/profile')
+const { data: dashboard } = await useFetch<{ totals: { dojos: number, students: number, staff: number, instructors: number } }>('/api/dashboard')
+const { data: attendanceSummary } = await useFetch<{ total: number }>('/api/reports/attendance/summary')
 const { data: programs } = await useFetch<any[]>('/api/organization/programs', { immediate: user.value?.role === 'owner' })
 const { data: belts } = await useFetch<any>('/api/belt-ranks', { immediate: user.value?.role === 'owner' })
-const { data: feePlans } = await useFetch<any[]>('/api/fee-plans', { immediate: user.value?.role === 'owner' })
 const { data: financeOverview } = await useFetch<{ paymentCount: number }>('/api/finance/overview', { immediate: user.value?.role === 'owner' })
 const { data: gradingExams } = await useFetch<any[]>('/api/grading-exams', { immediate: user.value?.role === 'owner' })
 const { data: users } = await useFetch<any[]>('/api/users')
@@ -52,6 +59,7 @@ const { data: dojoSetup } = await useAsyncData('getting-started-dojo-setup', asy
 const plan = computed(() => subscription.value?.plan || 'free')
 const isPaid = computed(() => plan.value !== 'free')
 const isOwner = computed(() => user.value?.role === 'owner')
+const showWelcome = computed(() => isOwner.value && route.query.welcome === '1')
 const hierarchyRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head']
 const hierarchyAssignment = computed(() => {
   const assignments = profile.value?.assignments || []
@@ -85,34 +93,39 @@ const guideDescription = computed(() => {
 })
 
 const ownerSteps = computed(() => [
-  { key: 'owner:review-dojo', title: 'Review your dojo', description: 'Check the location details created during setup before enrolling students.', to: '/dojos', done: (dojos.value?.length || 0) > 0 },
-  { key: 'owner:fee-structure', title: 'Confirm your tuition plan', description: 'Fee plans contain recurring tuition only. Grading and miscellaneous charges are added later while recording a payment.', to: '/settings/finance/fee-plans', done: (feePlans.value || []).some(plan => plan.isActive !== 0) },
-  { key: 'owner:confirm-instructor', title: 'Confirm your instructor', description: 'You are assigned to the first dojo. Add another instructor if someone else will teach.', to: '/dojos', done: !!dojoSetup.value?.hasInstructor },
+  { key: 'owner:review-dojo', title: 'Review your dojo details', description: 'Setup created your first location. Check its address and contact details before enrolling students.', to: '/dojos', done: false },
+  { key: 'owner:fee-structure', title: 'Review your tuition plan', description: 'Setup created the default recurring tuition plan. Grading and miscellaneous charges are added separately while recording a payment.', to: '/settings/finance/fee-plans', done: false },
+  { key: 'owner:confirm-instructor', title: 'Review the instructor assignment', description: 'You start as the primary instructor for the first dojo. Change or supplement that assignment if someone else will teach.', to: '/dojos', done: false },
   { key: 'owner:create-schedule', title: 'Create a class schedule', description: 'Add the class day and time students will attend.', to: '/dojos', done: !!dojoSetup.value?.hasSchedule },
-  { key: 'owner:program', title: 'Set up your programs', description: 'Add martial arts, personal training, or fitness programs. Assign one during enrolment, then use the student profile to add another only when needed.', to: '/settings/programs', done: (programs.value?.length || 0) > 0 },
-  ...(['karate', 'taekwondo', 'judo', 'bjj', 'hapkido', 'aikido', 'kendo', 'iaido', 'tang_soo_do'].includes(programs.value?.[0]?.martialArt) ? [{ key: 'owner:belt-ranks', title: 'Review belt ranks', description: 'Your starter belt system is ready. Adjust ranks only if your school uses a different order.', to: '/settings/belts', done: (belts.value?.ranks?.length || belts.value?.length || 0) > 0 }] : []),
-  { key: 'owner:first-student', title: 'Add your first student or client', description: (dojos.value?.length || 0) ? 'Enrol them in a dojo, select their martial art, personal training, or fitness program, and assign their fee plan.' : 'Create a dojo first; students and clients cannot be enrolled without one.', to: (dojos.value?.length || 0) ? '/students' : '/dojos', done: (subscription.value?.usage.students || 0) > 0 },
+  { key: 'owner:program', title: 'Review your first program', description: 'Confirm the program created during setup. Add another program only when students train in another discipline or service.', to: '/settings/programs', done: false },
+  ...(['karate', 'taekwondo', 'judo', 'bjj', 'hapkido', 'aikido', 'kendo', 'iaido', 'tang_soo_do'].includes(programs.value?.[0]?.martialArt) ? [{ key: 'owner:belt-ranks', title: 'Review the starter belt ranks', description: 'Adjust the generated rank order only if your school uses a different progression.', to: '/settings/belts', done: false }] : []),
+  { key: 'owner:first-student', title: 'Add or import your students', description: (dojos.value?.length || 0) ? 'Enrol one person manually, or move your existing list from Excel or Google Sheets using the guided CSV importer.' : 'Create a dojo first; students and clients cannot be enrolled without one.', to: (dojos.value?.length || 0) ? '/students' : '/dojos', secondaryTo: (dojos.value?.length || 0) ? '/students/import' : undefined, secondaryLabel: 'Import spreadsheet', secondaryIcon: 'i-lucide-file-spreadsheet', done: (subscription.value?.usage.students || 0) > 0 },
   { key: 'owner:first-payment', title: 'Record your first payment', description: 'Record tuition and add grading exam or miscellaneous charges inline when needed. Additional charges remain separate from the tuition balance.', to: '/fees', done: (financeOverview.value?.paymentCount || 0) > 0 },
-  ...((belts.value?.ranks?.length || belts.value?.length || 0) > 0 ? [{ key: 'owner:first-grading', title: 'Prepare your first grading exam', description: 'Schedule an exam, select a student, confirm their current belt, and choose only a higher target belt from the organization rank order.', to: '/grading-exams', done: (gradingExams.value?.length || 0) > 0 }] : []),
-  ...(['growth', 'business'].includes(plan.value) ? [{ key: 'owner:locations-staff', title: 'Add locations and staff', description: 'Each location can have its own fees, schedules, staff, and students.', to: '/dojos', done: (dojos.value?.length || 0) > 1 }] : []),
-  ...(plan.value === 'business' ? [{ key: 'owner:location-groups', title: 'Organize location groups', description: 'Optional groups help with shared reporting and delegated management.', to: '/settings/hierarchy/nodes', done: (subscription.value?.usage.hierarchyNodes || 0) > (dojos.value?.length || 0) }] : []),
+  ...((financeOverview.value?.paymentCount || 0) > 0 ? [{ key: 'owner:first-receipt', title: 'Open your first receipt', description: 'Download the payment PDF and use Receipts for future refunds without changing the original payment record.', to: '/receipts', done: false }] : []),
+  ...((belts.value?.ranks?.length || belts.value?.length || 0) > 0 ? [{ key: 'owner:first-grading', title: 'Prepare your first grading exam', description: 'Schedule an exam, select a student, confirm their current belt, and choose only a higher target belt from the organization rank order.', to: '/grading-exams', done: (gradingExams.value?.length || 0) > 0, optional: true }] : []),
+  ...(['growth', 'business'].includes(plan.value) ? [
+    { key: 'owner:add-staff', title: 'Invite another staff member', description: 'Assign instructors or local managers only when another person needs workspace access.', to: '/users', done: (users.value?.length || 0) > 1, optional: true },
+    { key: 'owner:locations-staff', title: 'Add another location', description: 'Each dojo can keep its own fees, schedules, staff, and students.', to: '/dojos', done: (dojos.value?.length || 0) > 1, optional: true },
+  ] : []),
+  ...(plan.value === 'business' ? [{ key: 'owner:location-groups', title: 'Organize location groups', description: 'Use optional groups only when shared reporting or delegated management would help.', to: '/settings/hierarchy/nodes', done: (subscription.value?.usage.hierarchyNodes || 0) > (dojos.value?.length || 0), optional: true }] : []),
 ])
 const headSteps = computed(() => [
-  { key: 'head:review-territory', title: `Review ${hierarchyAssignment.value?.scopeName || 'your territory'}`, description: 'Check the locations and staff already assigned below your hierarchy boundary.', to: '/settings/hierarchy/nodes', done: !!hierarchyAssignment.value },
-  { key: 'head:lower-locations', title: 'Add lower-level locations', description: 'Create lower locations only below your assigned area when the organization expands.', to: '/settings/hierarchy/nodes', done: hasLowerLevelLocation.value },
-  { key: 'head:local-staff', title: 'Assign local leaders and instructors', description: 'Add staff only within your territory, using the responsibility appropriate for each location.', to: '/users', done: (users.value || []).some(staff => staff.id !== user.value?.id) },
+  { key: 'head:review-territory', title: `Review ${hierarchyAssignment.value?.scopeName || 'your territory'}`, description: 'Check the locations and staff already assigned below your hierarchy boundary.', to: '/settings/hierarchy/nodes', done: false },
   { key: 'head:territory-activity', title: 'Review your territory activity', description: 'Use reports to monitor attendance and operations for the dojos you manage.', to: '/reports', done: false },
+  { key: 'head:local-staff', title: 'Assign local leaders and instructors', description: 'Add staff only within your territory when another person needs access.', to: '/users', done: (users.value || []).some(staff => staff.id !== user.value?.id), optional: true },
+  { key: 'head:lower-locations', title: 'Add lower-level locations', description: 'Expand below your assigned area only when the organization adds another operating territory.', to: '/settings/hierarchy/nodes', done: hasLowerLevelLocation.value, optional: true },
 ])
 const dojoSteps = computed(() => [
-  { key: 'dojo:review-dojo', title: 'Review your assigned dojo', description: 'Confirm the dojo details and the staff who work there.', to: '/dojos', done: (dojos.value?.length || 0) > 0 },
-  { key: 'dojo:confirm-instructors', title: 'Confirm instructors', description: 'Make sure each class has an instructor assigned to this dojo.', to: '/dojos', done: !!dojoSetup.value?.hasInstructor },
+  { key: 'dojo:review-dojo', title: 'Review your assigned dojo', description: 'Confirm the dojo details and the staff who work there.', to: '/dojos', done: false },
+  { key: 'dojo:confirm-instructors', title: 'Confirm instructors', description: 'Make sure each class has an instructor assigned to this dojo.', to: '/dojos', done: false },
   { key: 'dojo:create-schedules', title: 'Create class schedules', description: 'Add the days and times your students attend.', to: '/dojos', done: !!dojoSetup.value?.hasSchedule },
-  { key: 'dojo:support-students', title: 'Enrol and support students', description: 'Review students in your dojo and keep their records up to date.', to: '/students', done: false },
+  { key: 'dojo:support-students', title: 'Add or import students', description: 'Add one student manually or use the guided CSV importer for an existing spreadsheet. Each row is checked against the dojos and programs you can access.', to: '/students', secondaryTo: '/students/import', secondaryLabel: 'Import spreadsheet', secondaryIcon: 'i-lucide-file-spreadsheet', done: (dashboard.value?.totals.students || 0) > 0 },
+  { key: 'dojo:attendance', title: 'Record your first attendance', description: 'Create a class session and save attendance for its students.', to: '/attendance', done: (attendanceSummary.value?.total || 0) > 0 },
 ])
 const instructorSteps = computed(() => [
-  { key: 'instructor:teaching-dojos', title: 'Review your teaching dojos', description: 'Confirm the locations and classes where you are assigned to teach.', to: '/dojos', done: (dojos.value?.length || 0) > 0 },
-  { key: 'instructor:attendance', title: 'Take attendance', description: 'Record attendance for your classes so student progress stays accurate.', to: '/attendance', done: false },
-  { key: 'instructor:students', title: 'Review your students', description: 'Open student records in your assigned dojos to follow their progress.', to: '/students', done: false },
+  { key: 'instructor:teaching-dojos', title: 'Review your teaching dojos', description: 'Confirm the locations and classes where you are assigned to teach.', to: '/dojos', done: false },
+  { key: 'instructor:students', title: 'Review your students', description: 'Open the student directory for your assigned dojos and check the records available to you.', to: '/students', done: false },
+  { key: 'instructor:attendance', title: 'Take your first attendance', description: 'Create or open a class session and save attendance so student progress stays accurate.', to: '/attendance', done: (attendanceSummary.value?.total || 0) > 0 },
 ])
 const memberSteps = computed(() => [
   { key: 'member:assigned-area', title: 'Review your assigned area', description: 'Your dashboard and lists show only the dojos and responsibilities assigned to you.', to: '/', done: true },
@@ -122,11 +135,16 @@ const memberSteps = computed(() => [
 const automaticSteps = computed(() => guideKind.value === 'owner' ? ownerSteps.value : guideKind.value === 'head' ? headSteps.value : guideKind.value === 'dojo' ? dojoSteps.value : guideKind.value === 'instructor' ? instructorSteps.value : memberSteps.value)
 const steps = computed(() => automaticSteps.value.map(step => ({
   ...step,
+  optional: 'optional' in step ? step.optional === true : false,
+  secondaryTo: 'secondaryTo' in step ? step.secondaryTo : undefined,
+  secondaryLabel: 'secondaryLabel' in step ? step.secondaryLabel : undefined,
+  secondaryIcon: 'secondaryIcon' in step ? step.secondaryIcon : undefined,
   manuallyCompleted: completedStepKeys.value.has(step.key),
   done: step.done || completedStepKeys.value.has(step.key),
 })))
-const completedSteps = computed(() => steps.value.filter(step => step.done).length)
-const progress = computed(() => steps.value.length ? Math.round((completedSteps.value / steps.value.length) * 100) : 0)
+const requiredSteps = computed(() => steps.value.filter(step => !step.optional))
+const completedSteps = computed(() => requiredSteps.value.filter(step => step.done).length)
+const progress = computed(() => requiredSteps.value.length ? Math.round((completedSteps.value / requiredSteps.value.length) * 100) : 0)
 async function setStepCompletion(stepKey: string, completed: boolean) {
   await $fetch('/api/getting-started/progress', { method: 'PUT', body: { stepKey, completed } })
   await refreshProgress()
