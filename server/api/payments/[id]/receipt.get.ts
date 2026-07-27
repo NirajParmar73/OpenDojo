@@ -23,7 +23,7 @@ export default defineEventHandler(async (event) => {
 
   const payment = await db.query.payments.findFirst({
     where: eq(tables.payments.id, paymentId),
-    with: { student: { with: { dojo: true, program: true } }, programEnrollment: { with: { program: true } }, assignment: { with: { feePlan: true } } },
+    with: { student: { with: { dojo: true, program: true } }, programEnrollment: { with: { program: true } }, assignment: { with: { feePlan: true } }, refunds: true },
   }) as any
   if (!payment || payment.student.organizationId !== organizationId) throw createError({ statusCode: 404, statusMessage: 'Payment not found' })
 
@@ -65,6 +65,8 @@ export default defineEventHandler(async (event) => {
   const ink = '#172033'
   const muted = '#64748b'
   const paymentDate = new Date(payment.paymentDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })
+  const completedRefunds = payment.refunds.filter((refund: any) => refund.status === 'completed')
+  const totalRefunded = completedRefunds.reduce((sum: number, refund: any) => sum + refund.amount, 0)
 
   // Branded header gives each receipt a polished, easy-to-scan identity.
   doc.rect(0, 0, pageWidth, 158).fill(primary)
@@ -132,6 +134,10 @@ export default defineEventHandler(async (event) => {
     ['Fee period', formatFeePeriod(payment.billingPeriod, payment.paymentDate, payment.assignment?.feePlan?.frequency)],
     ['Payment method', String(payment.method || 'cash').replaceAll('_', ' ')],
     ...(payment.referenceNumber ? [['Reference', payment.referenceNumber] as [string, string]] : []),
+    ...(totalRefunded ? [
+      ['Refunded', formatReceiptAmount(totalRefunded, organization?.currency || 'INR')] as [string, string],
+      ['Net retained', formatReceiptAmount(payment.amount - totalRefunded, organization?.currency || 'INR')] as [string, string],
+    ] : []),
   ], '#f0fdfa')
 
   // Keep the footer above PDFKit's bottom margin. Writing at pageHeight - 39

@@ -50,6 +50,26 @@ test('guided setup keeps tuition separate from inline additional charges', async
   assert.match(guide, /choose only a higher target belt/)
 })
 
+test('refunds preserve original payments and flow through balances and reports', async () => {
+  const schema = await read('server/database/schema.ts')
+  const migration = await read('server/database/drizzle-postgres/0021_majestic_miracleman.sql')
+  const createRefund = await read('server/api/payments/[id]/refunds/index.post.ts')
+  const feeBalance = await read('server/utils/fees.ts')
+  const finance = await read('server/api/finance/overview.get.ts')
+  const receipts = await read('app/pages/receipts.vue')
+
+  assert.match(schema, /export const paymentRefunds = pgTable\('payment_refunds'/)
+  assert.match(migration, /payment_refunds_amount_positive/)
+  assert.match(createRefund, /for update/)
+  assert.match(createRefund, /Only organization administrators can record refunds/)
+  assert.match(createRefund, /Refund exceeds the remaining refundable payment amount/)
+  assert.match(feeBalance, /refundedTuition/)
+  assert.match(finance, /grossCollections/)
+  assert.match(finance, /refundedAmount/)
+  assert.match(receipts, /Tuition portion returned/)
+  assert.match(receipts, /The original receipt will be preserved/)
+})
+
 test('production runtime has readiness, request protection and database health checks', async () => {
   const readiness = await read('server/plugins/production-readiness.ts')
   const security = await read('server/middleware/request-security.ts')

@@ -105,7 +105,7 @@
               <tr v-for="pay in payments" :key="pay.id">
                 <td class="px-3 py-2">{{ pay.receiptNumber }}</td>
                 <td class="px-3 py-2">{{ formatDate(pay.paymentDate) }}</td>
-                <td class="px-3 py-2"><p>{{ formatCurrency(pay.amount) }}</p><p v-if="pay.feeItems?.length" class="mt-1 text-xs text-slate-500">{{ pay.feeItems.length }} additional fee{{ pay.feeItems.length === 1 ? '' : 's' }}</p></td>
+                <td class="px-3 py-2"><p>{{ formatCurrency(pay.amount) }}</p><p v-if="pay.feeItems?.length" class="mt-1 text-xs text-slate-500">{{ pay.feeItems.length }} additional fee{{ pay.feeItems.length === 1 ? '' : 's' }}</p><p v-if="completedRefundTotal(pay)" class="mt-1 text-xs text-red-600">{{ formatCurrency(completedRefundTotal(pay)) }} refunded · {{ formatCurrency(pay.amount - completedRefundTotal(pay)) }} net</p></td>
                 <td class="px-3 py-2">{{ pay.method }}</td>
                 <td class="px-3 py-2">{{ pay.referenceNumber || '-' }}</td>
                 <td class="px-3 py-2">
@@ -118,6 +118,17 @@
                     :disabled="downloadingReceipt"
                   >
                     Receipt
+                  </UButton>
+                  <UButton
+                    v-for="refund in completedRefunds(pay)"
+                    :key="refund.id"
+                    :href="`/api/refunds/${refund.id}/receipt`"
+                    external
+                    color="error"
+                    variant="ghost"
+                    size="xs"
+                  >
+                    {{ refund.refundNumber }}
                   </UButton>
                 </td>
               </tr>
@@ -247,6 +258,8 @@ watch(() => paymentForm.assignmentId, () => {
 })
 
 function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organizationSettings.value?.currency || 'USD' }).format(amount / 100) }
+function completedRefunds(payment: any) { return (payment.refunds || []).filter((refund: any) => refund.status === 'completed') }
+function completedRefundTotal(payment: any) { return completedRefunds(payment).reduce((sum: number, refund: any) => sum + refund.amount, 0) }
 function feeFrequencyLabel(frequency?: string) { return ({ monthly: 'every month', quarterly: 'every 3 months', annual: 'every year', 'one-time': 'one-time' } as Record<string, string>)[frequency || ''] || 'billing period' }
 
 function formatDate(ts: number) {

@@ -7,7 +7,12 @@ export interface FeeBalanceInput {
   startDate: Date | number
   endDate?: Date | number | null
   dueDay?: number | null
-  payments?: Array<{ amount: number, tuitionAmount?: number | null, discountAmount?: number | null }>
+  payments?: Array<{
+    amount: number
+    tuitionAmount?: number | null
+    discountAmount?: number | null
+    refunds?: Array<{ tuitionAmount?: number | null, status?: string | null }>
+  }>
 }
 
 function asDate(value: Date | number) {
@@ -41,7 +46,12 @@ export function calculateFeeBalance(input: FeeBalanceInput, referenceDate = new 
 
   const netAmountPerPeriod = Math.max(0, input.amount - (input.discount || 0))
   const expectedAmount = netAmountPerPeriod * periodsDue
-  const paidAmount = (input.payments || []).reduce((sum, payment) => sum + (payment.tuitionAmount ?? payment.amount) + (payment.discountAmount || 0), 0)
+  const paidAmount = (input.payments || []).reduce((sum, payment) => {
+    const refundedTuition = (payment.refunds || [])
+      .filter(refund => !refund.status || refund.status === 'completed')
+      .reduce((refundSum, refund) => refundSum + (refund.tuitionAmount || 0), 0)
+    return sum + (payment.tuitionAmount ?? payment.amount) - refundedTuition + (payment.discountAmount || 0)
+  }, 0)
   const outstandingAmount = Math.max(0, expectedAmount - paidAmount)
   const paidPeriods = netAmountPerPeriod > 0
     ? Math.min(periodsDue, Math.floor(paidAmount / netAmountPerPeriod))

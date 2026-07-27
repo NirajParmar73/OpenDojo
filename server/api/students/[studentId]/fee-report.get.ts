@@ -2,7 +2,6 @@ import { and, eq } from 'drizzle-orm'
 import PDFDocument from 'pdfkit'
 import { db, tables } from '../../../utils/database'
 import { formatAmount } from '../../../utils/currency'
-import { formatFeePeriod } from '../../../utils/fee-period'
 import { calculateFeeBalance } from '../../../utils/fees'
 import { getAccessibleDojoIds } from '../../../utils/permissions'
 
@@ -30,11 +29,43 @@ export default defineEventHandler(async (event) => {
 
   const [organization, payments, assignments] = await Promise.all([
     db.query.organizations.findFirst({ where: eq(tables.organizations.id, organizationId) }),
-    db.query.payments.findMany({ where: eq(tables.payments.studentId, studentId), with: { assignment: { with: { feePlan: true } } }, orderBy: (payment, { desc }) => [desc(payment.paymentDate)] }),
-    db.query.studentFeeAssignments.findMany({ where: eq(tables.studentFeeAssignments.studentId, studentId), with: { feePlan: true, payments: true } }),
+    db.query.payments.findMany({ where: eq(tables.payments.studentId, studentId), with: { assignment: { with: { feePlan: true } }, refunds: true }, orderBy: (payment, { desc }) => [desc(payment.paymentDate)] }),
+    db.query.studentFeeAssignments.findMany({ where: eq(tables.studentFeeAssignments.studentId, studentId), with: { feePlan: true, payments: { with: { refunds: true } } } }),
   ])
-  const filteredPayments = payments.filter(payment => (!from || new Date(payment.paymentDate) >= from) && (!to || new Date(payment.paymentDate) <= to)) as any[]
-  const totalReceived = filteredPayments.reduce((sum, payment) => sum + payment.amount, 0)
+  type LedgerEntry = {
+    type: 'payment' | 'refund'
+    date: Date
+    reference: string
+    description: string
+    method: string
+    amount: number
+    payment: any
+  }
+  const ledger = (payments as any[]).flatMap((payment) => {
+    const entries: LedgerEntry[] = [{
+      type: 'payment',
+      date: new Date(payment.paymentDate),
+      reference: payment.receiptNumber,
+      description: payment.assignment?.feePlan?.name || 'General payment',
+      method: payment.method || 'cash',
+      amount: payment.amount,
+      payment,
+    }]
+    for (const refund of payment.refunds.filter((item: any) => item.status === 'completed')) {
+      entries.push({
+        type: 'refund',
+        date: new Date(refund.refundedAt),
+        reference: refund.refundNumber,
+        description: `Refund for ${payment.receiptNumber}`,
+        method: refund.method,
+        amount: -refund.amount,
+        payment,
+      })
+    }
+    return entries
+  }).filter(entry => (!from || entry.date >= from) && (!to || entry.date <= to))
+    .sort((a, b) => b.date.getTime() - a.date.getTime())
+  const totalReceived = ledger.reduce((sum, entry) => sum + entry.amount, 0)
   const totalOutstanding = assignments.reduce((sum, assignment: any) => sum + calculateFeeBalance({ amount: assignment.feePlan.amount, discount: assignment.discount, frequency: assignment.feePlan.frequency, startDate: assignment.startDate, endDate: assignment.endDate, dueDay: assignment.dueDay, payments: assignment.payments }).outstandingAmount, 0)
   const currency = organization?.currency || 'INR'
 
@@ -78,25 +109,22 @@ export default defineEventHandler(async (event) => {
   doc.font('Helvetica-Bold').fontSize(12.5).fillColor('#111827').text('Payment history', 50, y)
   y += 20
   const columns = [50, 125, 230, 360, 455]
-  const headers = ['Date', 'Fee period', 'Fee plan', 'Method', 'Amount']
+  const headers = ['Date', 'Reference', 'Description', 'Method', 'Amount']
   doc.fontSize(9.5).fillColor('#6b7280')
   headers.forEach((header, index) => doc.text(header, columns[index]!, y, { width: index === 4 ? 85 : 100, align: index === 4 ? 'right' : 'left' }))
   y += 13
   doc.strokeColor('#d1d5db').moveTo(50, y).lineTo(50 + width, y).stroke(); y += 8
-  if (!filteredPayments.length) {
-    doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text('No payments recorded in this period.', 50, y)
+  if (!ledger.length) {
+    doc.font('Helvetica').fontSize(10).fillColor('#6b7280').text('No payments or refunds recorded in this period.', 50, y)
   } else {
-    for (const payment of filteredPayments) {
+    for (const entry of ledger) {
       if (y > doc.page.height - 85) { doc.addPage(); y = 55 }
-      const feePeriod = formatFeePeriod(payment.billingPeriod, payment.paymentDate, payment.assignment?.feePlan?.frequency, 'short')
-      const additionalFeeCount = Array.isArray(payment.feeItems) ? payment.feeItems.length : 0
-      const paymentFor = `${payment.assignment?.feePlan?.name || 'General payment'}${additionalFeeCount ? ` + ${additionalFeeCount} add-on${additionalFeeCount === 1 ? '' : 's'}` : ''}`
       doc.font('Helvetica').fontSize(10).fillColor('#111827')
-      doc.text(new Date(payment.paymentDate).toLocaleDateString('en-IN'), columns[0]!, y, { width: 70 })
-      doc.text(feePeriod, columns[1]!, y, { width: 95 })
-      doc.text(paymentFor, columns[2]!, y, { width: 120 })
-      doc.text(String(payment.method || 'cash').replaceAll('_', ' '), columns[3]!, y, { width: 80 })
-      doc.text(formatAmount(payment.amount, currency), columns[4]!, y, { width: 85, align: 'right' })
+      doc.text(entry.date.toLocaleDateString('en-IN'), columns[0]!, y, { width: 70 })
+      doc.text(entry.reference, columns[1]!, y, { width: 100 })
+      doc.text(entry.description, columns[2]!, y, { width: 120 })
+      doc.text(String(entry.method).replaceAll('_', ' '), columns[3]!, y, { width: 80 })
+      doc.fillColor(entry.type === 'refund' ? '#b91c1c' : '#111827').text(formatAmount(entry.amount, currency), columns[4]!, y, { width: 85, align: 'right' })
       y += 21
     }
   }

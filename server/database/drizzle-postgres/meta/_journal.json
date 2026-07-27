@@ -148,6 +148,13 @@
       "when": 1786522000000,
       "tag": "0020_perfect_tomorrow_man",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1785126720160,
+      "tag": "0021_majestic_miracleman",
+      "breakpoints": true
     }
   ]
 }

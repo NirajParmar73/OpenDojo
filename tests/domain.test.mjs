@@ -13,6 +13,7 @@ async function importTypeScript(file) {
 
 const fees = await importTypeScript('server/utils/fees.ts')
 const currency = await importTypeScript('server/utils/currency.ts')
+const refunds = await importTypeScript('server/utils/refunds.ts')
 
 test('additional payment charges do not reduce tuition balance', () => {
   const balance = fees.calculateFeeBalance({
@@ -33,6 +34,35 @@ test('legacy payments still credit their full amount to tuition', () => {
     payments: [{ amount: 60_00 }],
   }, new Date('2026-01-02'))
   assert.equal(balance.outstandingAmount, 40_00)
+})
+
+test('completed tuition refunds restore the outstanding fee balance', () => {
+  const balance = fees.calculateFeeBalance({
+    amount: 100_00,
+    frequency: 'one-time',
+    startDate: new Date('2026-01-01'),
+    payments: [{
+      amount: 125_00,
+      tuitionAmount: 100_00,
+      refunds: [{ amount: 50_00, tuitionAmount: 25_00, status: 'completed' }],
+    }],
+  }, new Date('2026-01-02'))
+  assert.equal(balance.paidAmount, 75_00)
+  assert.equal(balance.outstandingAmount, 25_00)
+})
+
+test('refund totals ignore failed refund attempts', () => {
+  const payment = {
+    amount: 100_00,
+    tuitionAmount: 80_00,
+    refunds: [
+      { amount: 30_00, tuitionAmount: 20_00, status: 'completed' },
+      { amount: 10_00, tuitionAmount: 10_00, status: 'failed' },
+    ],
+  }
+  assert.equal(refunds.refundedAmount(payment), 30_00)
+  assert.equal(refunds.netPaymentAmount(payment), 70_00)
+  assert.equal(refunds.netTuitionAmount(payment), 60_00)
 })
 
 test('money conversion consistently rounds to minor units', () => {

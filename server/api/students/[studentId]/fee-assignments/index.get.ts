@@ -38,14 +38,19 @@ export default defineEventHandler(async (event) => {
       feePlan: {
         with: { dojo: true },
       },
-      payments: true,
+      payments: { with: { refunds: true } },
     },
     orderBy: (a, { desc }) => [desc(a.startDate)],
   }) as any[] // cast to any
 
   // Calculate balance
   const assignmentsWithBalance = assignments.map(assignment => {
-    const totalPaid = assignment.payments?.reduce((sum: number, p: any) => sum + (p.tuitionAmount ?? p.amount), 0) || 0
+    const totalPaid = assignment.payments?.reduce((sum: number, payment: any) => {
+      const refundedTuition = (payment.refunds || [])
+        .filter((refund: any) => refund.status === 'completed')
+        .reduce((refundSum: number, refund: any) => refundSum + refund.tuitionAmount, 0)
+      return sum + (payment.tuitionAmount ?? payment.amount) - refundedTuition
+    }, 0) || 0
     const netAmount = assignment.feePlan.amount - (assignment.discount || 0)
     return {
       ...assignment,

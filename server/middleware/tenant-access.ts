@@ -25,8 +25,9 @@ export default defineEventHandler(async (event) => {
 
     const ownProgressReport = event.path === `/api/students/${studentId}/progress-report`
     const receiptDownload = /^\/api\/payments\/\d+\/receipt(?:\?.*)?$/.test(event.path)
+    const refundReceiptDownload = /^\/api\/refunds\/\d+\/receipt(?:\?.*)?$/.test(event.path)
     const ownSessionRead = event.method === 'GET' && event.path.split('?')[0] === '/api/_auth/session'
-    if (!event.path.startsWith('/api/portal/') && !ownProgressReport && !receiptDownload && !ownSessionRead) {
+    if (!event.path.startsWith('/api/portal/') && !ownProgressReport && !receiptDownload && !refundReceiptDownload && !ownSessionRead) {
       throw createError({ statusCode: 403, statusMessage: 'Student portal sessions cannot access staff APIs.' })
     }
     return

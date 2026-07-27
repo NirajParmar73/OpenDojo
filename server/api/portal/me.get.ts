@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const [gradings, achievements, payments, documents, attendance, organization] = await Promise.all([
     db.query.studentGradings.findMany({ where: eq(tables.studentGradings.studentId, studentId), with: { beltRank: true }, orderBy: (grading, { desc }) => [desc(grading.awardedDate)] }),
     db.query.studentAchievements.findMany({ where: eq(tables.studentAchievements.studentId, studentId), orderBy: (achievement, { desc }) => [desc(achievement.startDate)] }),
-    db.query.payments.findMany({ where: eq(tables.payments.studentId, studentId), orderBy: (payment, { desc }) => [desc(payment.paymentDate)] }),
+    db.query.payments.findMany({ where: eq(tables.payments.studentId, studentId), with: { refunds: true }, orderBy: (payment, { desc }) => [desc(payment.paymentDate)] }),
     db.query.documents.findMany({ where: eq(tables.documents.studentId, studentId), orderBy: (document, { desc }) => [desc(document.createdAt)] }),
     db.query.attendance.findMany({ where: eq(tables.attendance.studentId, studentId), with: { session: { with: { dojo: true, instructor: true } } } }),
     db.query.organizations.findFirst({ where: eq(tables.organizations.id, session.user.organizationId), columns: { currency: true } })

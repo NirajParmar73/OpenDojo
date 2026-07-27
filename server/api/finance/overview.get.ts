@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { db, tables } from '../../utils/database'
 import { calculateFeeBalance } from '../../utils/fees'
 import { getAccessibleDojoIds, getHierarchyManagementScope } from '../../utils/permissions'
+import { netPaymentAmount, refundedAmount } from '../../utils/refunds'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -29,7 +30,7 @@ export default defineEventHandler(async (event) => {
     with: {
       student: { with: { dojo: true } },
       feePlan: true,
-      payments: true,
+      payments: { with: { refunds: true } },
     },
   }) as any[]
 
@@ -69,7 +70,11 @@ export default defineEventHandler(async (event) => {
         daysOverdue,
         paidThisMonth: assignment.payments.reduce((sum: number, payment: any) => {
           const paymentDate = new Date(payment.paymentDate)
-          return paymentDate >= monthStart && paymentDate < nextMonthStart ? sum + (payment.tuitionAmount ?? payment.amount) : sum
+          const received = paymentDate >= monthStart && paymentDate < nextMonthStart ? (payment.tuitionAmount ?? payment.amount) : 0
+          const refunded = (payment.refunds || [])
+            .filter((refund: any) => refund.status === 'completed' && new Date(refund.refundedAt) >= monthStart && new Date(refund.refundedAt) < nextMonthStart)
+            .reduce((refundSum: number, refund: any) => refundSum + refund.tuitionAmount, 0)
+          return sum + received - refunded
         }, 0),
         ...balance,
         collectionStatus: balance.outstandingAmount === 0 ? 'paid' : balance.overdue ? 'overdue' : 'pending',
@@ -81,7 +86,7 @@ export default defineEventHandler(async (event) => {
     })
 
   const payments = await db.query.payments.findMany({
-    with: { student: true },
+    with: { student: true, refunds: true },
   }) as any[]
   const organizationPayments = payments.filter(payment => payment.student?.organizationId === organizationId && (accessibleDojoIds === null || (payment.student.dojoId !== null && accessibleDojoIds.includes(payment.student.dojoId))) && (!selectedDojoId || payment.student.dojoId === selectedDojoId) && (!selectedProgramId || payment.student.programId === selectedProgramId))
   const expenses = await db.query.expenses.findMany({ where: eq(tables.expenses.organizationId, organizationId) })
@@ -100,7 +105,7 @@ export default defineEventHandler(async (event) => {
   const revenueByDojo = new Map<number, number>()
   for (const payment of organizationPayments) {
     const dojoId = payment.student?.dojoId
-    if (dojoId) revenueByDojo.set(dojoId, (revenueByDojo.get(dojoId) || 0) + payment.amount)
+    if (dojoId) revenueByDojo.set(dojoId, (revenueByDojo.get(dojoId) || 0) + netPaymentAmount(payment))
   }
   const expensesByDojo = new Map<number, number>()
   for (const expense of scopedExpenses) {
@@ -119,23 +124,41 @@ export default defineEventHandler(async (event) => {
   const directDojoExpenses = dojoBreakdown.reduce((sum, dojo) => sum + dojo.paidExpenses, 0)
   const previousMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
   const collectedThisMonth = organizationPayments
-    .filter(payment => new Date(payment.paymentDate) >= monthStart && new Date(payment.paymentDate) < nextMonthStart)
-    .reduce((sum, payment) => sum + payment.amount, 0)
+    .reduce((sum, payment) => {
+      const received = new Date(payment.paymentDate) >= monthStart && new Date(payment.paymentDate) < nextMonthStart ? payment.amount : 0
+      const refunded = payment.refunds
+        .filter((refund: any) => refund.status === 'completed' && new Date(refund.refundedAt) >= monthStart && new Date(refund.refundedAt) < nextMonthStart)
+        .reduce((refundSum: number, refund: any) => refundSum + refund.amount, 0)
+      return sum + received - refunded
+    }, 0)
   const collectedPreviousMonth = organizationPayments
-    .filter(payment => new Date(payment.paymentDate) >= previousMonthStart && new Date(payment.paymentDate) < monthStart)
-    .reduce((sum, payment) => sum + payment.amount, 0)
+    .reduce((sum, payment) => {
+      const received = new Date(payment.paymentDate) >= previousMonthStart && new Date(payment.paymentDate) < monthStart ? payment.amount : 0
+      const refunded = payment.refunds
+        .filter((refund: any) => refund.status === 'completed' && new Date(refund.refundedAt) >= previousMonthStart && new Date(refund.refundedAt) < monthStart)
+        .reduce((refundSum: number, refund: any) => refundSum + refund.amount, 0)
+      return sum + received - refunded
+    }, 0)
 
-  const paymentMethods = Object.entries(organizationPayments.reduce((result: Record<string, number>, payment) => {
+  const amountsByMethod = organizationPayments.reduce((result: Record<string, number>, payment) => {
     result[payment.method || 'other'] = (result[payment.method || 'other'] || 0) + payment.amount
+    for (const refund of payment.refunds.filter((item: any) => item.status === 'completed')) {
+      result[refund.method || 'other'] = (result[refund.method || 'other'] || 0) - refund.amount
+    }
     return result
-  }, {})).map(([method, amount]) => ({ method, amount }))
+  }, {})
+  const paymentMethods = Object.entries(amountsByMethod).map(([method, amount]) => ({ method, amount }))
 
   const revenueTrend = Array.from({ length: 6 }, (_, index) => {
     const date = new Date(now.getFullYear(), now.getMonth() - (5 - index), 1)
     const nextDate = new Date(date.getFullYear(), date.getMonth() + 1, 1)
-    const amount = organizationPayments
-      .filter(payment => new Date(payment.paymentDate) >= date && new Date(payment.paymentDate) < nextDate)
-      .reduce((sum, payment) => sum + payment.amount, 0)
+    const amount = organizationPayments.reduce((sum, payment) => {
+      const received = new Date(payment.paymentDate) >= date && new Date(payment.paymentDate) < nextDate ? payment.amount : 0
+      const refunded = payment.refunds
+        .filter((refund: any) => refund.status === 'completed' && new Date(refund.refundedAt) >= date && new Date(refund.refundedAt) < nextDate)
+        .reduce((refundSum: number, refund: any) => refundSum + refund.amount, 0)
+      return sum + received - refunded
+    }, 0)
     return {
       label: date.toLocaleDateString('en-IN', { month: 'short', year: 'numeric' }),
       amount,
@@ -152,9 +175,11 @@ export default defineEventHandler(async (event) => {
       paidAssignments: records.filter(record => record.collectionStatus === 'paid').length,
       collectedThisMonth,
       collectedPreviousMonth,
-      allTimeRevenue: organizationPayments.reduce((sum, payment) => sum + payment.amount, 0),
+      grossCollections: organizationPayments.reduce((sum, payment) => sum + payment.amount, 0),
+      refundedAmount: organizationPayments.reduce((sum, payment) => sum + refundedAmount(payment), 0),
+      allTimeRevenue: organizationPayments.reduce((sum, payment) => sum + netPaymentAmount(payment), 0),
       paidExpenses,
-      netRevenue: organizationPayments.reduce((sum, payment) => sum + payment.amount, 0) - paidExpenses,
+      netRevenue: organizationPayments.reduce((sum, payment) => sum + netPaymentAmount(payment), 0) - paidExpenses,
       sharedExpenses: paidExpenses - directDojoExpenses,
       paymentCount: organizationPayments.length,
     },

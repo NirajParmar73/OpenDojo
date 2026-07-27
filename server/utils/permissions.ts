@@ -133,7 +133,7 @@ export async function getAccessibleDojoIds(userId: number, organizationId: numbe
   })
   if (!user) return []
 
-  if (user.role === 'owner') {
+  if (['owner', 'admin'].includes(user.role)) {
     return null
   }
 

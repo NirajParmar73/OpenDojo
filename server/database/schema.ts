@@ -1,6 +1,6 @@
 // server/database/schema.ts
-import { pgTable, uniqueIndex, type AnyPgColumn } from 'drizzle-orm/pg-core'
-import { relations } from 'drizzle-orm'
+import { check, index, pgTable, uniqueIndex, type AnyPgColumn } from 'drizzle-orm/pg-core'
+import { relations, sql } from 'drizzle-orm'
 
 // ---------- TABLE DEFINITIONS (all tables first) ----------
 
@@ -526,6 +526,30 @@ export const payments = pgTable('payments', (t) => ({
   updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// Refunds are immutable reversal records. The original payment remains intact
+// so receipts, audit history, and gross collection totals are never rewritten.
+export const paymentRefunds = pgTable('payment_refunds', (t) => ({
+  id: t.serial('id').primaryKey(),
+  paymentId: t.integer('payment_id').references(() => payments.id, { onDelete: 'cascade' }).notNull(),
+  amount: t.integer('amount').notNull(),
+  tuitionAmount: t.integer('tuition_amount').notNull().default(0),
+  refundNumber: t.text('refund_number').notNull().unique(),
+  refundedAt: t.timestamp('refunded_at', { withTimezone: true }).notNull(),
+  method: t.text({ enum: ['cash', 'bank_transfer', 'card', 'other'] }).notNull(),
+  referenceNumber: t.text('reference_number'),
+  reason: t.text().notNull(),
+  status: t.text({ enum: ['pending', 'completed', 'failed'] }).notNull().default('completed'),
+  createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+}), table => [
+  check('payment_refunds_amount_positive', sql`${table.amount} > 0`),
+  check('payment_refunds_tuition_amount_valid', sql`${table.tuitionAmount} >= 0 AND ${table.tuitionAmount} <= ${table.amount}`),
+  check('payment_refunds_status_valid', sql`${table.status} IN ('pending', 'completed', 'failed')`),
+  check('payment_refunds_method_valid', sql`${table.method} IN ('cash', 'bank_transfer', 'card', 'other')`),
+  index('payment_refunds_payment_id_idx').on(table.paymentId),
+  index('payment_refunds_refunded_at_idx').on(table.refundedAt),
+])
+
 // ---------- Relations for Financial Tables ----------
 
 
@@ -587,6 +611,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   }),
   assignments: many(assignments),
   auditLogs: many(auditLogs),
+  paymentRefunds: many(paymentRefunds),
 }))
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
@@ -751,7 +776,7 @@ export const studentFeeAssignmentsRelations = relations(studentFeeAssignments, (
   payments: many(payments),
 }))
 
-export const paymentsRelations = relations(payments, ({ one }) => ({
+export const paymentsRelations = relations(payments, ({ one, many }) => ({
   student: one(students, {
     fields: [payments.studentId],
     references: [students.id],
@@ -763,6 +788,18 @@ export const paymentsRelations = relations(payments, ({ one }) => ({
   programEnrollment: one(studentProgramEnrollments, {
     fields: [payments.programEnrollmentId],
     references: [studentProgramEnrollments.id],
+  }),
+  refunds: many(paymentRefunds),
+}))
+
+export const paymentRefundsRelations = relations(paymentRefunds, ({ one }) => ({
+  payment: one(payments, {
+    fields: [paymentRefunds.paymentId],
+    references: [payments.id],
+  }),
+  creator: one(users, {
+    fields: [paymentRefunds.createdBy],
+    references: [users.id],
   }),
 }))
 

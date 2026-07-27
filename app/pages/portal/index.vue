@@ -26,6 +26,15 @@
       <UCard v-else-if="tab === 'fees'"><template #header><h2 class="font-semibold">My fee payments</h2></template><div v-if="data.payments.length" class="divide-y divide-slate-100 dark:divide-slate-800"><div v-for="payment in data.payments" :key="payment.id" class="flex flex-wrap items-center justify-between gap-4 py-4"><div><p class="font-medium">{{ formatCurrency(payment.amount) }}</p><p class="mt-1 text-sm text-slate-500">{{ formatDate(payment.paymentDate) }} · {{ payment.method }}</p></div><div class="flex items-center gap-3"><p class="text-sm text-slate-500">{{ payment.receiptNumber }}</p><UButton :href="`/api/payments/${payment.id}/receipt`" external size="xs" color="primary" variant="soft" icon="i-lucide-download">PDF</UButton></div></div></div><p v-else class="py-8 text-center text-slate-500">No payments have been recorded yet.</p></UCard>
       <UCard v-else-if="tab === 'attendance'"><template #header><div class="flex items-center justify-between"><h2 class="font-semibold">My attendance</h2><UBadge color="primary" variant="subtle">{{ data.attendanceSummary.rate }}% attendance</UBadge></div></template><div class="mb-4 rounded-lg bg-primary/5 p-3 text-sm text-slate-600 dark:text-slate-300">Your attendance is <strong>{{ data.attendanceSummary.rate }}%</strong>. You need at least <strong>80% attendance</strong> to qualify for the next grading; final eligibility remains subject to instructor assessment and dojo policy.</div><div v-if="data.attendance.length" class="divide-y divide-slate-100 dark:divide-slate-800"><div v-for="record in data.attendance" :key="record.id" class="flex flex-wrap items-center justify-between gap-3 py-4"><div><p class="font-medium">{{ record.session?.name || 'Class' }}</p><p class="mt-1 text-sm text-slate-500">{{ formatDate(record.session?.date) }} · {{ record.session?.startTime }}–{{ record.session?.endTime }} · {{ record.session?.dojo?.name || data.student.dojo?.name }}</p><p v-if="record.notes" class="mt-1 text-sm text-slate-500">{{ record.notes }}</p></div><UBadge :color="attendanceColor(record.status)" variant="subtle" class="capitalize">{{ record.status }}</UBadge></div></div><p v-else class="py-8 text-center text-slate-500">No attendance has been recorded yet.</p></UCard>
       <UCard v-else><template #header><h2 class="font-semibold">My documents</h2></template><div v-if="data.documents.length" class="divide-y divide-slate-100 dark:divide-slate-800"><a v-for="document in data.documents" :key="document.id" :href="document.fileUrl" target="_blank" class="flex items-center justify-between py-4 text-primary hover:underline"><span>{{ document.documentType.replaceAll('_', ' ') }}</span><UIcon name="i-lucide-external-link" /></a></div><p v-else class="py-8 text-center text-slate-500">No documents have been shared yet.</p></UCard>
+      <UCard v-if="tab === 'fees' && portalRefunds.length" class="mt-4">
+        <template #header><div><h2 class="font-semibold">Refunds</h2><p class="mt-1 text-sm text-slate-500">Refunds recorded against your fee payments.</p></div></template>
+        <div class="divide-y divide-slate-100 dark:divide-slate-800">
+          <div v-for="refund in portalRefunds" :key="refund.id" class="flex flex-wrap items-center justify-between gap-4 py-4">
+            <div><p class="font-medium text-red-600">-{{ formatCurrency(refund.amount) }}</p><p class="mt-1 text-sm text-slate-500">{{ formatDate(refund.refundedAt) }} · {{ refund.reason }} · Original receipt {{ refund.receiptNumber }}</p></div>
+            <UButton :href="`/api/refunds/${refund.id}/receipt`" external size="xs" color="error" variant="soft" icon="i-lucide-download">Refund PDF</UButton>
+          </div>
+        </div>
+      </UCard>
     </template>
   </div>
 </template>
@@ -33,6 +42,11 @@
 definePageMeta({ middleware: 'portal-auth', layout: 'portal' })
 const toast = useToast(); const tab = ref('profile'); const savingProfile = ref(false); const tabs = [{ label: 'Profile', value: 'profile' }, { label: 'Attendance', value: 'attendance' }, { label: 'Progress', value: 'progress' }, { label: 'Achievements', value: 'achievements' }, { label: 'Fees', value: 'fees' }, { label: 'Documents', value: 'documents' }]
 const { data, pending, error, refresh } = await useFetch<any>('/api/portal/me')
+const portalRefunds = computed(() => (data.value?.payments || []).flatMap((payment: any) =>
+  (payment.refunds || [])
+    .filter((refund: any) => refund.status === 'completed')
+    .map((refund: any) => ({ ...refund, receiptNumber: payment.receiptNumber }))
+).sort((a: any, b: any) => new Date(b.refundedAt).getTime() - new Date(a.refundedAt).getTime()))
 const profile = reactive({ email: '', phone: '', address: '', emergencyContact: '', emergencyPhone: '' })
 watchEffect(() => { if (data.value) Object.assign(profile, { email: data.value.student.email || '', phone: data.value.student.phone || '', address: data.value.student.address || '', emergencyContact: data.value.student.emergencyContact || '', emergencyPhone: data.value.student.emergencyPhone || '' }) })
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) }; function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: data.value?.currency || 'USD' }).format(amount / 100) }

@@ -34,6 +34,7 @@ export default defineEventHandler(async (event) => {
       assignment: {
         with: { feePlan: true },
       },
+      refunds: true,
     },
     orderBy: (p, { desc }) => [desc(p.paymentDate)],
   })

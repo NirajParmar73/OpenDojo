@@ -14,7 +14,7 @@
     <UAlert v-else-if="error" color="error" title="Unable to load collections" :description="error.message" />
     <template v-else-if="overview">
       <div class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Net revenue" :value="formatCurrency(overview.summary.netRevenue)" :description="`Collections ${formatCurrency(overview.summary.allTimeRevenue)} · Expenses ${formatCurrency(overview.summary.paidExpenses)}`" icon="i-lucide-chart-no-axes-combined" tone="success" />
+        <MetricCard label="Net revenue" :value="formatCurrency(overview.summary.netRevenue)" :description="`Collections ${formatCurrency(overview.summary.allTimeRevenue)} after ${formatCurrency(overview.summary.refundedAmount)} refunded · Expenses ${formatCurrency(overview.summary.paidExpenses)}`" icon="i-lucide-chart-no-axes-combined" tone="success" />
         <MetricCard label="Collected this month" :value="formatCurrency(overview.summary.collectedThisMonth)" :description="`Last month: ${formatCurrency(overview.summary.collectedPreviousMonth)}`" icon="i-lucide-circle-check-big" tone="primary" />
         <MetricCard label="Overdue amount" :value="formatCurrency(overview.summary.overdueAmount)" icon="i-lucide-triangle-alert" tone="error" />
         <MetricCard label="Students pending" :value="String(overview.summary.pendingStudents)" :description="`${overview.summary.overdueStudents} overdue`" icon="i-lucide-users-round" tone="warning" />
@@ -26,13 +26,13 @@
           <div class="grid grid-cols-6 items-end gap-3 pt-4" style="height: 220px">
             <div v-for="month in overview.revenueTrend" :key="month.label" class="flex h-full min-w-0 flex-col justify-end gap-2 text-center">
               <p class="truncate text-xs font-medium" :title="formatCurrency(month.amount)">{{ formatCompactCurrency(month.amount) }}</p>
-              <div class="rounded-t-lg bg-primary/85 transition" :style="{ height: `${trendHeight(month.amount)}%` }" />
+              <div class="rounded-t-lg transition" :class="month.amount < 0 ? 'bg-red-500/85' : 'bg-primary/85'" :style="{ height: `${trendHeight(month.amount)}%` }" />
               <p class="truncate text-[11px] text-slate-500 dark:text-slate-400">{{ month.label.split(' ')[0] }}</p>
             </div>
           </div>
         </UCard>
         <UCard>
-          <template #header><div><h3 class="font-semibold">Revenue by payment method</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">All recorded payments.</p></div></template>
+          <template #header><div><h3 class="font-semibold">Net collections by method</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Payments less refunds, grouped by the method used for each transaction.</p></div></template>
           <div v-if="overview.paymentMethods.length" class="divide-y divide-slate-100 dark:divide-slate-800"><div v-for="method in overview.paymentMethods" :key="method.method" class="flex items-center justify-between gap-4 py-4"><p class="capitalize font-medium">{{ method.method.replaceAll('_', ' ') }}</p><p class="font-semibold">{{ formatCurrency(method.amount) }}</p></div></div>
           <p v-else class="py-8 text-center text-sm text-slate-500 dark:text-slate-400">No payments recorded yet.</p>
         </UCard>
@@ -84,8 +84,8 @@ watch([search, filter, selectedDojoId], () => {
 function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organization.value?.currency || 'USD' }).format(amount / 100) }
 function formatCompactCurrency(amount: number) { return new Intl.NumberFormat(undefined, { notation: 'compact', maximumFractionDigits: 1 }).format(amount / 100) }
 function trendHeight(amount: number) {
-  const maximum = Math.max(...(overview.value?.revenueTrend || []).map((month: any) => month.amount), 1)
-  return amount === 0 ? 3 : Math.max(8, Math.round((amount / maximum) * 100))
+  const maximum = Math.max(...(overview.value?.revenueTrend || []).map((month: any) => Math.abs(month.amount)), 1)
+  return amount === 0 ? 3 : Math.max(8, Math.round((Math.abs(amount) / maximum) * 100))
 }
 function pendingPeriodLabel(record: any) {
   if (!record.pendingPeriods) return 'Up to date'
