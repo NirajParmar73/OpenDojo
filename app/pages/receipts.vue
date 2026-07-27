@@ -69,9 +69,14 @@ type Receipt = { id: number, receiptNumber: string, amount: number, tuitionAmoun
 const { user } = useUserSession()
 const { data: receipts, pending, error, refresh } = await useFetch<Receipt[]>('/api/payments/recent')
 const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
+const { data: profile } = await useFetch<{ assignments?: Array<{ role: string }> }>('/api/user/profile')
 const toast = useToast()
 const today = new Date().toISOString().slice(0, 10)
-const canRefund = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
+const financeManagerRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
+const canRefund = computed(() =>
+  ['owner', 'admin'].includes(user.value?.role || '')
+  || (profile.value?.assignments || []).some(assignment => financeManagerRoles.includes(assignment.role))
+)
 const refundingPaymentId = ref<number | null>(null)
 const submittingRefund = ref(false)
 const refundMethods = [

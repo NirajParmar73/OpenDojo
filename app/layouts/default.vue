@@ -170,6 +170,7 @@ const allNavigation = [
     items: [
       { label: 'Finance overview', to: '/finance', icon: 'i-lucide-chart-no-axes-combined' },
       { label: 'Payments', to: '/fees', icon: 'i-lucide-circle-dollar-sign' },
+      { label: 'Receipts', to: '/receipts', icon: 'i-lucide-receipt-text' },
       { label: 'Expenses', to: '/finance/expenses', icon: 'i-lucide-receipt-indian-rupee' },
     ],
   },

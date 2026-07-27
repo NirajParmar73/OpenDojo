@@ -2,6 +2,7 @@ import { db, tables } from '../utils/database'
 import { eq, inArray } from 'drizzle-orm'
 
 export const roleHierarchy = ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']
+export const financeManagerRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
 
 export type TerritoryLocationDefaults = {
   city?: string
@@ -235,6 +236,25 @@ export async function getAllowedAssignmentsForCreator(userId: number, organizati
     allowedNodeIds: scope.managedNodeIds,
     allowedDojoIds: scope.managedDojoIds,
   }
+}
+
+/**
+ * Refunds and similar financial reversals require a management responsibility,
+ * not merely instructor access to a dojo.
+ */
+export async function hasFinanceManagementAccess(userId: number, organizationId: number, dojoId: number | null): Promise<boolean> {
+  const user = await db.query.users.findFirst({ where: eq(tables.users.id, userId) })
+  if (!user || user.organizationId !== organizationId) return false
+  if (['owner', 'admin'].includes(user.role)) return true
+  if (dojoId === null) return false
+
+  const assignments = await db.query.assignments.findMany({ where: eq(tables.assignments.userId, userId) })
+  const managementAssignments = assignments.filter(assignment => financeManagerRoles.includes(assignment.role))
+  if (managementAssignments.some(assignment => assignment.scopeType === 'dojo' && assignment.scopeId === dojoId)) return true
+  for (const assignment of managementAssignments.filter(item => item.scopeType === 'node')) {
+    if (await isDojoWithinHierarchyNode(organizationId, dojoId, assignment.scopeId)) return true
+  }
+  return false
 }
 
 type ScopedAssignment = { role: string, scopeType: string, scopeId: number }

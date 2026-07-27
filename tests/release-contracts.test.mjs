@@ -61,13 +61,22 @@ test('refunds preserve original payments and flow through balances and reports',
   assert.match(schema, /export const paymentRefunds = pgTable\('payment_refunds'/)
   assert.match(migration, /payment_refunds_amount_positive/)
   assert.match(createRefund, /for update/)
-  assert.match(createRefund, /Only organization administrators can record refunds/)
+  assert.match(createRefund, /hasFinanceManagementAccess/)
+  assert.match(createRefund, /Refunds require a finance management responsibility for this location/)
   assert.match(createRefund, /Refund exceeds the remaining refundable payment amount/)
   assert.match(feeBalance, /refundedTuition/)
   assert.match(finance, /grossCollections/)
   assert.match(finance, /refundedAmount/)
   assert.match(receipts, /Tuition portion returned/)
   assert.match(receipts, /The original receipt will be preserved/)
+})
+
+test('finance managers receive scoped receipt and refund access', async () => {
+  const layout = await read('app/layouts/default.vue')
+  const permissions = await read('server/utils/permissions.ts')
+  assert.match(layout, /\{ label: 'Receipts', to: '\/receipts'/)
+  assert.match(permissions, /financeManagerRoles/)
+  assert.match(permissions, /isDojoWithinHierarchyNode\(organizationId, dojoId, assignment\.scopeId\)/)
 })
 
 test('database migrations remain in strictly increasing journal order', async () => {

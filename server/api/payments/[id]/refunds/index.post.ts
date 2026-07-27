@@ -3,6 +3,7 @@ import { eq, sql } from 'drizzle-orm'
 import { z } from 'zod'
 import { writeAuditLog } from '../../../../utils/audit'
 import { db, tables } from '../../../../utils/database'
+import { hasFinanceManagementAccess } from '../../../../utils/permissions'
 
 const createRefundSchema = z.object({
   amount: z.number().int().positive(),
@@ -18,9 +19,7 @@ const createRefundSchema = z.object({
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
-  if (!session?.user?.organizationId || !['owner', 'admin'].includes(session.user.role)) {
-    throw createError({ statusCode: 403, statusMessage: 'Only organization administrators can record refunds' })
-  }
+  if (!session?.user?.organizationId) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
   const user = session.user
   const organizationId = user.organizationId as number
 
@@ -42,6 +41,9 @@ export default defineEventHandler(async (event) => {
     })
     if (!payment || payment.student.organizationId !== organizationId) {
       throw createError({ statusCode: 404, statusMessage: 'Payment not found' })
+    }
+    if (!await hasFinanceManagementAccess(user.id, organizationId, payment.student.dojoId)) {
+      throw createError({ statusCode: 403, statusMessage: 'Refunds require a finance management responsibility for this location' })
     }
     if (body.refundedAt < new Date(payment.paymentDate).toISOString().slice(0, 10)) {
       throw createError({ statusCode: 400, statusMessage: 'Refund date cannot be before the payment date' })
