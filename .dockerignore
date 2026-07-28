@@ -3,6 +3,7 @@
 .env.*
 !.env.example
 node_modules
+node_modules.repair-backup
 .nuxt
 .output
 database.sqlite

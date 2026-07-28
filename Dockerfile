@@ -3,6 +3,7 @@
 FROM node:22-bookworm-slim AS build
 
 WORKDIR /app
+ENV NODE_OPTIONS=--max-old-space-size=3072
 RUN corepack enable
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile
