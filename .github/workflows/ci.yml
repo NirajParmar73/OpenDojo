@@ -1,15 +1,25 @@
-name: ci
+name: CI/CD
 
-on: push
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+# A newer push supersedes an older in-progress run. This prevents an older
+# commit from reaching production after a newer one.
+concurrency:
+  group: production-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  ci:
-    runs-on: ${{ matrix.os }}
-
-    strategy:
-      matrix:
-        os: [ubuntu-latest]
-        node: [22]
+  verify:
+    name: Verify production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
 
     steps:
       - name: Checkout
@@ -18,17 +28,39 @@ jobs:
       - name: Install pnpm
         uses: pnpm/action-setup@v6
 
-      - name: Install node
+      - name: Install Node.js
         uses: actions/setup-node@v6
         with:
-          node-version: ${{ matrix.node }}
+          node-version: 22
           cache: pnpm
 
       - name: Install dependencies
-        run: pnpm install
+        run: pnpm install --frozen-lockfile
+
+      - name: Test
+        run: pnpm test
 
       - name: Lint
-        run: pnpm run lint
+        run: pnpm lint
 
       - name: Typecheck
-        run: pnpm run typecheck
+        run: pnpm typecheck
+
+      - name: Build
+        run: pnpm build
+
+  deploy:
+    name: Trigger EasyPanel deployment
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    environment: production
+
+    steps:
+      - name: Call EasyPanel deploy webhook
+        env:
+          EASYPANEL_DEPLOY_WEBHOOK_URL: ${{ secrets.EASYPANEL_DEPLOY_WEBHOOK_URL }}
+        run: |
+          test -n "$EASYPANEL_DEPLOY_WEBHOOK_URL"
+          curl --fail --show-error --silent "$EASYPANEL_DEPLOY_WEBHOOK_URL"

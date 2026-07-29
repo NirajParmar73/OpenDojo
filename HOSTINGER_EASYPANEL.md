@@ -76,9 +76,39 @@ NUXT_SESSION_COOKIE_DOMAIN=.opendojos.com
 
 This enables addresses such as `demo.opendojos.com`. Keep it blank for the first deployment.
 
+## 7. Enable push-to-production CI/CD
+
+The repository workflow verifies every pull request and every push to `main`.
+After the tests, lint, typecheck, and production build all pass on `main`, it
+calls EasyPanel's deploy webhook. EasyPanel then checks out that commit, builds
+the root `Dockerfile`, runs the database migrations, and replaces the live
+container.
+
+1. In the `web` app service, open **Deploy Webhook** and copy its URL.
+2. In GitHub, open **Settings → Environments → New environment**, create an
+   environment named `production`, and leave required reviewers disabled if you
+   want deployment to start without manual approval.
+3. Open the `production` environment, add an environment secret named
+   `EASYPANEL_DEPLOY_WEBHOOK_URL`, and paste the EasyPanel webhook URL.
+4. In EasyPanel, leave **Auto Deploy** disabled. The GitHub Actions workflow
+   calls the webhook only after CI succeeds; enabling both would trigger two
+   deployments and could deploy code before the checks finish.
+5. Push a small change to `main`, watch the **CI/CD** workflow in GitHub
+   Actions, then watch the deployment in the EasyPanel service's **Deployments**
+   or **Logs** tab.
+
+Treat the deploy webhook URL as a password. Never put it in source code, an
+`.env` file, an issue, or a build log. Rotate it in EasyPanel and update the
+GitHub secret if it is exposed.
+
+For direct EasyPanel auto-deploy instead, give EasyPanel's GitHub token
+read-only repository contents access plus read/write webhook access and enable
+**Auto Deploy** on the service. This is faster to configure, but it bypasses the
+CI gate, so the webhook workflow above is the recommended production setup.
+
 ## Ongoing care
 
 - Enable Hostinger backups and make regular PostgreSQL backups before upgrades.
 - Do not expose port 5432 publicly.
-- Update the application by pushing to GitHub and using EasyPanel's deploy button (or enable auto-deploy once the first release works).
+- Merge or push to `main` to deploy automatically after CI passes.
 - Store VPS, EasyPanel, GitHub, and database passwords in a password manager.
