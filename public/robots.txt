@@ -1,0 +1,26 @@
+User-agent: *
+Allow: /
+
+Disallow: /api/
+Disallow: /auth/
+Disallow: /attendance
+Disallow: /certificates
+Disallow: /dojos
+Disallow: /fees
+Disallow: /finance
+Disallow: /getting-started
+Disallow: /grading-exams
+Disallow: /hierarchy
+Disallow: /platform
+Disallow: /portal
+Disallow: /profile
+Disallow: /promotion-eligibility
+Disallow: /receipts
+Disallow: /reports
+Disallow: /settings
+Disallow: /students
+Disallow: /tournament-results
+Disallow: /tournaments
+Disallow: /users
+
+Sitemap: https://opendojos.com/sitemap.xml

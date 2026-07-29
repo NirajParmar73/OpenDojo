@@ -132,6 +132,19 @@ test('Business pricing and trial expiry behavior stay consistent', async () => {
   assert.match(pricing, /Existing records are retained/)
 })
 
+test('public discovery exposes pricing and crawler metadata', async () => {
+  const home = await read('app/pages/index.vue')
+  const robots = await read('public/robots.txt')
+  const sitemap = await read('public/sitemap.xml')
+
+  assert.match(home, /aria-label="Primary navigation"[\s\S]*to="\/pricing"/)
+  assert.doesNotMatch(home, /to="\/pricing" class="hidden/)
+  assert.match(robots, /Sitemap: https:\/\/opendojos\.com\/sitemap\.xml/)
+  assert.match(robots, /Disallow: \/api\//)
+  assert.match(sitemap, /<loc>https:\/\/opendojos\.com\/pricing<\/loc>/)
+  assert.doesNotMatch(sitemap, /\/settings|\/students|\/portal/)
+})
+
 test('location managers receive territory-scoped staff management', async () => {
   const layout = await read('app/layouts/default.vue')
   const staffPage = await read('app/pages/users/index.vue')
