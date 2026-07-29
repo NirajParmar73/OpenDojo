@@ -39,7 +39,12 @@ if (typeof route.query.email === 'string') state.email = route.query.email
 async function onLogin(event: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
-    const response = await $fetch<{ isPlatformAdmin?: boolean, platformLoginRequired?: boolean }>('/api/auth/login', {
+    const response = await $fetch<{
+      isPlatformAdmin?: boolean
+      platformLoginRequired?: boolean
+      workspaceLoginRequired?: boolean
+      workspaceLoginUrl?: string
+    }>('/api/auth/login', {
       method: 'POST',
       body: {
         email: event.data.email,
@@ -56,6 +61,26 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
           ? platformAppUrl(String(runtimeConfig.public.tenantBaseDomain || ''), `/auth/login?email=${encodeURIComponent(event.data.email)}`)
           : platformAppUrl(String(runtimeConfig.public.tenantBaseDomain || ''))
       window.location.assign(target)
+      return
+    }
+    if (response.workspaceLoginRequired && response.workspaceLoginUrl) {
+      const form = document.createElement('form')
+      form.method = 'POST'
+      form.action = `${response.workspaceLoginUrl.replace(/\/$/, '')}/api/auth/login`
+      const fields = {
+        email: event.data.email,
+        password: event.data.password,
+        redirectTo: route.query.created === '1' ? '/getting-started?welcome=1' : '/',
+      }
+      for (const [name, value] of Object.entries(fields)) {
+        const input = document.createElement('input')
+        input.type = 'hidden'
+        input.name = name
+        input.value = value
+        form.appendChild(input)
+      }
+      document.body.appendChild(form)
+      form.submit()
       return
     }
     // A newly provisioned workspace continues into its role-specific guide.

@@ -267,7 +267,7 @@ export async function hasStudentPortalManagementAccess(userId: number, organizat
   const user = await db.query.users.findFirst({ where: eq(tables.users.id, userId) })
   if (!user || user.organizationId !== organizationId) return false
   if (['owner', 'admin'].includes(user.role)) return true
-  if (dojoId === null || !studentPortalManagerRoles.includes(user.role)) return false
+  if (dojoId === null) return false
 
   const assignments = await db.query.assignments.findMany({ where: eq(tables.assignments.userId, userId) })
   const managementAssignments = assignments.filter(assignment => studentPortalManagerRoles.includes(assignment.role))

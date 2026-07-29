@@ -39,11 +39,17 @@ test('application hosts isolate platform, staff, and tenant student portals', as
 
   const tenantMiddleware = await read('server/middleware/tenant.ts')
   const tenantUtility = await read('server/utils/tenant.ts')
+  const staffLoginApi = await read('server/api/auth/login.post.ts')
+  const staffLoginPage = await read('app/pages/auth/login.vue')
   assert.match(tenantMiddleware, /NUXT_ENFORCE_APP_SUBDOMAINS|enforceAppSubdomains/)
   assert.match(tenantMiddleware, /Student|session\?\.user\?\.role === 'student'/i)
   assert.match(tenantMiddleware, /pathname\.startsWith\('\/api\/platform\/'\)/)
   assert.match(tenantMiddleware, /pathname\.startsWith\('\/api\/portal\/'\)/)
   assert.match(tenantUtility, /classifyAppHost/)
+  assert.match(staffLoginApi, /workspaceLoginUrl: workspaceUrl/)
+  assert.match(staffLoginApi, /body\.redirectTo\.startsWith\('\/'\).*!\s*body\.redirectTo\.startsWith\('\/\/'\)/)
+  assert.match(staffLoginPage, /form\.action = `\$\{response\.workspaceLoginUrl/)
+  assert.match(staffLoginPage, /form\.method = 'POST'/)
 })
 
 test('sessions are persistent and host-only', async () => {
@@ -216,11 +222,13 @@ test('territory managers grant student portal access only inside their scope', a
 
   assert.match(permissions, /studentPortalManagerRoles = \[\.\.\.financeManagerRoles\]/)
   assert.match(permissions, /hasStudentPortalManagementAccess/)
+  assert.doesNotMatch(permissions, /!studentPortalManagerRoles\.includes\(user\.role\)/)
   assert.match(permissions, /isDojoWithinHierarchyNode\(organizationId, dojoId, assignment\.scopeId\)/)
   assert.match(portalRead, /hasStudentPortalManagementAccess/)
   assert.match(portalWrite, /hasStudentPortalManagementAccess/)
   assert.match(portalWrite, /student\.portal_access\.(?:reset|created)/)
   assert.match(studentPage, /v-if="canManagePortalAccess"/)
+  assert.match(studentPage, /accessProfile\.value\?\.assignments/)
   assert.match(accessPage, /middleware: 'auth'/)
   assert.doesNotMatch(accessPage, /middleware: \['auth', 'admin'\]/)
   assert.match(portalPage, /data\.student\.avatar/)

@@ -221,7 +221,11 @@ definePageMeta({ middleware: 'auth' })
 const route = useRoute()
 const { user } = useUserSession()
 const portalManagerRoles = ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
-const canManagePortalAccess = computed(() => portalManagerRoles.includes(user.value?.role || ''))
+const { data: accessProfile } = await useFetch<{ assignments?: Array<{ role: string }> }>('/api/user/profile')
+const canManagePortalAccess = computed(() =>
+  portalManagerRoles.includes(user.value?.role || '')
+  || (accessProfile.value?.assignments || []).some(assignment => portalManagerRoles.includes(assignment.role))
+)
 const isChildRoute = computed(() => route.path !== `/students/${route.params.id}`)
 const toast = useToast()
 const studentId = Number(route.params.id)

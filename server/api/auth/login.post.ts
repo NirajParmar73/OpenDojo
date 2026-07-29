@@ -2,13 +2,14 @@
 import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq } from 'drizzle-orm'
-import { currentAppSurface, currentTenant } from '../../utils/tenant'
+import { currentAppSurface, currentTenant, workspaceUrl } from '../../utils/tenant'
 import { isPlatformAdminEmail } from '../../utils/platform-admin'
 // ✅ Import these from nuxt-auth-utils
 
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
+  redirectTo: z.string().max(500).optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -35,12 +36,14 @@ export default defineEventHandler(async (event) => {
   // Fetch organization name and logo
   let orgName = null
   let orgLogo = null
+  let orgSlug = null
   if (user.organizationId) {
     const org = await db.query.organizations.findFirst({
       where: eq(tables.organizations.id, user.organizationId),
     })
     orgName = org?.name ?? null
     orgLogo = org?.logo ?? null
+    orgSlug = org?.slug ?? null
     if (org?.subscriptionStatus === 'suspended' && !isPlatformAdminEmail(user.email)) {
       throw createError({ statusCode: 403, statusMessage: 'This organization has been suspended. Contact support.' })
     }
@@ -53,6 +56,14 @@ export default defineEventHandler(async (event) => {
   }
   if (useRuntimeConfig(event).enforceAppSubdomains && isPlatformAdmin && currentAppSurface(event) !== 'platform') {
     return { success: true, isPlatformAdmin: true, platformLoginRequired: true }
+  }
+  const config = useRuntimeConfig(event)
+  if (config.enforceAppSubdomains && currentAppSurface(event) === 'staff' && !tenant && orgSlug) {
+    return {
+      success: true,
+      workspaceLoginRequired: true,
+      workspaceLoginUrl: workspaceUrl(String(config.tenantBaseDomain || ''), orgSlug),
+    }
   }
   await setUserSession(event, {
     user: {
@@ -70,5 +81,9 @@ export default defineEventHandler(async (event) => {
     sessionRefreshedAt: new Date(),
   })
 
+  if (body.redirectTo) {
+    const redirectTo = body.redirectTo.startsWith('/') && !body.redirectTo.startsWith('//') ? body.redirectTo : '/'
+    return sendRedirect(event, redirectTo, 303)
+  }
   return { success: true, isPlatformAdmin }
 })
