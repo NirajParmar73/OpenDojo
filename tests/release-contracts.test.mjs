@@ -28,21 +28,31 @@ test('student PWA starts inside the protected portal and has distinct branding',
 
 test('student sessions are constrained to student APIs and owned downloads', async () => {
   const middleware = await read('server/middleware/tenant-access.ts')
+  const portalPassword = await read('server/api/portal/password.put.ts')
   assert.match(middleware, /Student portal sessions cannot access staff APIs/)
   assert.match(middleware, /ownProgressReport/)
   assert.match(middleware, /receiptDownload/)
   assert.match(middleware, /ownSessionRead[\s\S]*\/api\/_auth\/session/)
+  assert.match(portalPassword, /verifyPassword\(account\.passwordHash, body\.currentPassword\)/)
+  assert.match(portalPassword, /New password must be different from the current password/)
+  assert.match(portalPassword, /hashPassword\(body\.newPassword\)/)
 })
 
 test('service worker never caches authenticated or uploaded data', async () => {
   const worker = await read('public/sw.js')
   const plugin = await read('app/plugins/pwa.client.ts')
+  const prompt = await read('app/components/PwaUpdatePrompt.vue')
   assert.match(worker, /url\.pathname\.startsWith\('\/api\/'\)/)
   assert.match(worker, /url\.pathname\.startsWith\('\/uploads\/'\)/)
   assert.match(worker, /request\.mode === 'navigate'/)
   assert.doesNotMatch(worker, /isBuildAsset/)
   assert.match(plugin, /import\.meta\.dev/)
   assert.match(plugin, /registration => registration\.unregister\(\)/)
+  assert.match(plugin, /controllerchange/)
+  assert.match(plugin, /window\.addEventListener\('focus', checkForUpdate\)/)
+  assert.match(plugin, /30 \* 60 \* 1000/)
+  assert.match(prompt, /A new version is ready/)
+  assert.match(prompt, /Refresh now/)
 })
 
 test('guided setup keeps tuition separate from inline additional charges', async () => {
@@ -160,6 +170,28 @@ test('location managers receive territory-scoped staff management', async () => 
   assert.match(staffPage, /v-if="user\.canEdit" class="flex items-center gap-1"/)
   assert.match(avatarUpload, /canEditManagedUser/)
   assert.match(certificateUpload, /canEditManagedUser/)
+})
+
+test('territory managers grant student portal access only inside their scope', async () => {
+  const permissions = await read('server/utils/permissions.ts')
+  const portalRead = await read('server/api/students/[studentId]/portal-account.get.ts')
+  const portalWrite = await read('server/api/students/[studentId]/portal-account.post.ts')
+  const studentPage = await read('app/pages/students/[id].vue')
+  const accessPage = await read('app/pages/students/[id]/portal-access.vue')
+  const portalPage = await read('app/pages/portal/index.vue')
+
+  assert.match(permissions, /studentPortalManagerRoles = \[\.\.\.financeManagerRoles\]/)
+  assert.match(permissions, /hasStudentPortalManagementAccess/)
+  assert.match(permissions, /isDojoWithinHierarchyNode\(organizationId, dojoId, assignment\.scopeId\)/)
+  assert.match(portalRead, /hasStudentPortalManagementAccess/)
+  assert.match(portalWrite, /hasStudentPortalManagementAccess/)
+  assert.match(portalWrite, /student\.portal_access\.(?:reset|created)/)
+  assert.match(studentPage, /v-if="canManagePortalAccess"/)
+  assert.match(accessPage, /middleware: 'auth'/)
+  assert.doesNotMatch(accessPage, /middleware: \['auth', 'admin'\]/)
+  assert.match(portalPage, /data\.student\.avatar/)
+  assert.match(portalPage, /\/api\/portal\/password/)
+  assert.match(portalPage, /passwordForm\.newPassword !== passwordForm\.confirmPassword/)
 })
 
 test('dojo geography inherits the manager territory without guessing across territories', async () => {

@@ -32,6 +32,14 @@ export default defineNuxtPlugin(() => {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((registration) => {
+      let hadController = Boolean(navigator.serviceWorker.controller)
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        // The worker activates immediately, but the open page still contains
+        // the previous JavaScript until the user accepts the refresh prompt.
+        if (hadController) updateAvailable.value = true
+        hadController = true
+      })
+
       // `skipWaiting` activates a new worker immediately. If this browser was
       // already controlled, the installed worker represents a newer app shell.
       const watchInstallingWorker = () => {
@@ -43,9 +51,17 @@ export default defineNuxtPlugin(() => {
       }
       registration.addEventListener('updatefound', watchInstallingWorker)
       watchInstallingWorker()
-      // Ask the browser to check on every app launch instead of waiting for its
-      // periodic service-worker update interval.
-      registration.update().catch(() => undefined)
+
+      const checkForUpdate = () => registration.update().catch(() => undefined)
+      // Check at launch, whenever the installed app returns to the foreground,
+      // and periodically while it remains open. Browser update throttling still
+      // applies, so these calls are inexpensive.
+      checkForUpdate()
+      window.addEventListener('focus', checkForUpdate)
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') checkForUpdate()
+      })
+      window.setInterval(checkForUpdate, 30 * 60 * 1000)
     }).catch((error) => {
       console.warn('OpenDojos service worker registration failed.', error)
     })

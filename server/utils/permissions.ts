@@ -3,6 +3,7 @@ import { eq, inArray } from 'drizzle-orm'
 
 export const roleHierarchy = ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']
 export const financeManagerRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
+export const studentPortalManagerRoles = [...financeManagerRoles]
 
 export type TerritoryLocationDefaults = {
   city?: string
@@ -250,6 +251,26 @@ export async function hasFinanceManagementAccess(userId: number, organizationId:
 
   const assignments = await db.query.assignments.findMany({ where: eq(tables.assignments.userId, userId) })
   const managementAssignments = assignments.filter(assignment => financeManagerRoles.includes(assignment.role))
+  if (managementAssignments.some(assignment => assignment.scopeType === 'dojo' && assignment.scopeId === dojoId)) return true
+  for (const assignment of managementAssignments.filter(item => item.scopeType === 'node')) {
+    if (await isDojoWithinHierarchyNode(organizationId, dojoId, assignment.scopeId)) return true
+  }
+  return false
+}
+
+/**
+ * Portal credentials may be managed by organization administrators and by
+ * hierarchy/location managers for students inside their assigned territory.
+ * Instructors and ordinary staff must never be able to reset credentials.
+ */
+export async function hasStudentPortalManagementAccess(userId: number, organizationId: number, dojoId: number | null): Promise<boolean> {
+  const user = await db.query.users.findFirst({ where: eq(tables.users.id, userId) })
+  if (!user || user.organizationId !== organizationId) return false
+  if (['owner', 'admin'].includes(user.role)) return true
+  if (dojoId === null || !studentPortalManagerRoles.includes(user.role)) return false
+
+  const assignments = await db.query.assignments.findMany({ where: eq(tables.assignments.userId, userId) })
+  const managementAssignments = assignments.filter(assignment => studentPortalManagerRoles.includes(assignment.role))
   if (managementAssignments.some(assignment => assignment.scopeType === 'dojo' && assignment.scopeId === dojoId)) return true
   for (const assignment of managementAssignments.filter(item => item.scopeType === 'node')) {
     if (await isDojoWithinHierarchyNode(organizationId, dojoId, assignment.scopeId)) return true

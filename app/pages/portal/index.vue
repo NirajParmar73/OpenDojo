@@ -20,7 +20,33 @@
         <UCard><div class="flex items-start justify-between gap-3"><div><p class="text-sm text-slate-500">Payments recorded</p><p class="mt-2 text-xl font-semibold">{{ data.payments.length }}</p></div><div class="rounded-2xl bg-sky-500/10 p-2.5 text-sky-600 dark:text-sky-400"><UIcon name="i-lucide-receipt-indian-rupee" class="h-5 w-5" /></div></div></UCard>
       </div>
       <div class="mb-5 flex flex-wrap gap-2"><UButton v-for="item in tabs" :key="item.value" size="sm" :color="tab === item.value ? 'primary' : 'neutral'" :variant="tab === item.value ? 'solid' : 'soft'" @click="tab = item.value; void 0">{{ item.label }}</UButton></div>
-      <UCard v-if="tab === 'profile'"><template #header><h2 class="font-semibold">My profile</h2></template><form class="grid gap-4 sm:grid-cols-2" @submit.prevent="saveProfile"><UFormField label="Email"><UInput v-model="profile.email" type="email" /></UFormField><UFormField label="Phone"><UInput v-model="profile.phone" /></UFormField><UFormField label="Address" class="sm:col-span-2"><UInput v-model="profile.address" /></UFormField><UFormField label="Emergency contact"><UInput v-model="profile.emergencyContact" /></UFormField><UFormField label="Emergency phone"><UInput v-model="profile.emergencyPhone" /></UFormField><div class="sm:col-span-2"><UButton type="submit" :loading="savingProfile">Save contact details</UButton></div></form></UCard>
+      <UCard v-if="tab === 'profile'">
+        <template #header>
+          <div class="flex items-center gap-4">
+            <img v-if="data.student.avatar" :src="data.student.avatar" :alt="`${data.student.firstName} ${data.student.lastName}`" class="h-16 w-16 rounded-2xl object-cover shadow-sm">
+            <div v-else class="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 text-xl font-semibold text-primary">{{ studentInitials }}</div>
+            <div><h2 class="font-semibold">My profile</h2><p class="mt-1 text-sm text-slate-500">{{ data.student.firstName }} {{ data.student.lastName }}</p></div>
+          </div>
+        </template>
+        <form class="grid gap-4 sm:grid-cols-2" @submit.prevent="saveProfile">
+          <UFormField label="Email"><UInput v-model="profile.email" type="email" /></UFormField>
+          <UFormField label="Phone"><UInput v-model="profile.phone" /></UFormField>
+          <UFormField label="Address" class="sm:col-span-2"><UInput v-model="profile.address" /></UFormField>
+          <UFormField label="Emergency contact"><UInput v-model="profile.emergencyContact" /></UFormField>
+          <UFormField label="Emergency phone"><UInput v-model="profile.emergencyPhone" /></UFormField>
+          <div class="sm:col-span-2"><UButton type="submit" :loading="savingProfile">Save contact details</UButton></div>
+        </form>
+        <div class="mt-8 border-t border-slate-200 pt-6 dark:border-slate-800">
+          <h3 class="font-semibold">Change password</h3>
+          <p class="mt-1 text-sm text-slate-500">Replace the password initially provided by your dojo manager.</p>
+          <form class="mt-4 grid gap-4 sm:grid-cols-2" @submit.prevent="changePassword">
+            <UFormField label="Current password" class="sm:col-span-2"><UInput v-model="passwordForm.currentPassword" type="password" autocomplete="current-password" required /></UFormField>
+            <UFormField label="New password"><UInput v-model="passwordForm.newPassword" type="password" autocomplete="new-password" :minlength="8" required /></UFormField>
+            <UFormField label="Confirm new password"><UInput v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" :minlength="8" required /></UFormField>
+            <div class="sm:col-span-2"><UButton type="submit" :loading="changingPassword" icon="i-lucide-key-round">Change password</UButton></div>
+          </form>
+        </div>
+      </UCard>
       <UCard v-else-if="tab === 'progress'"><template #header><div class="flex items-center justify-between"><h2 class="font-semibold">My progress</h2><UButton :href="`/api/students/${data.student.id}/progress-report`" target="_blank" size="sm" icon="i-lucide-download">Progress report</UButton></div></template><div v-if="data.gradings.length" class="space-y-3"><div v-for="grading in data.gradings" :key="grading.id" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><p class="font-medium">{{ grading.beltRank?.name }} <span class="text-slate-500">{{ grading.beltRank?.level }}</span></p><p class="mt-1 text-sm text-slate-500">Awarded {{ formatDate(grading.awardedDate) }}</p><p v-if="grading.certificateNumber" class="mt-1 text-sm">Certificate: {{ grading.certificateNumber }}</p><a v-if="grading.certificateUrl" :href="grading.certificateUrl" target="_blank" class="mt-2 inline-block text-sm text-primary hover:underline">Open certificate</a></div></div><p v-else class="py-8 text-center text-slate-500">No gradings have been recorded yet.</p></UCard>
       <UCard v-else-if="tab === 'achievements'"><template #header><h2 class="font-semibold">My achievements</h2></template><div v-if="data.achievements.length" class="space-y-3"><div v-for="item in data.achievements" :key="item.id" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><p class="font-medium">{{ item.tournamentName }}</p><p class="mt-1 text-sm text-slate-500">{{ item.eventType || 'Participation' }} · {{ formatDate(item.startDate) }}</p><p class="mt-1 text-sm">{{ item.result || 'Participation' }}<span v-if="item.medalType"> · {{ item.medalType }}</span></p><a v-if="item.certificateUrl" :href="item.certificateUrl" target="_blank" class="mt-2 inline-block text-sm text-primary hover:underline">Open certificate</a></div></div><p v-else class="py-8 text-center text-slate-500">No achievements have been recorded yet.</p></UCard>
       <UCard v-else-if="tab === 'fees'"><template #header><h2 class="font-semibold">My fee payments</h2></template><div v-if="data.payments.length" class="divide-y divide-slate-100 dark:divide-slate-800"><div v-for="payment in data.payments" :key="payment.id" class="flex flex-wrap items-center justify-between gap-4 py-4"><div><p class="font-medium">{{ formatCurrency(payment.amount) }}</p><p class="mt-1 text-sm text-slate-500">{{ formatDate(payment.paymentDate) }} · {{ payment.method }}</p></div><div class="flex items-center gap-3"><p class="text-sm text-slate-500">{{ payment.receiptNumber }}</p><UButton :href="`/api/payments/${payment.id}/receipt`" external size="xs" color="primary" variant="soft" icon="i-lucide-download">PDF</UButton></div></div></div><p v-else class="py-8 text-center text-slate-500">No payments have been recorded yet.</p></UCard>
@@ -42,14 +68,33 @@
 definePageMeta({ middleware: 'portal-auth', layout: 'portal' })
 const toast = useToast(); const tab = ref('profile'); const savingProfile = ref(false); const tabs = [{ label: 'Profile', value: 'profile' }, { label: 'Attendance', value: 'attendance' }, { label: 'Progress', value: 'progress' }, { label: 'Achievements', value: 'achievements' }, { label: 'Fees', value: 'fees' }, { label: 'Documents', value: 'documents' }]
 const { data, pending, error, refresh } = await useFetch<any>('/api/portal/me')
+const studentInitials = computed(() => data.value ? `${data.value.student.firstName?.[0] || ''}${data.value.student.lastName?.[0] || ''}`.toUpperCase() : 'S')
 const portalRefunds = computed(() => (data.value?.payments || []).flatMap((payment: any) =>
   (payment.refunds || [])
     .filter((refund: any) => refund.status === 'completed')
     .map((refund: any) => ({ ...refund, receiptNumber: payment.receiptNumber }))
 ).sort((a: any, b: any) => new Date(b.refundedAt).getTime() - new Date(a.refundedAt).getTime()))
 const profile = reactive({ email: '', phone: '', address: '', emergencyContact: '', emergencyPhone: '' })
+const changingPassword = ref(false)
+const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 watchEffect(() => { if (data.value) Object.assign(profile, { email: data.value.student.email || '', phone: data.value.student.phone || '', address: data.value.student.address || '', emergencyContact: data.value.student.emergencyContact || '', emergencyPhone: data.value.student.emergencyPhone || '' }) })
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) }; function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: data.value?.currency || 'USD' }).format(amount / 100) }
 function attendanceColor(status: string) { return status === 'present' ? 'success' : status === 'late' ? 'warning' : status === 'excused' ? 'info' : 'error' }
 async function saveProfile() { savingProfile.value = true; try { await $fetch('/api/portal/profile', { method: 'PATCH', body: profile }); await refresh(); toast.add({ color: 'success', title: 'Profile updated' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not update profile', description: error.data?.statusMessage || error.message }) } finally { savingProfile.value = false } }
+async function changePassword() {
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    toast.add({ color: 'warning', title: 'Passwords do not match' })
+    return
+  }
+  changingPassword.value = true
+  try {
+    await $fetch('/api/portal/password', { method: 'PUT', body: { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword } })
+    Object.assign(passwordForm, { currentPassword: '', newPassword: '', confirmPassword: '' })
+    toast.add({ color: 'success', title: 'Password changed' })
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not change password', description: error.data?.statusMessage || error.message })
+  } finally {
+    changingPassword.value = false
+  }
+}
 </script>

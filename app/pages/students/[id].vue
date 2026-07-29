@@ -3,7 +3,7 @@
   <div v-else class="mx-auto max-w-7xl">
     <div class="mb-6 flex items-center justify-between gap-3">
       <UButton to="/students" color="neutral" variant="ghost" icon="i-lucide-arrow-left">All students</UButton>
-      <div class="flex flex-wrap gap-2"><UButton v-if="['owner', 'admin'].includes(user?.role || '')" :to="`/students/${studentId}/portal-access`" color="neutral" variant="soft" icon="i-lucide-key-round">Portal access</UButton><UButton :href="`/api/students/${studentId}/progress-report`" target="_blank" color="neutral" variant="soft" icon="i-lucide-file-down">Progress report</UButton><UButton :to="`/grading-exams?studentId=${studentId}`" color="neutral" variant="soft" icon="i-lucide-award">Add to grading</UButton><UButton :to="`/fees?id=${studentId}`" color="primary" icon="i-lucide-circle-dollar-sign">Record payment</UButton></div>
+      <div class="flex flex-wrap gap-2"><UButton v-if="canManagePortalAccess" :to="`/students/${studentId}/portal-access`" color="neutral" variant="soft" icon="i-lucide-key-round">Portal access</UButton><UButton :href="`/api/students/${studentId}/progress-report`" target="_blank" color="neutral" variant="soft" icon="i-lucide-file-down">Progress report</UButton><UButton :to="`/grading-exams?studentId=${studentId}`" color="neutral" variant="soft" icon="i-lucide-award">Add to grading</UButton><UButton :to="`/fees?id=${studentId}`" color="primary" icon="i-lucide-circle-dollar-sign">Record payment</UButton></div>
     </div>
 
     <div v-if="pending" class="grid gap-5 lg:grid-cols-[280px_1fr]">
@@ -220,6 +220,8 @@ definePageMeta({ middleware: 'auth' })
 
 const route = useRoute()
 const { user } = useUserSession()
+const portalManagerRoles = ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
+const canManagePortalAccess = computed(() => portalManagerRoles.includes(user.value?.role || ''))
 const isChildRoute = computed(() => route.path !== `/students/${route.params.id}`)
 const toast = useToast()
 const studentId = Number(route.params.id)
