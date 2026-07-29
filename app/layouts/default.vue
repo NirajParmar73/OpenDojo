@@ -86,7 +86,7 @@
         </div>
 
         <div class="flex items-center gap-2 sm:gap-3">
-          <PwaInstallButton label="Install Admin app" />
+          <PwaInstallButton :label="isPlatformHost ? 'Install Platform app' : 'Install Admin app'" />
           <button
             class="rounded-xl border border-slate-200 bg-white p-2.5 text-slate-600 shadow-sm transition hover:border-slate-300 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
             :aria-label="colorMode.value === 'dark' ? 'Use light mode' : 'Use dark mode'"
@@ -112,11 +112,17 @@
 </template>
 
 <script setup lang="ts">
+import { classifyAppHost } from '#shared/utils/app-host'
+
 const { user, clear, loggedIn } = useUserSession()
 const router = useRouter()
 const route = useRoute()
 const colorMode = useColorMode()
 const mobileNavigationOpen = ref(false)
+const runtimeConfig = useRuntimeConfig()
+const isPlatformHost = computed(() =>
+  classifyAppHost(useRequestURL().hostname, String(runtimeConfig.public.tenantBaseDomain || '')).surface === 'platform'
+)
 const publicPaths = new Set(['/', '/pricing', '/terms', '/privacy', '/refund-policy', '/contact'])
 const isPublicLanding = computed(() => publicPaths.has(route.path) && !loggedIn.value)
 const { data: profile, refresh: refreshProfile } = await useFetch<any>('/api/user/profile', { immediate: false })

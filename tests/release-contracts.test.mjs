@@ -7,11 +7,14 @@ const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
 test('student PWA starts inside the protected portal and has distinct branding', async () => {
   const adminManifest = JSON.parse(await read('public/manifest.webmanifest'))
+  const platformManifest = JSON.parse(await read('public/platform/manifest.webmanifest'))
   const manifest = JSON.parse(await read('public/portal/manifest.webmanifest'))
   assert.equal(adminManifest.start_url, '/auth/login?source=pwa')
   assert.equal(manifest.start_url, '/portal')
   assert.equal(manifest.scope, '/portal/')
   assert.ok(manifest.icons.some(icon => icon.src === '/student-pwa-icon.svg'))
+  assert.equal(platformManifest.start_url, '/platform')
+  assert.equal(platformManifest.id, '/platform')
 
   const portal = await read('app/pages/portal/index.vue')
   assert.match(portal, /middleware: 'portal-auth'/)
@@ -21,11 +24,17 @@ test('student PWA starts inside the protected portal and has distinct branding',
   const staffLogin = await read('app/pages/auth/login.vue')
   const installButton = await read('app/components/PwaInstallButton.vue')
   assert.match(adminLayout, /Install Admin app/)
+  assert.match(adminLayout, /Install Platform app/)
   assert.match(portalLayout, /Install Student app/)
   assert.match(installButton, /<UButton size="sm" icon="i-lucide-download"/)
   assert.match(installButton, /Open the browser menu/)
   assert.match(staffLogin, /user\.value\?\.role === 'student'/)
   assert.match(staffLogin, /platformAppUrl/)
+
+  const app = await read('app/app.vue')
+  const pwaPlugin = await read('app/plugins/pwa.client.ts')
+  assert.match(app, /\/platform\/manifest\.webmanifest/)
+  assert.match(pwaPlugin, /\['platform', 'staff', 'portal', 'legacy'\]/)
 })
 
 test('application hosts isolate platform, staff, and tenant student portals', async () => {

@@ -9,7 +9,7 @@ export default defineNuxtPlugin(() => {
   if (!import.meta.client || !('serviceWorker' in navigator)) return
   const runtimeConfig = useRuntimeConfig()
   const appHost = classifyAppHost(window.location.hostname, String(runtimeConfig.public.tenantBaseDomain || ''))
-  const isInstallableApp = ['staff', 'portal', 'legacy'].includes(appHost.surface)
+  const isInstallableApp = ['platform', 'staff', 'portal', 'legacy'].includes(appHost.surface)
 
   if (import.meta.dev) {
     // A development service worker can keep serving old Nuxt modules after a
