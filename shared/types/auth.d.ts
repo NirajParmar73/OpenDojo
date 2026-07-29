@@ -14,6 +14,7 @@ declare module '#auth-utils' {
 
   interface UserSession {
     lastLoggedIn: Date
+    sessionRefreshedAt: Date
   }
 
   interface SecureSessionData {

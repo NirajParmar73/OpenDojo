@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { db, tables } from '../utils/database'
 import { isPlatformAdminEmail } from '../utils/platform-admin'
+import { renewUserSessionIfNeeded } from '../utils/session-renewal'
 
 /**
  * Stateless sessions need a server-side check so deleted, suspended, and
@@ -30,6 +31,7 @@ export default defineEventHandler(async (event) => {
     if (!event.path.startsWith('/api/portal/') && !ownProgressReport && !receiptDownload && !refundReceiptDownload && !ownSessionRead) {
       throw createError({ statusCode: 403, statusMessage: 'Student portal sessions cannot access staff APIs.' })
     }
+    await renewUserSessionIfNeeded(event, session)
     return
   }
 
@@ -39,7 +41,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Your account permissions changed. Please sign in again.' })
   }
 
-  if (!user.organizationId) return
+  if (!user.organizationId) {
+    await renewUserSessionIfNeeded(event, session)
+    return
+  }
   const organization = await db.query.organizations.findFirst({
     where: and(eq(tables.organizations.id, user.organizationId), eq(tables.organizations.subscriptionStatus, 'suspended')),
     columns: { id: true },
@@ -48,4 +53,5 @@ export default defineEventHandler(async (event) => {
     await clearUserSession(event)
     throw createError({ statusCode: 403, statusMessage: 'This organization has been suspended. Contact support.' })
   }
+  await renewUserSessionIfNeeded(event, session)
 })

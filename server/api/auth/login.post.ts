@@ -2,7 +2,7 @@
 import { z } from 'zod'
 import { db, tables } from '../../../server/utils/database'
 import { eq } from 'drizzle-orm'
-import { currentTenant, workspaceUrl } from '../../utils/tenant'
+import { currentAppSurface, currentTenant } from '../../utils/tenant'
 import { isPlatformAdminEmail } from '../../utils/platform-admin'
 // ✅ Import these from nuxt-auth-utils
 
@@ -35,14 +35,12 @@ export default defineEventHandler(async (event) => {
   // Fetch organization name and logo
   let orgName = null
   let orgLogo = null
-  let orgSlug = ''
   if (user.organizationId) {
     const org = await db.query.organizations.findFirst({
       where: eq(tables.organizations.id, user.organizationId),
     })
     orgName = org?.name ?? null
     orgLogo = org?.logo ?? null
-    orgSlug = org?.slug ?? ''
     if (org?.subscriptionStatus === 'suspended' && !isPlatformAdminEmail(user.email)) {
       throw createError({ statusCode: 403, statusMessage: 'This organization has been suspended. Contact support.' })
     }
@@ -50,6 +48,12 @@ export default defineEventHandler(async (event) => {
 
   // ✅ Set session with all required fields
   const isPlatformAdmin = isPlatformAdminEmail(user.email)
+  if (currentAppSurface(event) === 'platform' && !isPlatformAdmin) {
+    throw createError({ statusCode: 403, statusMessage: 'Use the staff application or your organization workspace to sign in' })
+  }
+  if (useRuntimeConfig(event).enforceAppSubdomains && isPlatformAdmin && currentAppSurface(event) !== 'platform') {
+    return { success: true, isPlatformAdmin: true, platformLoginRequired: true }
+  }
   await setUserSession(event, {
     user: {
       id: user.id,
@@ -63,8 +67,8 @@ export default defineEventHandler(async (event) => {
       isPlatformAdmin,
     },
     lastLoggedIn: new Date(),
+    sessionRefreshedAt: new Date(),
   })
 
-  const baseDomain = String(useRuntimeConfig(event).tenantBaseDomain || '')
-  return { success: true, isPlatformAdmin, workspaceUrl: orgSlug ? workspaceUrl(baseDomain, orgSlug) : '' }
+  return { success: true, isPlatformAdmin }
 })

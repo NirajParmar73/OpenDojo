@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
+import { classifyAppHost, portalAppUrl } from '../shared/utils/app-host.ts'
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -23,7 +24,40 @@ test('student PWA starts inside the protected portal and has distinct branding',
   assert.match(portalLayout, /Install Student app/)
   assert.match(installButton, /<UButton size="sm" icon="i-lucide-download"/)
   assert.match(installButton, /Open the browser menu/)
-  assert.match(staffLogin, /loggedIn\.value[\s\S]*navigateTo\(user\.value\?\.isPlatformAdmin \? '\/platform' : '\/'/)
+  assert.match(staffLogin, /user\.value\?\.role === 'student'/)
+  assert.match(staffLogin, /platformAppUrl/)
+})
+
+test('application hosts isolate platform, staff, and tenant student portals', async () => {
+  assert.deepEqual(classifyAppHost('opendojos.com', 'opendojos.com'), { surface: 'public', tenantSlug: null })
+  assert.deepEqual(classifyAppHost('platform.opendojos.com', 'opendojos.com'), { surface: 'platform', tenantSlug: null })
+  assert.deepEqual(classifyAppHost('app.opendojos.com', 'opendojos.com'), { surface: 'staff', tenantSlug: null })
+  assert.deepEqual(classifyAppHost('kgi.opendojos.com', 'opendojos.com'), { surface: 'staff', tenantSlug: 'kgi' })
+  assert.deepEqual(classifyAppHost('portal.opendojos.com', 'opendojos.com'), { surface: 'portal', tenantSlug: null })
+  assert.deepEqual(classifyAppHost('kgi.portal.opendojos.com', 'opendojos.com'), { surface: 'portal', tenantSlug: 'kgi' })
+  assert.equal(portalAppUrl('opendojos.com', 'kgi'), 'https://kgi.portal.opendojos.com/portal')
+
+  const tenantMiddleware = await read('server/middleware/tenant.ts')
+  const tenantUtility = await read('server/utils/tenant.ts')
+  assert.match(tenantMiddleware, /NUXT_ENFORCE_APP_SUBDOMAINS|enforceAppSubdomains/)
+  assert.match(tenantMiddleware, /Student|session\?\.user\?\.role === 'student'/i)
+  assert.match(tenantMiddleware, /pathname\.startsWith\('\/api\/platform\/'\)/)
+  assert.match(tenantMiddleware, /pathname\.startsWith\('\/api\/portal\/'\)/)
+  assert.match(tenantUtility, /classifyAppHost/)
+})
+
+test('sessions are persistent and host-only', async () => {
+  const config = await read('nuxt.config.ts')
+  const environment = await read('.env.example')
+  const renewal = await read('server/utils/session-renewal.ts')
+  assert.match(config, /name: process\.env\.NODE_ENV === 'production' \? '__Host-opendojos-session'/)
+  assert.match(config, /maxAge: 60 \* 60 \* 24 \* 365/)
+  assert.match(config, /httpOnly: true/)
+  assert.match(config, /sameSite: 'lax'/)
+  assert.doesNotMatch(config, /NUXT_SESSION_COOKIE_DOMAIN/)
+  assert.doesNotMatch(environment, /NUXT_SESSION_COOKIE_DOMAIN/)
+  assert.match(renewal, /7 \* 24 \* 60 \* 60 \* 1000/)
+  assert.match(renewal, /replaceUserSession/)
 })
 
 test('student sessions are constrained to student APIs and owned downloads', async () => {

@@ -46,13 +46,14 @@ export default defineNuxtConfig({
 
 
   runtimeConfig:{
-      tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
+      tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || process.env.NUXT_PUBLIC_TENANT_BASE_DOMAIN || '',
+      enforceAppSubdomains: process.env.NUXT_ENFORCE_APP_SUBDOMAINS === 'true',
       appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
       razorpayKeyId: process.env.NUXT_RAZORPAY_KEY_ID || '',
       razorpayKeySecret: process.env.NUXT_RAZORPAY_KEY_SECRET || '',
       public: {
       appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
-      tenantBaseDomain: process.env.NUXT_TENANT_BASE_DOMAIN || '',
+      tenantBaseDomain: process.env.NUXT_PUBLIC_TENANT_BASE_DOMAIN || process.env.NUXT_TENANT_BASE_DOMAIN || '',
       legalEntityName: process.env.NUXT_PUBLIC_LEGAL_ENTITY_NAME || 'OpenDojos',
       supportEmail: process.env.NUXT_PUBLIC_SUPPORT_EMAIL || 'opendojos@gmail.com',
       supportPhone: process.env.NUXT_PUBLIC_SUPPORT_PHONE || '',
@@ -61,12 +62,16 @@ export default defineNuxtConfig({
     },
     session:{
       password: '',
-      name: 'nau-session',
+      // Host-only cookies keep platform, staff, and student sessions isolated.
+      // The production __Host- prefix also prevents a subdomain from replacing
+      // another application's session cookie.
+      name: process.env.NODE_ENV === 'production' ? '__Host-opendojos-session' : 'opendojos-session',
+      maxAge: 60 * 60 * 24 * 365,
       cookie: {
-        maxAge: 60 * 24 * 7,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
-        domain: process.env.NUXT_SESSION_COOKIE_DOMAIN || undefined,
+        httpOnly: true,
+        path: '/',
       }
     }
   },

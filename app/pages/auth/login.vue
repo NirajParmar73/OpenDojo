@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import type { FormSubmitEvent } from '@nuxt/ui'
 import { z } from 'zod/v4'
+import { classifyAppHost, platformAppUrl, portalAppUrl } from '#shared/utils/app-host'
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -18,16 +19,27 @@ const loading = ref(false)
 const toast = useToast()
 const { user, loggedIn } = useUserSession()
 const route = useRoute()
+const runtimeConfig = useRuntimeConfig()
 definePageMeta({ layout: 'auth' })
 
-if (loggedIn.value) await navigateTo(user.value?.isPlatformAdmin ? '/platform' : '/', { replace: true })
+const currentAppHost = classifyAppHost(useRequestURL().hostname, String(runtimeConfig.public.tenantBaseDomain || ''))
 
-if (route.query.created === '1' && typeof route.query.email === 'string') state.email = route.query.email
+if (loggedIn.value) {
+  const appHost = currentAppHost
+  const target = user.value?.role === 'student'
+    ? (appHost.surface === 'legacy' ? '/portal' : portalAppUrl(String(runtimeConfig.public.tenantBaseDomain || ''), appHost.tenantSlug))
+    : user.value?.isPlatformAdmin
+      ? (appHost.surface === 'legacy' ? '/platform' : platformAppUrl(String(runtimeConfig.public.tenantBaseDomain || '')))
+      : '/'
+  await navigateTo(target, { replace: true, external: target.startsWith('http') })
+}
+
+if (typeof route.query.email === 'string') state.email = route.query.email
 
 async function onLogin(event: FormSubmitEvent<Schema>) {
   loading.value = true
   try {
-    const response = await $fetch<{ workspaceUrl?: string, isPlatformAdmin?: boolean }>('/api/auth/login', {
+    const response = await $fetch<{ isPlatformAdmin?: boolean, platformLoginRequired?: boolean }>('/api/auth/login', {
       method: 'POST',
       body: {
         email: event.data.email,
@@ -37,11 +49,13 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
     // The server has already set the session cookie. Use a full navigation so
     // route middleware reads that new session reliably on the next request.
     if (response.isPlatformAdmin) {
-      window.location.assign('/platform')
-      return
-    }
-    if (!user.value?.isPlatformAdmin && response.workspaceUrl && new URL(response.workspaceUrl).host !== window.location.host) {
-      window.location.assign(response.workspaceUrl)
+      const appHost = classifyAppHost(window.location.hostname, String(runtimeConfig.public.tenantBaseDomain || ''))
+      const target = appHost.surface === 'legacy'
+        ? '/platform'
+        : response.platformLoginRequired
+          ? platformAppUrl(String(runtimeConfig.public.tenantBaseDomain || ''), `/auth/login?email=${encodeURIComponent(event.data.email)}`)
+          : platformAppUrl(String(runtimeConfig.public.tenantBaseDomain || ''))
+      window.location.assign(target)
       return
     }
     // A newly provisioned workspace continues into its role-specific guide.
@@ -63,11 +77,11 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
   <div class="max-w-md mx-auto mt-10">
     <h1 class="text-2xl font-bold text-center mb-6">Login</h1>
     <UAlert v-if="route.query.created === '1'" class="mb-5" color="success" icon="i-lucide-circle-check" title="Your workspace is ready" description="Sign in to start adding students, recording payments, and managing your dojo." />
-    <UForm :schema :state @submit="onLogin" class="space-y-4">
+    <UForm :schema :state class="space-y-4" @submit="onLogin">
       <UFormField name="email" label="Email Address">
         <UInput
-          class="w-full"
           v-model="state.email"
+          class="w-full"
           type="email"
           placeholder="Enter your email"
           required
@@ -75,8 +89,8 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
       </UFormField>
       <UFormField name="password" label="Password">
         <UInput
-          class="w-full"
           v-model="state.password"
+          class="w-full"
           type="password"
           placeholder="Enter your password"
           required

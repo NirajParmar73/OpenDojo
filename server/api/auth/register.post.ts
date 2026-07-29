@@ -31,7 +31,8 @@ export default defineEventHandler(async (event)=>{
             avatar: user.avatar,
             isPlatformAdmin: isPlatformAdminEmail(user.email)
         },
-        lastLoggedIn: new Date()
+        lastLoggedIn: new Date(),
+        sessionRefreshedAt: new Date()
     })
 
     return{success: true}

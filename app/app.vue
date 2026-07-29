@@ -7,8 +7,14 @@
   </UApp>
 </template>
 <script setup>
+import { classifyAppHost } from '#shared/utils/app-host'
+
 const route = useRoute()
-const isStudentPortal = computed(() => route.path.startsWith('/portal'))
+const runtimeConfig = useRuntimeConfig()
+const requestUrl = useRequestURL()
+const appHost = computed(() => classifyAppHost(requestUrl.hostname, String(runtimeConfig.public.tenantBaseDomain || '')))
+const isStudentPortal = computed(() => appHost.value.surface === 'portal' || (appHost.value.surface === 'legacy' && route.path.startsWith('/portal')))
+const isInstallableApp = computed(() => ['staff', 'portal', 'legacy'].includes(appHost.value.surface))
 
 useHead(() => ({
   title: isStudentPortal.value ? 'OpenDojos Student' : 'OpenDojos',
@@ -23,7 +29,7 @@ useHead(() => ({
   link: [
     { rel: 'icon', type: 'image/png', href: '/brand/opendojos-mark.png' },
     { rel: 'apple-touch-icon', href: isStudentPortal.value ? '/pwa-icon-192.png' : '/brand/opendojos-mark.png' },
-    { rel: 'manifest', href: isStudentPortal.value ? '/portal/manifest.webmanifest' : '/manifest.webmanifest' },
+    ...(isInstallableApp.value ? [{ rel: 'manifest', href: isStudentPortal.value ? '/portal/manifest.webmanifest' : '/manifest.webmanifest' }] : []),
   ],
 }))
 </script>

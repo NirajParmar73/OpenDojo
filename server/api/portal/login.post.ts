@@ -12,7 +12,7 @@ export default defineEventHandler(async (event) => {
   if (!account || !account.student || !account.isActive || !await verifyPassword(account.passwordHash, body.password)) throw createError({ statusCode: 401, statusMessage: 'Invalid portal credentials' })
   const tenant = currentTenant(event)
   if (tenant && tenant.id !== account.student.organizationId) throw createError({ statusCode: 403, statusMessage: 'Use your organization workspace address to sign in' })
-  const session = { user: { id: account.id, name: `${account.student.firstName} ${account.student.lastName}`, role: 'student', organizationId: account.student.organizationId, studentId: account.studentId, organizationName: account.student.dojo?.name || 'Student portal' }, lastLoggedIn: new Date() }
+  const session = { user: { id: account.id, name: `${account.student.firstName} ${account.student.lastName}`, role: 'student', organizationId: account.student.organizationId, studentId: account.studentId, organizationName: account.student.dojo?.name || 'Student portal' }, lastLoggedIn: new Date(), sessionRefreshedAt: new Date() }
   await setUserSession(event, session as never)
   return { success: true }
 })

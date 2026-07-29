@@ -1,5 +1,5 @@
 // Increment this whenever the offline page, manifest, or PWA icons change.
-const CACHE_NAME = 'opendojos-static-v8'
+const CACHE_NAME = 'opendojos-static-v9'
 const OFFLINE_URL = '/offline.html'
 const STATIC_ASSETS = [
   OFFLINE_URL,

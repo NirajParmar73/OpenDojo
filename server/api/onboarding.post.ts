@@ -203,6 +203,7 @@ await setUserSession(event, {
     isPlatformAdmin: false,
   },
   lastLoggedIn: new Date(),
+  sessionRefreshedAt: new Date(),
 })
 
   console.log('✅ Onboarding successful, session set for:', email)

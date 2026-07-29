@@ -1,3 +1,5 @@
+import { classifyAppHost } from '#shared/utils/app-host'
+
 interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
@@ -5,6 +7,9 @@ interface BeforeInstallPromptEvent extends Event {
 
 export default defineNuxtPlugin(() => {
   if (!import.meta.client || !('serviceWorker' in navigator)) return
+  const runtimeConfig = useRuntimeConfig()
+  const appHost = classifyAppHost(window.location.hostname, String(runtimeConfig.public.tenantBaseDomain || ''))
+  const isInstallableApp = ['staff', 'portal', 'legacy'].includes(appHost.surface)
 
   if (import.meta.dev) {
     // A development service worker can keep serving old Nuxt modules after a
@@ -20,6 +25,7 @@ export default defineNuxtPlugin(() => {
     })
     return
   }
+  if (!isInstallableApp) return
 
   // This event can fire before a component's mounted hook. Keep the native
   // browser prompt in app state so the visible Install button can always use it.

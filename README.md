@@ -61,11 +61,31 @@ Check out the [deployment documentation](https://nuxt.com/docs/getting-started/d
 
 ## Multi-tenant production setup
 
-OpenDojo supports optional organization workspaces at `organization-slug.your-domain.com`. Before production, configure wildcard DNS (`*.your-domain.com`) and a wildcard TLS certificate at your reverse proxy/hosting provider. Set `NUXT_TENANT_BASE_DOMAIN=your-domain.com` and `NUXT_SESSION_COOKIE_DOMAIN=.your-domain.com`; the latter is required so a staff session remains valid when login redirects to its workspace subdomain.
+OpenDojo separates its public, platform, staff, and student applications by hostname:
 
-The global tenant middleware resolves the subdomain, rejects unknown organizations, and rejects sessions belonging to another organization. Keep the main app at `app.your-domain.com` (or the apex domain) for onboarding and sign-in discovery. New organizations are given a sanitized, reserved-name-safe slug and are redirected to their workspace. Make sure your proxy forwards the original `Host` / `X-Forwarded-Host` header to Nuxt.
+```text
+your-domain.com                 Public website
+platform.your-domain.com        SaaS platform administration
+app.your-domain.com             General staff application
+tenant.your-domain.com          Tenant-branded staff application
+portal.your-domain.com          General student portal
+tenant.portal.your-domain.com   Tenant-branded student portal
+```
 
-Student access is invitation-only: administrators create or disable portal credentials from **Student profile → Portal access**. Students sign in only at `/portal/login` within their organization's workspace; the student layout intentionally has no organization-registration link.
+Configure DNS and TLS for the apex domain, `*.your-domain.com`, and `*.portal.your-domain.com`. A wildcard such as `*.your-domain.com` does not cover `tenant.portal.your-domain.com`, and `*.*.your-domain.com` is not a portable recursive wildcard. All names may route to the same OpenDojo service, but the proxy must preserve the original `Host` or `X-Forwarded-Host` header.
+
+Set:
+
+```env
+NUXT_TENANT_BASE_DOMAIN=your-domain.com
+NUXT_PUBLIC_TENANT_BASE_DOMAIN=your-domain.com
+NUXT_PUBLIC_APP_URL=https://app.your-domain.com
+NUXT_ENFORCE_APP_SUBDOMAINS=true
+```
+
+Do not set `NUXT_SESSION_COOKIE_DOMAIN`. OpenDojo intentionally uses secure host-only cookies so a platform, staff, or student login cannot replace another application's session. The general staff application remains on `app.your-domain.com`; tenant-branded workspaces can be entered directly at `tenant.your-domain.com`.
+
+The global tenant middleware resolves both staff and student tenant hostnames, rejects unknown organizations, enforces application-surface boundaries, and rejects sessions belonging to another organization. New organizations receive a sanitized, reserved-name-safe slug. Student access is invitation-only: authorized managers create or disable credentials from **Student profile → Portal access**.
 
 ## Renovate integration
 

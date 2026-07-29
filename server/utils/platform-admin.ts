@@ -1,4 +1,5 @@
 import type { H3Event } from 'h3'
+import { renewUserSessionIfNeeded } from './session-renewal'
 
 /**
  * Platform access is deliberately separate from an organization `owner` role.
@@ -19,5 +20,6 @@ export async function requirePlatformAdmin(event: H3Event) {
   if (!session?.user || !isPlatformAdminEmail(session.user.email)) {
     throw createError({ statusCode: 403, statusMessage: 'Platform administrator access required' })
   }
+  await renewUserSessionIfNeeded(event, session)
   return { ...session, user: session.user }
 }

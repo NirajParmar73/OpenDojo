@@ -1,13 +1,13 @@
 <template>
   <div v-if="!loggedIn" class="min-h-screen bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-white">
-    <header class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-6 sm:px-8"><PlatformBrand /><nav class="flex flex-wrap items-center justify-end gap-2 sm:gap-3" aria-label="Primary navigation"><button class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" :aria-label="colorMode.value === 'dark' ? 'Use light mode' : 'Use dark mode'" @click="colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'"><UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4" /></button><NuxtLink to="/pricing" class="text-sm font-medium text-slate-600 hover:text-primary dark:text-slate-300">Pricing</NuxtLink><UButton to="/auth/login" color="neutral" variant="ghost">Sign in</UButton><UButton to="/onboarding">Start free</UButton></nav></header>
+    <header class="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-4 px-6 py-6 sm:px-8"><PlatformBrand /><nav class="flex flex-wrap items-center justify-end gap-2 sm:gap-3" aria-label="Primary navigation"><button class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" :aria-label="colorMode.value === 'dark' ? 'Use light mode' : 'Use dark mode'" @click="colorMode.preference = colorMode.value === 'dark' ? 'light' : 'dark'"><UIcon :name="colorMode.value === 'dark' ? 'i-lucide-sun' : 'i-lucide-moon'" class="h-4 w-4" /></button><NuxtLink to="/pricing" class="text-sm font-medium text-slate-600 hover:text-primary dark:text-slate-300">Pricing</NuxtLink><UButton :to="staffSignInUrl" color="neutral" variant="ghost" external>Sign in</UButton><UButton to="/onboarding">Start free</UButton></nav></header>
     <main class="mx-auto max-w-7xl px-6 pb-20 pt-16 sm:px-8 sm:pt-24">
       <section class="grid gap-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
         <div>
           <p class="text-sm font-semibold text-primary">MARTIAL-ARTS MANAGEMENT, MADE SIMPLE</p>
           <h1 class="mt-4 text-4xl font-semibold tracking-tight sm:text-6xl">Run your dojo. Grow your legacy.</h1>
           <p class="mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-slate-300">OpenDojos brings students, instructors, classes, location-based fees, expenses, and reporting into one focused workspace.</p>
-          <div class="mt-8 flex flex-wrap gap-3"><UButton to="/onboarding" size="xl" icon="i-lucide-building-2">Create your organization</UButton><UButton to="/auth/login" size="xl" color="neutral" variant="outline">Sign in to workspace</UButton></div>
+          <div class="mt-8 flex flex-wrap gap-3"><UButton to="/onboarding" size="xl" icon="i-lucide-building-2">Create your organization</UButton><UButton :to="staffSignInUrl" size="xl" color="neutral" variant="outline" external>Sign in to workspace</UButton></div>
         </div>
         <div class="relative aspect-[4/3] overflow-hidden rounded-[2rem] border border-slate-200 bg-[#f4ead4] shadow-2xl sm:aspect-[16/10] lg:aspect-[4/3] dark:border-white/10 dark:bg-slate-900">
           <img src="/illustrations/martial-arts-watercolor-hero.png" alt="Watercolor illustration of karate, taekwondo, and kendo practitioners" class="h-full w-full object-cover object-[62%_center] dark:brightness-75 dark:saturate-75" />
@@ -176,13 +176,24 @@
 </template>
 
 <script setup lang="ts">
+import { classifyAppHost, portalAppUrl } from '#shared/utils/app-host'
+
 type Dashboard = {
   scope: string
   totals: { dojos: number, students: number, staff: number, instructors: number }
   hierarchyBreakdown: { label: string, items: Array<{ id: number, name: string, dojos: number, students: number }> }
   dojos: Array<{ id: number, name: string, nodeName: string, studentCount: number }>
 }
-const { loggedIn } = useUserSession()
+const { loggedIn, user } = useUserSession()
+const runtimeConfig = useRuntimeConfig()
+const { staffSignInUrl } = useApplicationUrls()
+if (loggedIn.value && user.value?.role === 'student') {
+  const appHost = classifyAppHost(useRequestURL().hostname, String(runtimeConfig.public.tenantBaseDomain || ''))
+  const target = appHost.surface === 'legacy'
+    ? '/portal'
+    : portalAppUrl(String(runtimeConfig.public.tenantBaseDomain || ''), appHost.tenantSlug)
+  await navigateTo(target, { replace: true, external: target.startsWith('http') })
+}
 const colorMode = useColorMode()
 const { data: dashboard, pending, error, refresh } = await useFetch<Dashboard>('/api/dashboard', { immediate: false })
 if (loggedIn.value) await refresh()
