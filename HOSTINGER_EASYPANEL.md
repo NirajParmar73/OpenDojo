@@ -79,21 +79,25 @@ This enables addresses such as `demo.opendojos.com`. Keep it blank for the first
 ## 7. Enable push-to-production CI/CD
 
 The repository workflow verifies every pull request and every push to `main`.
-After the tests, lint, typecheck, and production build all pass on `main`, it
-calls EasyPanel's deploy webhook. EasyPanel then checks out that commit, builds
-the root `Dockerfile`, runs the database migrations, and replaces the live
-container.
+After the tests, lint, and typecheck pass on `main`, GitHub builds the production
+Docker image and publishes it as `ghcr.io/nirajparmar73/opendojo:latest`. It
+then calls EasyPanel's deploy webhook. EasyPanel pulls the ready-made image,
+runs the database migrations, and replaces the live container without compiling
+Nuxt on the VPS.
 
-1. In the `web` app service, open **Deploy Webhook** and copy its URL.
-2. In GitHub, open **Settings → Environments → New environment**, create an
+1. In the `web` app service's **Source** page, select **Docker Image** and set
+   the image to `ghcr.io/nirajparmar73/opendojo:latest`.
+2. Open **Deployments**, scroll below the deployment history to
+   **Deployment Trigger**, and copy its URL.
+3. In GitHub, open **Settings → Environments → New environment**, create an
    environment named `production`, and leave required reviewers disabled if you
    want deployment to start without manual approval.
-3. Open the `production` environment, add an environment secret named
+4. Open the `production` environment, add an environment secret named
    `EASYPANEL_DEPLOY_WEBHOOK_URL`, and paste the EasyPanel webhook URL.
-4. In EasyPanel, leave **Auto Deploy** disabled. The GitHub Actions workflow
+5. In EasyPanel, leave **Auto Deploy** disabled. The GitHub Actions workflow
    calls the webhook only after CI succeeds; enabling both would trigger two
    deployments and could deploy code before the checks finish.
-5. Push a small change to `main`, watch the **CI/CD** workflow in GitHub
+6. Push a small change to `main`, watch the **CI/CD** workflow in GitHub
    Actions, then watch the deployment in the EasyPanel service's **Deployments**
    or **Logs** tab.
 

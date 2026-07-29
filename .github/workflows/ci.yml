@@ -8,6 +8,7 @@ on:
 
 permissions:
   contents: read
+  packages: write
 
 # A newer push supersedes an older in-progress run. This prevents an older
 # commit from reaching production after a newer one.
@@ -47,12 +48,46 @@ jobs:
         run: pnpm typecheck
 
       - name: Build
+        if: github.event_name == 'pull_request'
         run: pnpm build
+
+  publish:
+    name: Build and publish production image
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Sign in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          tags: |
+            ghcr.io/nirajparmar73/opendojo:latest
+            ghcr.io/nirajparmar73/opendojo:sha-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
   deploy:
     name: Trigger EasyPanel deployment
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    needs: verify
+    needs: publish
     runs-on: ubuntu-latest
     timeout-minutes: 2
     environment: production
