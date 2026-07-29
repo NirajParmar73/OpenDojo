@@ -16,9 +16,11 @@ const state = reactive({
 
 const loading = ref(false)
 const toast = useToast()
-const { user } = useUserSession()
+const { user, loggedIn } = useUserSession()
 const route = useRoute()
 definePageMeta({ layout: 'auth' })
+
+if (loggedIn.value) await navigateTo(user.value?.isPlatformAdmin ? '/platform' : '/', { replace: true })
 
 if (route.query.created === '1' && typeof route.query.email === 'string') state.email = route.query.email
 

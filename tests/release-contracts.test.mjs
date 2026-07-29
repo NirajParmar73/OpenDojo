@@ -5,7 +5,9 @@ import test from 'node:test'
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
 test('student PWA starts inside the protected portal and has distinct branding', async () => {
+  const adminManifest = JSON.parse(await read('public/manifest.webmanifest'))
   const manifest = JSON.parse(await read('public/portal/manifest.webmanifest'))
+  assert.equal(adminManifest.start_url, '/auth/login?source=pwa')
   assert.equal(manifest.start_url, '/portal')
   assert.equal(manifest.scope, '/portal/')
   assert.ok(manifest.icons.some(icon => icon.src === '/student-pwa-icon.svg'))
@@ -15,11 +17,13 @@ test('student PWA starts inside the protected portal and has distinct branding',
 
   const adminLayout = await read('app/layouts/default.vue')
   const portalLayout = await read('app/layouts/portal.vue')
+  const staffLogin = await read('app/pages/auth/login.vue')
   const installButton = await read('app/components/PwaInstallButton.vue')
   assert.match(adminLayout, /Install Admin app/)
   assert.match(portalLayout, /Install Student app/)
   assert.match(installButton, /<UButton size="sm" icon="i-lucide-download"/)
   assert.match(installButton, /Open the browser menu/)
+  assert.match(staffLogin, /loggedIn\.value[\s\S]*navigateTo\(user\.value\?\.isPlatformAdmin \? '\/platform' : '\/'/)
 })
 
 test('student sessions are constrained to student APIs and owned downloads', async () => {

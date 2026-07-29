@@ -3,7 +3,7 @@
   "name": "OpenDojos",
   "short_name": "OpenDojos",
   "description": "Manage your dojo, students, classes, and fees.",
-  "start_url": "/",
+  "start_url": "/auth/login?source=pwa",
   "scope": "/",
   "display": "standalone",
   "background_color": "#ffffff",
