@@ -39,6 +39,20 @@
           </form>
         </UCard>
       </div>
+      <UCard v-else-if="tab === 'password'">
+        <template #header>
+          <div class="flex items-center gap-3">
+            <div class="rounded-xl bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-key-round" class="h-5 w-5" /></div>
+            <div><h2 class="font-semibold">Change password</h2><p class="mt-1 text-sm text-slate-500">Use a private password with at least 8 characters.</p></div>
+          </div>
+        </template>
+        <form class="grid gap-4 sm:grid-cols-2" @submit.prevent="changePassword">
+          <UFormField label="Current password" class="sm:col-span-2"><UInput v-model="passwordForm.currentPassword" type="password" autocomplete="current-password" required /></UFormField>
+          <UFormField label="New password"><UInput v-model="passwordForm.newPassword" type="password" autocomplete="new-password" :minlength="8" required /></UFormField>
+          <UFormField label="Confirm new password"><UInput v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" :minlength="8" required /></UFormField>
+          <div class="sm:col-span-2"><UButton type="submit" :loading="changingPassword" icon="i-lucide-key-round">Change password</UButton></div>
+        </form>
+      </UCard>
       <UCard v-else-if="tab === 'progress'"><template #header><div class="flex items-center justify-between"><h2 class="font-semibold">My progress</h2><UButton size="sm" icon="i-lucide-download" :loading="downloadingPdf === 'progress'" @click="downloadPdf(`/api/students/${data.student.id}/progress-report`, `progress_${data.student.firstName}_${data.student.lastName}.pdf`, 'progress')">Download report</UButton></div></template><div v-if="data.gradings.length" class="space-y-3"><div v-for="grading in data.gradings" :key="grading.id" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><p class="font-medium">{{ grading.beltRank?.name }} <span class="text-slate-500">{{ grading.beltRank?.level }}</span></p><p class="mt-1 text-sm text-slate-500">Awarded {{ formatDate(grading.awardedDate) }}</p><p v-if="grading.certificateNumber" class="mt-1 text-sm">Certificate: {{ grading.certificateNumber }}</p><a v-if="grading.certificateUrl" :href="grading.certificateUrl" target="_blank" class="mt-2 inline-block text-sm text-primary hover:underline">Open certificate</a></div></div><p v-else class="py-8 text-center text-slate-500">No gradings have been recorded yet.</p></UCard>
       <UCard v-else-if="tab === 'achievements'"><template #header><h2 class="font-semibold">My achievements</h2></template><div v-if="data.achievements.length" class="space-y-3"><div v-for="item in data.achievements" :key="item.id" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><p class="font-medium">{{ item.tournamentName }}</p><p class="mt-1 text-sm text-slate-500">{{ item.eventType || 'Participation' }} · {{ formatDate(item.startDate) }}</p><p class="mt-1 text-sm">{{ item.result || 'Participation' }}<span v-if="item.medalType"> · {{ item.medalType }}</span></p><a v-if="item.certificateUrl" :href="item.certificateUrl" target="_blank" class="mt-2 inline-block text-sm text-primary hover:underline">Open certificate</a></div></div><p v-else class="py-8 text-center text-slate-500">No achievements have been recorded yet.</p></UCard>
       <UCard v-else-if="tab === 'fees'">
@@ -70,7 +84,7 @@
 </template>
 <script setup lang="ts">
 definePageMeta({ middleware: 'portal-auth', layout: 'portal' })
-const toast = useToast(); const tab = ref('profile'); const savingProfile = ref(false); const tabs = [{ label: 'Profile', value: 'profile' }, { label: 'Attendance', value: 'attendance' }, { label: 'Progress', value: 'progress' }, { label: 'Achievements', value: 'achievements' }, { label: 'Fees', value: 'fees' }, { label: 'Documents', value: 'documents' }]
+const toast = useToast(); const tab = ref('profile'); const savingProfile = ref(false); const tabs = [{ label: 'Profile', value: 'profile' }, { label: 'Attendance', value: 'attendance' }, { label: 'Progress', value: 'progress' }, { label: 'Achievements', value: 'achievements' }, { label: 'Fees', value: 'fees' }, { label: 'Documents', value: 'documents' }, { label: 'Password', value: 'password' }]
 const { data, pending, error, refresh } = await useFetch<any>('/api/portal/me')
 const studentInitials = computed(() => data.value ? `${data.value.student.firstName?.[0] || ''}${data.value.student.lastName?.[0] || ''}`.toUpperCase() : 'S')
 const portalRefunds = computed(() => (data.value?.payments || []).flatMap((payment: any) =>
@@ -79,7 +93,9 @@ const portalRefunds = computed(() => (data.value?.payments || []).flatMap((payme
     .map((refund: any) => ({ ...refund, receiptNumber: payment.receiptNumber }))
 ).sort((a: any, b: any) => new Date(b.refundedAt).getTime() - new Date(a.refundedAt).getTime()))
 const profile = reactive({ email: '', phone: '', address: '', emergencyContact: '', emergencyPhone: '' })
+const changingPassword = ref(false)
 const downloadingPdf = ref<string | null>(null)
+const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 watchEffect(() => { if (data.value) Object.assign(profile, { email: data.value.student.email || '', phone: data.value.student.phone || '', address: data.value.student.address || '', emergencyContact: data.value.student.emergencyContact || '', emergencyPhone: data.value.student.emergencyPhone || '' }) })
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) }; function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: data.value?.currency || 'USD' }).format(amount / 100) }
 function attendanceColor(status: string) { return status === 'present' ? 'success' : status === 'late' ? 'warning' : status === 'excused' ? 'info' : 'error' }
@@ -109,6 +125,22 @@ async function downloadPdf(url: string, fallbackFilename: string, downloadKey: s
     toast.add({ color: 'error', title: 'Download failed', description: error.message || 'Please try again.' })
   } finally {
     downloadingPdf.value = null
+  }
+}
+async function changePassword() {
+  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+    toast.add({ color: 'warning', title: 'Passwords do not match' })
+    return
+  }
+  changingPassword.value = true
+  try {
+    await $fetch('/api/portal/password', { method: 'PUT', body: { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword } })
+    Object.assign(passwordForm, { currentPassword: '', newPassword: '', confirmPassword: '' })
+    toast.add({ color: 'success', title: 'Password changed' })
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not change password', description: error.data?.statusMessage || error.message })
+  } finally {
+    changingPassword.value = false
   }
 }
 </script>
