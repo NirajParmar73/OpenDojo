@@ -1,14 +1,23 @@
 // Increment this whenever the offline page, manifest, or PWA icons change.
-const CACHE_NAME = 'opendojos-static-v10'
+const CACHE_NAME = 'opendojos-static-v11'
 const OFFLINE_URL = '/offline.html'
 const STATIC_ASSETS = [
   OFFLINE_URL,
   '/manifest.webmanifest',
   '/platform/manifest.webmanifest',
   '/portal/manifest.webmanifest',
-  '/student-pwa-icon.svg',
-  '/pwa-icon-192.png',
-  '/pwa-icon-512.png'
+  '/admin-pwa-icon-180.png',
+  '/admin-pwa-icon-192.png',
+  '/admin-pwa-icon-512.png',
+  '/admin-pwa-icon-maskable-512.png',
+  '/platform-pwa-icon-180.png',
+  '/platform-pwa-icon-192.png',
+  '/platform-pwa-icon-512.png',
+  '/platform-pwa-icon-maskable-512.png',
+  '/student-pwa-icon-180.png',
+  '/student-pwa-icon-192.png',
+  '/student-pwa-icon-512.png',
+  '/student-pwa-icon-maskable-512.png'
 ]
 
 self.addEventListener('install', (event) => {

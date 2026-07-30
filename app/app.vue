@@ -16,22 +16,58 @@ const appHost = computed(() => classifyAppHost(requestUrl.hostname, String(runti
 const isStudentPortal = computed(() => appHost.value.surface === 'portal' || (appHost.value.surface === 'legacy' && route.path.startsWith('/portal')))
 const isPlatformApp = computed(() => appHost.value.surface === 'platform')
 const isInstallableApp = computed(() => ['platform', 'staff', 'portal', 'legacy'].includes(appHost.value.surface))
+const appBrand = computed(() => {
+  if (isStudentPortal.value) {
+    return {
+      title: 'OpenDojos Student',
+      themeColor: '#b42318',
+      manifest: '/portal/manifest.webmanifest',
+      icon: '/student-pwa-icon-192.png',
+      appleTouchIcon: '/student-pwa-icon-180.png'
+    }
+  }
+  if (isPlatformApp.value) {
+    return {
+      title: 'OpenDojos Platform',
+      themeColor: '#3730a3',
+      manifest: '/platform/manifest.webmanifest',
+      icon: '/platform-pwa-icon-192.png',
+      appleTouchIcon: '/platform-pwa-icon-180.png'
+    }
+  }
+  if (appHost.value.surface === 'staff' || appHost.value.surface === 'legacy') {
+    return {
+      title: 'OpenDojos Admin',
+      themeColor: '#0f766e',
+      manifest: '/manifest.webmanifest',
+      icon: '/admin-pwa-icon-192.png',
+      appleTouchIcon: '/admin-pwa-icon-180.png'
+    }
+  }
+  return {
+    title: 'OpenDojos',
+    themeColor: '#b42318',
+    manifest: '/manifest.webmanifest',
+    icon: '/brand/opendojos-mark.png',
+    appleTouchIcon: '/brand/opendojos-mark.png'
+  }
+})
 
 useHead(() => ({
-  title: isStudentPortal.value ? 'OpenDojos Student' : isPlatformApp.value ? 'OpenDojos Platform' : 'OpenDojos',
+  title: appBrand.value.title,
   meta: [
     { property: 'og:image', content: '/brand/opendojos-logo.png' },
     { name: 'twitter:card', content: 'summary_large_image' },
-    { name: 'theme-color', content: '#b42318' },
+    { name: 'theme-color', content: appBrand.value.themeColor },
     { name: 'apple-mobile-web-app-capable', content: 'yes' },
     { name: 'apple-mobile-web-app-status-bar-style', content: 'default' },
-    { name: 'apple-mobile-web-app-title', content: isStudentPortal.value ? 'OpenDojos Student' : isPlatformApp.value ? 'OpenDojos Platform' : 'OpenDojos' },
+    { name: 'apple-mobile-web-app-title', content: appBrand.value.title },
   ],
   link: [
-    { rel: 'icon', type: 'image/png', href: '/brand/opendojos-mark.png' },
-    { rel: 'apple-touch-icon', href: isStudentPortal.value ? '/pwa-icon-192.png' : '/brand/opendojos-mark.png' },
+    { rel: 'icon', type: 'image/png', href: appBrand.value.icon },
+    { rel: 'apple-touch-icon', sizes: '180x180', href: appBrand.value.appleTouchIcon },
     ...(isInstallableApp.value
-      ? [{ rel: 'manifest', href: isStudentPortal.value ? '/portal/manifest.webmanifest' : isPlatformApp.value ? '/platform/manifest.webmanifest' : '/manifest.webmanifest' }]
+      ? [{ rel: 'manifest', href: appBrand.value.manifest }]
       : []),
   ],
 }))

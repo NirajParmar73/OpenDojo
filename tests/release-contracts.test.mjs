@@ -5,14 +5,32 @@ import { classifyAppHost, portalAppUrl } from '../shared/utils/app-host.ts'
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
-test('student PWA starts inside the protected portal and has distinct branding', async () => {
+test('installable apps start in the right surface and have distinct branding', async () => {
   const adminManifest = JSON.parse(await read('public/manifest.webmanifest'))
   const platformManifest = JSON.parse(await read('public/platform/manifest.webmanifest'))
   const manifest = JSON.parse(await read('public/portal/manifest.webmanifest'))
   assert.equal(adminManifest.start_url, '/auth/login?source=pwa')
   assert.equal(manifest.start_url, '/portal')
   assert.equal(manifest.scope, '/portal/')
-  assert.ok(manifest.icons.some(icon => icon.src === '/student-pwa-icon.svg'))
+  assert.equal(adminManifest.name, 'OpenDojos Admin')
+  assert.equal(adminManifest.short_name, 'Dojo Admin')
+  assert.equal(platformManifest.short_name, 'Dojo Platform')
+  assert.equal(manifest.short_name, 'Dojo Student')
+  const primaryIcon = pwaManifest => pwaManifest.icons.find(icon => icon.sizes === '192x192')?.src
+  assert.equal(new Set([
+    primaryIcon(adminManifest),
+    primaryIcon(platformManifest),
+    primaryIcon(manifest)
+  ]).size, 3)
+  const primaryIconFiles = await Promise.all(
+    [adminManifest, platformManifest, manifest].map(pwaManifest =>
+      readFile(new URL(`../public${primaryIcon(pwaManifest)}`, import.meta.url))
+    )
+  )
+  assert.equal(new Set(primaryIconFiles.map(file => file.toString('base64'))).size, 3)
+  assert.ok(adminManifest.icons.some(icon => icon.src === '/admin-pwa-icon-maskable-512.png' && icon.purpose === 'maskable'))
+  assert.ok(platformManifest.icons.some(icon => icon.src === '/platform-pwa-icon-maskable-512.png' && icon.purpose === 'maskable'))
+  assert.ok(manifest.icons.some(icon => icon.src === '/student-pwa-icon-maskable-512.png' && icon.purpose === 'maskable'))
   assert.equal(platformManifest.start_url, '/platform')
   assert.equal(platformManifest.id, '/platform')
 
@@ -34,6 +52,9 @@ test('student PWA starts inside the protected portal and has distinct branding',
   const app = await read('app/app.vue')
   const pwaPlugin = await read('app/plugins/pwa.client.ts')
   assert.match(app, /\/platform\/manifest\.webmanifest/)
+  assert.match(app, /\/admin-pwa-icon-180\.png/)
+  assert.match(app, /\/platform-pwa-icon-180\.png/)
+  assert.match(app, /\/student-pwa-icon-180\.png/)
   assert.match(pwaPlugin, /\['platform', 'staff', 'portal', 'legacy'\]/)
 })
 
