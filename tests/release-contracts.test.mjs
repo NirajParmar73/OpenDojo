@@ -276,6 +276,7 @@ test('territory managers grant student portal access only inside their scope', a
   const studentPage = await read('app/pages/students/[id].vue')
   const accessPage = await read('app/pages/students/[id]/portal-access.vue')
   const portalPage = await read('app/pages/portal/index.vue')
+  const forcedPasswordPage = await read('app/pages/portal/change-password.vue')
 
   assert.match(permissions, /studentPortalManagerRoles = \[\.\.\.financeManagerRoles\]/)
   assert.match(permissions, /hasStudentPortalManagementAccess/)
@@ -289,8 +290,10 @@ test('territory managers grant student portal access only inside their scope', a
   assert.match(accessPage, /middleware: 'auth'/)
   assert.doesNotMatch(accessPage, /middleware: \['auth', 'admin'\]/)
   assert.match(portalPage, /data\.student\.avatar/)
-  assert.match(portalPage, /\/api\/portal\/password/)
-  assert.match(portalPage, /passwordForm\.newPassword !== passwordForm\.confirmPassword/)
+  assert.doesNotMatch(portalPage, /Change password/)
+  assert.doesNotMatch(portalPage, /\/api\/portal\/password/)
+  assert.match(forcedPasswordPage, /\/api\/portal\/password/)
+  assert.match(forcedPasswordPage, /form\.newPassword !== form\.confirmPassword/)
 })
 
 test('dojo geography inherits the manager territory without guessing across territories', async () => {

@@ -20,7 +20,7 @@
         <UCard><div class="flex items-start justify-between gap-3"><div><p class="text-sm text-slate-500">Payments recorded</p><p class="mt-2 text-xl font-semibold">{{ data.payments.length }}</p></div><div class="rounded-2xl bg-sky-500/10 p-2.5 text-sky-600 dark:text-sky-400"><UIcon name="i-lucide-receipt-indian-rupee" class="h-5 w-5" /></div></div></UCard>
       </div>
       <div class="mb-5 flex flex-wrap gap-2"><UButton v-for="item in tabs" :key="item.value" size="sm" :color="tab === item.value ? 'primary' : 'neutral'" :variant="tab === item.value ? 'solid' : 'soft'" @click="tab = item.value; void 0">{{ item.label }}</UButton></div>
-      <div v-if="tab === 'profile'" class="space-y-4">
+      <div v-if="tab === 'profile'">
         <UCard>
           <template #header>
             <div class="flex items-center gap-4">
@@ -36,20 +36,6 @@
             <UFormField label="Emergency contact"><UInput v-model="profile.emergencyContact" /></UFormField>
             <UFormField label="Emergency phone"><UInput v-model="profile.emergencyPhone" /></UFormField>
             <div class="sm:col-span-2"><UButton type="submit" :loading="savingProfile">Save contact details</UButton></div>
-          </form>
-        </UCard>
-        <UCard>
-          <template #header>
-            <div class="flex items-center gap-3">
-              <div class="rounded-xl bg-primary/10 p-2 text-primary"><UIcon name="i-lucide-key-round" class="h-5 w-5" /></div>
-              <div><h2 class="font-semibold">Change password</h2><p class="mt-1 text-sm text-slate-500">Use a private password with at least 8 characters.</p></div>
-            </div>
-          </template>
-          <form class="grid gap-4 sm:grid-cols-2" @submit.prevent="changePassword">
-            <UFormField label="Current password" class="sm:col-span-2"><UInput v-model="passwordForm.currentPassword" type="password" autocomplete="current-password" required /></UFormField>
-            <UFormField label="New password"><UInput v-model="passwordForm.newPassword" type="password" autocomplete="new-password" :minlength="8" required /></UFormField>
-            <UFormField label="Confirm new password"><UInput v-model="passwordForm.confirmPassword" type="password" autocomplete="new-password" :minlength="8" required /></UFormField>
-            <div class="sm:col-span-2"><UButton type="submit" :loading="changingPassword" icon="i-lucide-key-round">Change password</UButton></div>
           </form>
         </UCard>
       </div>
@@ -93,9 +79,7 @@ const portalRefunds = computed(() => (data.value?.payments || []).flatMap((payme
     .map((refund: any) => ({ ...refund, receiptNumber: payment.receiptNumber }))
 ).sort((a: any, b: any) => new Date(b.refundedAt).getTime() - new Date(a.refundedAt).getTime()))
 const profile = reactive({ email: '', phone: '', address: '', emergencyContact: '', emergencyPhone: '' })
-const changingPassword = ref(false)
 const downloadingPdf = ref<string | null>(null)
-const passwordForm = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
 watchEffect(() => { if (data.value) Object.assign(profile, { email: data.value.student.email || '', phone: data.value.student.phone || '', address: data.value.student.address || '', emergencyContact: data.value.student.emergencyContact || '', emergencyPhone: data.value.student.emergencyPhone || '' }) })
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) }; function formatCurrency(amount: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: data.value?.currency || 'USD' }).format(amount / 100) }
 function attendanceColor(status: string) { return status === 'present' ? 'success' : status === 'late' ? 'warning' : status === 'excused' ? 'info' : 'error' }
@@ -125,22 +109,6 @@ async function downloadPdf(url: string, fallbackFilename: string, downloadKey: s
     toast.add({ color: 'error', title: 'Download failed', description: error.message || 'Please try again.' })
   } finally {
     downloadingPdf.value = null
-  }
-}
-async function changePassword() {
-  if (passwordForm.newPassword !== passwordForm.confirmPassword) {
-    toast.add({ color: 'warning', title: 'Passwords do not match' })
-    return
-  }
-  changingPassword.value = true
-  try {
-    await $fetch('/api/portal/password', { method: 'PUT', body: { currentPassword: passwordForm.currentPassword, newPassword: passwordForm.newPassword } })
-    Object.assign(passwordForm, { currentPassword: '', newPassword: '', confirmPassword: '' })
-    toast.add({ color: 'success', title: 'Password changed' })
-  } catch (error: any) {
-    toast.add({ color: 'error', title: 'Could not change password', description: error.data?.statusMessage || error.message })
-  } finally {
-    changingPassword.value = false
   }
 }
 </script>
