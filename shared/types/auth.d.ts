@@ -10,6 +10,8 @@ declare module '#auth-utils' {
     organizationLogo: string | null // 👈 add this
     avatar: string | null
     isPlatformAdmin: boolean
+    studentId?: number
+    mustChangePassword?: boolean
   }
 
   interface UserSession {

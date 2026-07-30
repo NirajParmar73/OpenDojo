@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   const existingUsername = await db.query.studentPortalAccounts.findFirst({ where: eq(tables.studentPortalAccounts.username, body.username) })
   const account = await db.query.studentPortalAccounts.findFirst({ where: eq(tables.studentPortalAccounts.studentId, studentId) })
   if (existingUsername && existingUsername.id !== account?.id) throw createError({ statusCode: 409, statusMessage: 'That portal username is already in use' })
-  const values = { username: body.username, passwordHash: await hashPassword(body.temporaryPassword), isActive: body.isActive ? 1 : 0, updatedAt: new Date() }
+  const values = { username: body.username, passwordHash: await hashPassword(body.temporaryPassword), isActive: body.isActive ? 1 : 0, mustChangePassword: true, updatedAt: new Date() }
   if (account) await db.update(tables.studentPortalAccounts).set(values).where(eq(tables.studentPortalAccounts.id, account.id))
   else await db.insert(tables.studentPortalAccounts).values({ studentId, ...values })
   await writeAuditLog({

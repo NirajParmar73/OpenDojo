@@ -59,7 +59,10 @@
           </div>
 
           <div class="mt-5 flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-            <p class="text-sm text-slate-500">Invalid rows will be skipped. Correct them in the spreadsheet and upload again if they should be included.</p>
+            <div>
+              <p class="text-sm text-slate-500">Invalid rows will be skipped. Correct them in the spreadsheet and upload again if they should be included.</p>
+              <UCheckbox v-model="grantPortalAccess" class="mt-3" label="Grant portal access to imported students" />
+            </div>
             <UButton :disabled="preview.valid === 0" :loading="importing" icon="i-lucide-file-input" @click="commitImport">Import {{ preview.valid }} valid student{{ preview.valid === 1 ? '' : 's' }}</UButton>
           </div>
         </UCard>
@@ -67,6 +70,7 @@
         <UCard v-if="result">
           <template #header><div><h2 class="font-semibold">3. Import result</h2><p class="mt-1 text-sm text-slate-500">{{ result.imported }} imported · {{ result.failed }} skipped or failed</p></div></template>
           <UAlert :color="result.failed ? 'warning' : 'success'" :title="result.failed ? 'Import completed with skipped rows' : 'Import completed successfully'" :description="result.failed ? 'Download the result report to see what needs correction.' : 'The imported students are now available in the directory.'" />
+          <UAlert v-if="result.results.some(item => item.temporaryPassword)" class="mt-4" color="warning" variant="subtle" title="Save the generated portal credentials now" description="Temporary passwords are returned only once and are included in the result CSV." />
           <div class="mt-5 flex flex-wrap gap-3">
             <UButton to="/students" icon="i-lucide-users">Open student directory</UButton>
             <UButton color="neutral" variant="outline" icon="i-lucide-download" @click="downloadResults">Download result CSV</UButton>
@@ -109,7 +113,7 @@ type PreviewRow = {
   valid: boolean
 }
 type Preview = { fileName: string, total: number, valid: number, invalid: number, rows: PreviewRow[] }
-type ImportResult = { total: number, imported: number, failed: number, results: Array<{ rowNumber: number, student: string, result: string, reason: string, studentId?: number }> }
+type ImportResult = { total: number, imported: number, failed: number, results: Array<{ rowNumber: number, student: string, result: string, reason: string, studentId?: number, username?: string, temporaryPassword?: string }> }
 
 const toast = useToast()
 const selectedFile = ref<File | null>(null)
@@ -117,6 +121,7 @@ const previewing = ref(false)
 const importing = ref(false)
 const preview = ref<Preview | null>(null)
 const result = ref<ImportResult | null>(null)
+const grantPortalAccess = ref(true)
 
 function selectFile(event: Event) {
   selectedFile.value = (event.target as HTMLInputElement).files?.[0] || null
@@ -145,7 +150,7 @@ async function commitImport() {
   try {
     result.value = await $fetch<ImportResult>('/api/student-imports/commit', {
       method: 'POST',
-      body: { fileName: preview.value.fileName, rows: preview.value.rows.map(row => row.input) },
+      body: { fileName: preview.value.fileName, rows: preview.value.rows.map(row => row.input), grantPortalAccess: grantPortalAccess.value },
     })
     toast.add({ color: result.value.failed ? 'warning' : 'success', title: `${result.value.imported} students imported`, description: result.value.failed ? `${result.value.failed} rows were skipped or failed.` : undefined })
   } catch (error: any) {
@@ -164,8 +169,8 @@ function csvCell(value: unknown) {
 function downloadResults() {
   if (!result.value) return
   const rows = [
-    ['Row', 'Student', 'Result', 'Reason', 'Student ID'],
-    ...result.value.results.map(item => [item.rowNumber, item.student, item.result, item.reason, item.studentId || '']),
+    ['Row', 'Student', 'Result', 'Reason', 'Student ID', 'Portal Username', 'Temporary Password'],
+    ...result.value.results.map(item => [item.rowNumber, item.student, item.result, item.reason, item.studentId || '', item.username || '', item.temporaryPassword || '']),
   ]
   const content = `\uFEFF${rows.map(row => row.map(csvCell).join(',')).join('\r\n')}`
   const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }))
@@ -181,4 +186,13 @@ function resetImport() {
   preview.value = null
   result.value = null
 }
+
+onMounted(async () => {
+  try {
+    const settings = await $fetch<any>('/api/organization/settings')
+    grantPortalAccess.value = settings.autoGrantStudentPortalAccess ?? true
+  } catch {
+    // Keep the secure default enabled if settings cannot be loaded.
+  }
+})
 </script>

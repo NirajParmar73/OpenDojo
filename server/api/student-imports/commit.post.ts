@@ -6,6 +6,7 @@ import { prepareStudentImportRows, studentImportInputSchema } from '../../servic
 const bodySchema = z.object({
   fileName: z.string().trim().max(255).default('student-import.csv'),
   rows: z.array(studentImportInputSchema).min(1).max(500),
+  grantPortalAccess: z.boolean().optional(),
 })
 
 function errorMessage(error: any) {
@@ -19,7 +20,7 @@ export default defineEventHandler(async (event) => {
   const organizationId = session.user.organizationId
   const body = await readValidatedBody(event, bodySchema.parse)
   const preparedRows = await prepareStudentImportRows(actorUserId, organizationId, body.rows)
-  const results: Array<{ rowNumber: number, student: string, result: 'imported' | 'failed', reason: string, studentId?: number }> = []
+  const results: Array<{ rowNumber: number, student: string, result: 'imported' | 'failed', reason: string, studentId?: number, username?: string, temporaryPassword?: string }> = []
   const importedByDojo = new Map<number, number>()
 
   for (const row of preparedRows) {
@@ -29,8 +30,16 @@ export default defineEventHandler(async (event) => {
       continue
     }
     try {
-      const student = await enrollStudent(actorUserId, organizationId, row.payload)
-      results.push({ rowNumber: row.rowNumber, student: studentName, studentId: student.id, result: 'imported', reason: '' })
+      const enrollment = await enrollStudent(actorUserId, organizationId, { ...row.payload, grantPortalAccess: body.grantPortalAccess })
+      results.push({
+        rowNumber: row.rowNumber,
+        student: studentName,
+        studentId: enrollment.student.id,
+        result: 'imported',
+        reason: '',
+        username: enrollment.portalCredentials?.username,
+        temporaryPassword: enrollment.portalCredentials?.temporaryPassword,
+      })
       importedByDojo.set(row.payload.dojoId!, (importedByDojo.get(row.payload.dojoId!) || 0) + 1)
     } catch (error) {
       results.push({ rowNumber: row.rowNumber, student: studentName, result: 'failed', reason: errorMessage(error) })

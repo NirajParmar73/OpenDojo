@@ -22,6 +22,7 @@ export const organizations = pgTable('organizations', (t) => ({
   providerSubscriptionId: t.text('provider_subscription_id'),
   logo: t.text(),
   currency: t.text().default('USD'),
+  autoGrantStudentPortalAccess: t.boolean('auto_grant_student_portal_access').notNull().default(true),
   createdAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
@@ -316,6 +317,7 @@ export const studentPortalAccounts = pgTable('student_portal_accounts', (t) => (
   username: t.text().notNull().unique(),
   passwordHash: t.text('password_hash').notNull(),
   isActive: t.integer('is_active').notNull().default(1),
+  mustChangePassword: t.boolean('must_change_password').notNull().default(true),
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))

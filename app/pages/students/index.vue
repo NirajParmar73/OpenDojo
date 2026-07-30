@@ -55,11 +55,30 @@
         <UFormField label="State / province"><UInput v-model="newStudent.stateProvince" /></UFormField>
         <UFormField label="City"><UInput v-model="newStudent.city" /></UFormField>
         <UFormField label="Postal / ZIP code"><UInput v-model="newStudent.postalCode" /></UFormField>
+        <div class="md:col-span-2 xl:col-span-3 rounded-xl border border-slate-200 p-4 dark:border-slate-800">
+          <UCheckbox v-model="newStudent.grantPortalAccess" label="Grant student portal access now" />
+          <p class="mt-2 text-xs text-slate-500">A unique username and one-time temporary password will be generated.</p>
+        </div>
         <div class="md:col-span-2 xl:col-span-3 flex flex-wrap justify-end gap-2 pt-2">
           <UButton type="button" color="neutral" variant="ghost" @click="resetCreateForm">Cancel</UButton>
           <UButton type="submit" color="primary" :loading="creating">Create student</UButton>
         </div>
       </form>
+    </UCard>
+
+    <UCard v-if="portalCredentials.length" class="mb-6">
+      <template #header>
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div><h3 class="font-semibold">Portal credentials</h3><p class="mt-1 text-sm text-slate-500">Copy or download these temporary passwords now. They cannot be viewed again.</p></div>
+          <UButton color="neutral" variant="outline" icon="i-lucide-download" @click="downloadCredentials">Download CSV</UButton>
+        </div>
+      </template>
+      <div class="overflow-x-auto">
+        <table class="min-w-full text-sm">
+          <thead class="text-left text-xs uppercase tracking-wide text-slate-400"><tr><th class="px-3 py-2">Student</th><th class="px-3 py-2">Username</th><th class="px-3 py-2">Temporary password</th></tr></thead>
+          <tbody><tr v-for="credential in portalCredentials" :key="credential.studentId" class="border-t border-slate-100 dark:border-slate-800"><td class="px-3 py-3">{{ credential.studentName }}</td><td class="px-3 py-3 font-mono">{{ credential.username }}</td><td class="px-3 py-3 font-mono">{{ credential.temporaryPassword }}</td></tr></tbody>
+        </table>
+      </div>
     </UCard>
 
     <UCard>
@@ -77,6 +96,17 @@
         </div>
       </template>
 
+      <div v-if="selectedStudentIds.length" class="mb-5 flex flex-col gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-sm font-medium">{{ selectedStudentIds.length }} student{{ selectedStudentIds.length === 1 ? '' : 's' }} selected</p>
+        <div class="flex flex-wrap gap-2">
+          <UButton size="sm" :loading="bulkUpdating" icon="i-lucide-key-round" @click="runBulkPortalAction('grant')">Grant access</UButton>
+          <UButton size="sm" color="neutral" variant="soft" :loading="bulkUpdating" @click="runBulkPortalAction('activate')">Activate</UButton>
+          <UButton size="sm" color="neutral" variant="soft" :loading="bulkUpdating" @click="runBulkPortalAction('deactivate')">Deactivate</UButton>
+          <UButton size="sm" color="warning" variant="soft" :loading="bulkUpdating" @click="runBulkPortalAction('reset')">Reset passwords</UButton>
+          <UButton size="sm" color="neutral" variant="ghost" @click="selectedStudentIds = []">Clear</UButton>
+        </div>
+      </div>
+
       <div v-if="loading" class="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
         <USkeleton v-for="index in 6" :key="index" class="h-32 rounded-2xl" />
       </div>
@@ -87,6 +117,7 @@
         <div class="grid gap-3 md:hidden">
           <article v-for="student in filteredStudents" :key="student.id" class="rounded-2xl border border-slate-200 p-4 dark:border-slate-800">
             <div class="flex items-start gap-3">
+              <UCheckbox :model-value="selectedStudentIds.includes(student.id)" :aria-label="`Select ${student.firstName} ${student.lastName}`" @update:model-value="toggleStudentSelection(student.id, $event)" />
               <StudentAvatar :student="student" />
               <div class="min-w-0 flex-1">
                 <div class="flex items-start justify-between gap-2">
@@ -97,6 +128,7 @@
                 <p class="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{{ student.email || student.phone || 'No contact details' }}</p>
                 <p class="mt-2 text-xs text-slate-500 dark:text-slate-400">Born: {{ formatDate(student.dateOfBirth) }}<span v-if="student.dateOfBirth"> · {{ ageLabel(student.dateOfBirth) }}</span></p>
                 <p class="mt-1 text-xs text-slate-500 dark:text-slate-400">Joined: {{ formatDate(student.joinedAt) }}</p>
+                <UBadge class="mt-2" :color="portalAccount(student)?.isActive ? 'success' : 'neutral'" variant="subtle">{{ portalAccount(student) ? (portalAccount(student)?.isActive ? 'Portal active' : 'Portal inactive') : 'No portal access' }}</UBadge>
               </div>
             </div>
             <div class="mt-4 flex gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
@@ -111,15 +143,17 @@
         <div class="hidden overflow-x-auto md:block">
           <table class="min-w-[1120px] text-sm">
             <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400 dark:border-slate-800">
-              <tr><th class="sticky left-0 z-20 bg-slate-50 px-3 py-3 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.45)] dark:bg-slate-950">Student</th><th class="px-3 py-3">Dojo</th><th class="px-3 py-3">Rank</th><th class="px-3 py-3">Contact</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Date of birth / age</th><th class="px-3 py-3">Date joined</th><th class="px-3 py-3 text-right">Actions</th></tr>
+              <tr><th class="px-3 py-3"><UCheckbox :model-value="allFilteredSelected" aria-label="Select all shown students" @update:model-value="toggleAllFiltered($event)" /></th><th class="sticky left-0 z-20 bg-slate-50 px-3 py-3 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.45)] dark:bg-slate-950">Student</th><th class="px-3 py-3">Dojo</th><th class="px-3 py-3">Rank</th><th class="px-3 py-3">Contact</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Portal</th><th class="px-3 py-3">Date of birth / age</th><th class="px-3 py-3">Date joined</th><th class="px-3 py-3 text-right">Actions</th></tr>
             </thead>
             <tbody>
               <tr v-for="student in filteredStudents" :key="student.id" class="border-b border-slate-100 last:border-0 dark:border-slate-800">
+                <td class="px-3 py-4"><UCheckbox :model-value="selectedStudentIds.includes(student.id)" :aria-label="`Select ${student.firstName} ${student.lastName}`" @update:model-value="toggleStudentSelection(student.id, $event)" /></td>
                 <td class="sticky left-0 z-10 bg-white px-3 py-4 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.45)] dark:bg-slate-900"><div class="flex items-center gap-3"><StudentAvatar :student="student" size="sm" /><NuxtLink :to="`/students/${student.id}`" class="font-medium hover:text-primary">{{ student.firstName }} {{ student.lastName }}</NuxtLink></div></td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ student.dojo?.name || '—' }}</td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ student.currentBeltRank?.name || '—' }}</td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300"><p>{{ student.email || '—' }}</p><p class="mt-1 text-xs text-slate-400">{{ student.phone || '' }}</p></td>
                 <td class="px-3 py-4"><UBadge :color="student.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ student.status }}</UBadge></td>
+                <td class="px-3 py-4"><UBadge :color="portalAccount(student)?.isActive ? 'success' : 'neutral'" variant="subtle">{{ portalAccount(student) ? (portalAccount(student)?.isActive ? 'Active' : 'Inactive') : 'Not granted' }}</UBadge></td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300"><p>{{ formatDate(student.dateOfBirth) }}</p><p v-if="student.dateOfBirth" class="mt-1 text-xs text-slate-400">{{ ageLabel(student.dateOfBirth) }}</p></td>
                 <td class="px-3 py-4 text-slate-600 dark:text-slate-300">{{ formatDate(student.joinedAt) }}</td>
                 <td class="px-3 py-4"><div class="flex justify-end gap-1"><UButton :to="`/fees?id=${student.id}`" size="xs" color="primary" variant="soft">Record fee</UButton><UButton :to="`/students/${student.id}`" size="xs" color="neutral" variant="ghost">Profile</UButton><UButton :to="`/students/${student.id}/edit`" size="xs" color="neutral" variant="ghost">Edit</UButton><UButton size="xs" color="error" variant="ghost" @click="archiveStudent(student)">Archive</UButton></div></td>
@@ -149,7 +183,11 @@ const programs = ref<any[]>([])
 const loading = ref(true)
 const loadError = ref('')
 const creating = ref(false)
+const bulkUpdating = ref(false)
 const showCreate = ref(false)
+const selectedStudentIds = ref<number[]>([])
+type PortalCredential = { studentId: number, studentName: string, username: string, temporaryPassword: string }
+const portalCredentials = ref<PortalCredential[]>([])
 const search = ref('')
 const dojoFilter = ref<number | 'all'>('all')
 const statusFilter = ref('all')
@@ -167,7 +205,7 @@ const genderOptions = [
 ]
 
 const today = new Date().toISOString().slice(0, 10)
-const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, programId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: undefined as number | undefined, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
+const newStudent = reactive({ firstName: '', lastName: '', dojoId: null as number | null, programId: null as number | null, email: '', phone: '', dateOfBirth: '', joinedAt: today, assignFeePlan: true, feePlanId: undefined as number | undefined, initialDiscount: 0, discountReason: '', gender: undefined as string | undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '', grantPortalAccess: true })
 const studentAvatarFile = ref<File | null>(null)
 const studentAvatarPreview = ref('')
 const studentCameraInput = ref<HTMLInputElement | null>(null)
@@ -197,12 +235,15 @@ const filteredStudents = computed(() => {
     return matchesStatus && matchesDojo && (!query || haystack.includes(query))
   })
 })
+const allFilteredSelected = computed(() => filteredStudents.value.length > 0 && filteredStudents.value.every(student => selectedStudentIds.value.includes(student.id)))
+const portalAccount = (student: any) => student.portalAccounts?.[0]
 
 function resetCreateForm() {
   if (studentAvatarPreview.value) URL.revokeObjectURL(studentAvatarPreview.value)
   studentAvatarFile.value = null
   studentAvatarPreview.value = ''
-  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, programId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: undefined, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '' })
+  const grantPortalAccess = newStudent.grantPortalAccess
+  Object.assign(newStudent, { firstName: '', lastName: '', dojoId: null, programId: null, email: '', phone: '', dateOfBirth: '', joinedAt: new Date().toISOString().slice(0, 10), assignFeePlan: true, feePlanId: undefined, initialDiscount: 0, discountReason: '', gender: undefined, emergencyContact: '', emergencyPhone: '', address: '', city: '', stateProvince: '', country: '', countryCode: '', postalCode: '', grantPortalAccess })
   showCreate.value = false
 }
 
@@ -250,11 +291,12 @@ async function loadData() {
   loading.value = true
   loadError.value = ''
   try {
-    const [studentData, dojoData, feePlanData, programData] = await Promise.all([$fetch('/api/students'), $fetch('/api/dojos'), $fetch('/api/fee-plans'), $fetch('/api/organization/programs')])
+    const [studentData, dojoData, feePlanData, programData, organizationSettings] = await Promise.all([$fetch('/api/students'), $fetch('/api/dojos'), $fetch('/api/fee-plans'), $fetch('/api/organization/programs'), $fetch('/api/organization/settings')])
     students.value = studentData as any[]
     dojos.value = dojoData as any[]
     feePlans.value = feePlanData as unknown as FeePlan[]
     programs.value = programData as any[]
+    newStudent.grantPortalAccess = (organizationSettings as any).autoGrantStudentPortalAccess ?? true
   } catch (error: any) {
     loadError.value = error.data?.statusMessage || error.message || 'Please try again.'
   } finally {
@@ -288,6 +330,7 @@ async function createStudent() {
       }
     }
     students.value.unshift(response.student)
+    if (response.portalCredentials) portalCredentials.value = [response.portalCredentials]
     resetCreateForm()
     toast.add({ color: 'success', title: 'Student created' })
   } catch (error: any) {
@@ -295,6 +338,63 @@ async function createStudent() {
   } finally {
     creating.value = false
   }
+}
+
+function toggleStudentSelection(studentId: number, selected: boolean | 'indeterminate') {
+  selectedStudentIds.value = selected
+    ? [...new Set([...selectedStudentIds.value, studentId])]
+    : selectedStudentIds.value.filter(id => id !== studentId)
+}
+
+function toggleAllFiltered(selected: boolean | 'indeterminate') {
+  const visibleIds = filteredStudents.value.map(student => student.id)
+  selectedStudentIds.value = selected
+    ? [...new Set([...selectedStudentIds.value, ...visibleIds])]
+    : selectedStudentIds.value.filter(id => !visibleIds.includes(id))
+}
+
+async function runBulkPortalAction(action: 'grant' | 'activate' | 'deactivate' | 'reset') {
+  if (!selectedStudentIds.value.length) return
+  if (action === 'reset' && !confirm(`Reset portal passwords for ${selectedStudentIds.value.length} selected students? Their current passwords will stop working.`)) return
+  bulkUpdating.value = true
+  try {
+    const result = await $fetch<any>('/api/students/portal-accounts/bulk', {
+      method: 'POST',
+      body: { studentIds: selectedStudentIds.value, action },
+    })
+    portalCredentials.value = result.credentials || []
+    await loadData()
+    selectedStudentIds.value = []
+    toast.add({
+      color: 'success',
+      title: `Portal access ${action === 'grant' ? 'granted' : action === 'reset' ? 'reset' : `${action}d`}`,
+      description: portalCredentials.value.length ? 'Download the temporary credentials now; they cannot be viewed again.' : `${result.affected} students processed.`,
+    })
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not update portal access', description: error.data?.statusMessage || error.message })
+  } finally {
+    bulkUpdating.value = false
+  }
+}
+
+function csvCell(value: unknown) {
+  const original = String(value ?? '')
+  const safe = /^[=+\-@]/.test(original) ? `'${original}` : original
+  return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe
+}
+
+function downloadCredentials() {
+  const rows = [
+    ['Student', 'Username', 'Temporary Password'],
+    ...portalCredentials.value.map(item => [item.studentName, item.username, item.temporaryPassword]),
+  ]
+  const content = `\uFEFF${rows.map(row => row.map(csvCell).join(',')).join('\r\n')}`
+  const url = URL.createObjectURL(new Blob([content], { type: 'text/csv;charset=utf-8' }))
+  const anchor = document.createElement('a')
+  anchor.href = url
+  anchor.download = 'opendojos-portal-credentials.csv'
+  anchor.click()
+  URL.revokeObjectURL(url)
 }
 
 watch(() => newStudent.dojoId, (dojoId) => {

@@ -6,6 +6,6 @@ export default defineEventHandler(async (event) => {
   if (!session.user.organizationId) throw createError({ statusCode: 400, statusMessage: 'User has no organization' })
 
   const body = await readValidatedBody(event, createStudentSchema.parse)
-  const student = await enrollStudent(session.user.id, session.user.organizationId, body)
-  return { success: true, student }
+  const result = await enrollStudent(session.user.id, session.user.organizationId, body)
+  return { success: true, ...result }
 })

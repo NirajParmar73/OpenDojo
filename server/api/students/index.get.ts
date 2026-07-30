@@ -29,6 +29,9 @@ export default defineEventHandler(async (event) => {
       dojo: { with: { node: true } },
       program: true,
       currentBeltRank: true,
+      portalAccounts: {
+        columns: { isActive: true, mustChangePassword: true },
+      },
     },
   })
 })

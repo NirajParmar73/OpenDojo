@@ -24,6 +24,11 @@
         />
       </div>
 
+      <div class="mb-6 rounded-xl border border-gray-200 p-4 dark:border-gray-800">
+        <UCheckbox v-model="form.autoGrantStudentPortalAccess" label="Automatically grant student portal access" />
+        <p class="mt-2 text-xs leading-5 text-gray-500">New students receive a unique username and temporary password. You can override this while adding or importing students.</p>
+      </div>
+
       <div class="mb-4">
         <label class="block text-sm font-medium">Current Logo</label>
         <div class="flex items-center gap-4">
@@ -59,12 +64,14 @@ const org = reactive({
   slug: '',
   logo: null as string | null,
   currency: 'INR',
+  autoGrantStudentPortalAccess: true,
 })
 
 const form = reactive({
   name: '',
   slug: '',
   currency: 'INR',
+  autoGrantStudentPortalAccess: true,
 })
 
 const logoFile = ref<File | null>(null)
@@ -76,9 +83,11 @@ onMounted(async () => {
     org.slug = data.slug
     org.logo = data.logo
     org.currency = data.currency || 'INR'
+    org.autoGrantStudentPortalAccess = data.autoGrantStudentPortalAccess ?? true
     form.name = data.name
     form.slug = data.slug
     form.currency = data.currency || 'INR'
+    form.autoGrantStudentPortalAccess = data.autoGrantStudentPortalAccess ?? true
   } catch (error: any) {
     toast.add({
       color: 'error',
@@ -101,6 +110,7 @@ async function saveSettings() {
     fd.append('name', form.name)
     fd.append('slug', form.slug)
     fd.append('currency', form.currency)
+    fd.append('autoGrantStudentPortalAccess', String(form.autoGrantStudentPortalAccess))
     if (logoFile.value) {
       fd.append('logo', logoFile.value)
     }
@@ -114,6 +124,7 @@ async function saveSettings() {
     org.name = form.name
     org.slug = form.slug
     org.currency = form.currency
+    org.autoGrantStudentPortalAccess = form.autoGrantStudentPortalAccess
     if (user.value?.organizationLogo) {
       org.logo = user.value.organizationLogo
     }

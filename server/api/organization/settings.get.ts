@@ -21,6 +21,7 @@ export default defineEventHandler(async (event) => {
     name: org.name,
     slug: org.slug,
     logo: org.logo,
+    autoGrantStudentPortalAccess: org.autoGrantStudentPortalAccess,
     currency: org.currency || 'INR', // ✅ return currency
   }
 })

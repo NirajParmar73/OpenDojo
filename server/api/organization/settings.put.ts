@@ -30,6 +30,7 @@ export default defineEventHandler(async (event) => {
   const name = getField('name')
   const requestedSlug = getField('slug')
   const currency = getField('currency')
+  const autoGrantStudentPortalAccess = getField('autoGrantStudentPortalAccess')
   const logoFilePart = form.find((p) => p.name === 'logo' && p.filename)
 
   const updateData: any = {}
@@ -45,6 +46,12 @@ export default defineEventHandler(async (event) => {
     const supportedCurrencies = new Set(['USD', 'EUR', 'GBP', 'CAD', 'AUD', 'NZD', 'JPY', 'INR', 'SGD', 'AED', 'ZAR', 'BRL', 'MXN'])
     if (!supportedCurrencies.has(currency)) throw createError({ statusCode: 400, statusMessage: 'Choose a supported currency' })
     updateData.currency = currency
+  }
+  if (autoGrantStudentPortalAccess !== null) {
+    if (!['true', 'false'].includes(autoGrantStudentPortalAccess)) {
+      throw createError({ statusCode: 400, statusMessage: 'Invalid automatic portal access setting' })
+    }
+    updateData.autoGrantStudentPortalAccess = autoGrantStudentPortalAccess === 'true'
   }
   if (logoFilePart && logoFilePart.data) {
     try {
@@ -83,6 +90,6 @@ export default defineEventHandler(async (event) => {
 
   return {
     success: true,
-    organization: { id: updated.id, name: updated.name, slug: updated.slug, logo: updated.logo, currency: updated.currency },
+    organization: { id: updated.id, name: updated.name, slug: updated.slug, logo: updated.logo, currency: updated.currency, autoGrantStudentPortalAccess: updated.autoGrantStudentPortalAccess },
   }
 })

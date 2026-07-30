@@ -15,6 +15,7 @@ const fees = await importTypeScript('server/utils/fees.ts')
 const currency = await importTypeScript('server/utils/currency.ts')
 const refunds = await importTypeScript('server/utils/refunds.ts')
 const csv = await importTypeScript('server/utils/csv.ts')
+const studentPortal = await importTypeScript('server/utils/student-portal.ts')
 
 test('additional payment charges do not reduce tuition balance', () => {
   const balance = fees.calculateFeeBalance({
@@ -81,4 +82,19 @@ test('student CSV parsing preserves quoted commas, quotes, and line breaks', () 
   ])
   assert.equal(csv.toCsv(rows), 'First Name,Last Name,Notes\r\nAarav,Sharma,"Needs ""extra"" support, evenings"\r\nPriya,Patel,"Line one\nLine two"')
   assert.equal(csv.csvCell('=HYPERLINK("https://example.com")'), '"\'=HYPERLINK(""https://example.com"")"')
+})
+
+test('student portal usernames are stable, safe, and unique by student id', () => {
+  assert.equal(studentPortal.studentPortalUsername('Élodie', 'O’Connor', 42), 'elodie.o.connor.42')
+  assert.equal(studentPortal.studentPortalUsername('Élodie', 'O’Connor', 43), 'elodie.o.connor.43')
+  assert.match(studentPortal.studentPortalUsername('李', '雷', 9), /^student\.9$/)
+})
+
+test('temporary student portal passwords satisfy the initial password policy', () => {
+  const password = studentPortal.generateTemporaryPassword()
+  assert.equal(password.length, 14)
+  assert.match(password, /[A-Z]/)
+  assert.match(password, /[a-z]/)
+  assert.match(password, /[2-9]/)
+  assert.match(password, /[!@#$%]/)
 })

@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { db, tables } from '../utils/database'
 import { assertDojoManagementAccess, isDojoWithinHierarchyNode } from '../utils/permissions'
 import { assertStudentLimit } from '../utils/subscription'
+import { generateTemporaryPassword, studentPortalUsername, type PortalCredentials } from '../utils/student-portal'
 
 const guardianSchema = z.object({
   name: z.string().trim().min(1),
@@ -39,6 +40,7 @@ export const createStudentSchema = z.object({
   initialDiscount: z.number().int().nonnegative().default(0),
   discountReason: z.string().trim().max(500).optional(),
   guardian: guardianSchema.optional(),
+  grantPortalAccess: z.boolean().optional(),
 }).refine(body => body.initialDiscount === 0 || !!body.discountReason, { message: 'A discount reason is required', path: ['discountReason'] })
 
 export type CreateStudentInput = z.infer<typeof createStudentSchema>
@@ -53,6 +55,11 @@ export async function enrollStudent(actorUserId: number, organizationId: number,
   }
   await assertDojoManagementAccess(actorUserId, organizationId, body.dojoId)
   await assertStudentLimit(organizationId)
+  const organization = await db.query.organizations.findFirst({
+    where: eq(tables.organizations.id, organizationId),
+    columns: { autoGrantStudentPortalAccess: true },
+  })
+  const grantPortalAccess = body.grantPortalAccess ?? organization?.autoGrantStudentPortalAccess ?? true
 
   if (body.programId) {
     const program = await db.query.organizationPrograms.findFirst({ where: eq(tables.organizationPrograms.id, body.programId) })
@@ -76,7 +83,7 @@ export async function enrollStudent(actorUserId: number, organizationId: number,
     }
   }
 
-  const studentId = await db.transaction(async (tx) => {
+  const enrollment = await db.transaction(async (tx) => {
     const data: typeof tables.students.$inferInsert = {
       organizationId,
       dojoId: body.dojoId,
@@ -146,13 +153,31 @@ export async function enrollStudent(actorUserId: number, organizationId: number,
         email: body.guardian.email || null,
       })
     }
-    return student.id
+    let portalCredentials: PortalCredentials | null = null
+    if (grantPortalAccess) {
+      const temporaryPassword = generateTemporaryPassword()
+      const username = studentPortalUsername(student.firstName, student.lastName, student.id)
+      await tx.insert(tables.studentPortalAccounts).values({
+        studentId: student.id,
+        username,
+        passwordHash: await hashPassword(temporaryPassword),
+        isActive: 1,
+        mustChangePassword: true,
+      })
+      portalCredentials = {
+        studentId: student.id,
+        studentName: `${student.firstName} ${student.lastName}`,
+        username,
+        temporaryPassword,
+      }
+    }
+    return { studentId: student.id, portalCredentials }
   })
 
   const student = await db.query.students.findFirst({
-    where: eq(tables.students.id, studentId),
+    where: eq(tables.students.id, enrollment.studentId),
     with: { dojo: true, program: true, currentBeltRank: true },
   })
   if (!student) throw createError({ statusCode: 500, statusMessage: 'Failed to load created student' })
-  return student
+  return { student, portalCredentials: enrollment.portalCredentials }
 }

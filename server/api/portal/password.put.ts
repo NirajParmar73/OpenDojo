@@ -33,7 +33,7 @@ export default defineEventHandler(async (event) => {
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
 
   await db.update(tables.studentPortalAccounts)
-    .set({ passwordHash: await hashPassword(body.newPassword), updatedAt: new Date() })
+    .set({ passwordHash: await hashPassword(body.newPassword), mustChangePassword: false, updatedAt: new Date() })
     .where(eq(tables.studentPortalAccounts.id, account.id))
 
   await writeAuditLog({
@@ -46,5 +46,7 @@ export default defineEventHandler(async (event) => {
     details: 'Password changed by the student',
   })
 
+  session.user.mustChangePassword = false
+  await setUserSession(event, session)
   return { success: true }
 })
