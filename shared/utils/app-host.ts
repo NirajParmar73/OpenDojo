@@ -71,6 +71,19 @@ export function portalAppUrl(baseDomain: string, tenantSlug?: string | null, pat
   return `https://${prefix}.${base}${path}`
 }
 
+export function isTrustedWorkspaceLoginHandoff(originHostname: string, targetHostname: string, baseDomain: string) {
+  const base = normalizedBaseDomain(baseDomain)
+  if (!base) return false
+
+  const origin = classifyAppHost(originHostname, base)
+  const target = classifyAppHost(targetHostname, base)
+  return normalizedHostname(originHostname) === `app.${base}`
+    && origin.surface === 'staff'
+    && origin.tenantSlug === null
+    && target.surface === 'staff'
+    && Boolean(target.tenantSlug)
+}
+
 export function appReservedSubdomains() {
   return new Set(baseReservedSubdomains)
 }

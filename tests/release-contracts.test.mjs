@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import test from 'node:test'
-import { classifyAppHost, portalAppUrl } from '../shared/utils/app-host.ts'
+import { classifyAppHost, isTrustedWorkspaceLoginHandoff, portalAppUrl } from '../shared/utils/app-host.ts'
 
 const read = path => readFile(new URL(`../${path}`, import.meta.url), 'utf8')
 
@@ -80,6 +80,16 @@ test('application hosts isolate platform, staff, and tenant student portals', as
   assert.match(staffLoginApi, /body\.redirectTo\.startsWith\('\/'\).*!\s*body\.redirectTo\.startsWith\('\/\/'\)/)
   assert.match(staffLoginPage, /form\.action = `\$\{response\.workspaceLoginUrl/)
   assert.match(staffLoginPage, /form\.method = 'POST'/)
+})
+
+test('only the central staff app can hand login to a tenant workspace', () => {
+  const baseDomain = 'opendojos.com'
+  assert.equal(isTrustedWorkspaceLoginHandoff('app.opendojos.com', 'kgi-karate.opendojos.com', baseDomain), true)
+  assert.equal(isTrustedWorkspaceLoginHandoff('app.opendojos.com', 'platform.opendojos.com', baseDomain), false)
+  assert.equal(isTrustedWorkspaceLoginHandoff('platform.opendojos.com', 'kgi-karate.opendojos.com', baseDomain), false)
+  assert.equal(isTrustedWorkspaceLoginHandoff('attacker.example', 'kgi-karate.opendojos.com', baseDomain), false)
+  assert.equal(isTrustedWorkspaceLoginHandoff('another-dojo.opendojos.com', 'kgi-karate.opendojos.com', baseDomain), false)
+  assert.equal(isTrustedWorkspaceLoginHandoff('app.opendojos.com', 'attacker.example', baseDomain), false)
 })
 
 test('sessions are persistent and host-only', async () => {
@@ -191,6 +201,9 @@ test('production runtime has readiness, request protection and database health c
   assert.match(readiness, /statusCode >= 500 \? 'error' : 'warn'/)
   assert.match(security, /Too many requests/)
   assert.match(security, /Cross-origin request blocked/)
+  assert.match(security, /pathname === '\/api\/auth\/login'/)
+  assert.match(security, /parsedOrigin\.protocol === 'https:'/)
+  assert.match(security, /isTrustedWorkspaceLoginHandoff/)
   assert.match(health, /select 1/)
 })
 

@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { isTrustedWorkspaceLoginHandoff } from '#shared/utils/app-host'
 
 type RateBucket = { count: number, resetAt: number }
 
@@ -46,14 +47,24 @@ export default defineEventHandler((event) => {
     const origin = getRequestHeader(event, 'origin')
     const host = getRequestHeader(event, 'x-forwarded-host') || getRequestHeader(event, 'host')
     if (origin && host) {
-      const originHost = (() => {
+      const parsedOrigin = (() => {
         try {
-          return new URL(origin).host
+          return new URL(origin)
         } catch {
           throw createError({ statusCode: 403, statusMessage: 'Invalid request origin.' })
         }
       })()
-      if (originHost !== host) throw createError({ statusCode: 403, statusMessage: 'Cross-origin request blocked.' })
+      const config = useRuntimeConfig(event)
+      const trustedWorkspaceLogin = pathname === '/api/auth/login'
+        && parsedOrigin.protocol === 'https:'
+        && isTrustedWorkspaceLoginHandoff(
+          parsedOrigin.hostname,
+          host,
+          String(config.tenantBaseDomain || '')
+        )
+      if (parsedOrigin.host !== host && !trustedWorkspaceLogin) {
+        throw createError({ statusCode: 403, statusMessage: 'Cross-origin request blocked.' })
+      }
     }
   }
 
