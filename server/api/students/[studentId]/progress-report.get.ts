@@ -127,5 +127,6 @@ export default defineEventHandler(async (event) => {
   const buffer = await bufferPromise
   setHeader(event, 'Content-Type', 'application/pdf')
   setHeader(event, 'Content-Disposition', `attachment; filename="progress_${student.firstName}_${student.lastName}.pdf"`)
+  setHeader(event, 'Content-Length', String(buffer.length))
   return buffer
 })

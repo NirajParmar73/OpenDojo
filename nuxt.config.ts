@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+const appVersion = process.env.NUXT_PUBLIC_APP_VERSION || new Date().toISOString()
+
 export default defineNuxtConfig({
   buildDir: process.env.NUXT_BUILD_DIR || '.nuxt',
   modules: ['@nuxt/eslint', '@nuxt/ui', 'nuxt-auth-utils'],
@@ -59,6 +61,7 @@ export default defineNuxtConfig({
       supportPhone: process.env.NUXT_PUBLIC_SUPPORT_PHONE || '',
       legalAddress: process.env.NUXT_PUBLIC_LEGAL_ADDRESS || '',
       razorpayKeyId: process.env.NUXT_RAZORPAY_KEY_ID || '',
+      appVersion
     },
     session:{
       password: '',

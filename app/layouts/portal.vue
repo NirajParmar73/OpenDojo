@@ -28,7 +28,6 @@
       </div>
     </header>
     <main class="px-4 py-8 sm:px-6">
-      <div class="mx-auto max-w-5xl"><PageArtwork /></div>
       <slot />
     </main>
   </div>

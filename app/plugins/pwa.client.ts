@@ -31,6 +31,7 @@ export default defineNuxtPlugin(() => {
   // browser prompt in app state so the visible Install button can always use it.
   const deferredPrompt = useState<BeforeInstallPromptEvent | null>('pwa-install-prompt', () => null)
   const updateAvailable = useState<boolean>('pwa-update-available', () => false)
+  const updateInstalling = useState<boolean>('pwa-update-installing', () => false)
   window.addEventListener('beforeinstallprompt', (event) => {
     event.preventDefault()
     deferredPrompt.value = event as BeforeInstallPromptEvent
@@ -38,16 +39,11 @@ export default defineNuxtPlugin(() => {
 
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js').then((registration) => {
-      let hadController = Boolean(navigator.serviceWorker.controller)
+      let reloadingForUpdate = false
       navigator.serviceWorker.addEventListener('controllerchange', () => {
-        // The worker activates immediately, but the open page still contains
-        // the previous JavaScript until the user accepts the refresh prompt.
-        if (hadController) updateAvailable.value = true
-        hadController = true
+        if (reloadingForUpdate) window.location.reload()
       })
 
-      // `skipWaiting` activates a new worker immediately. If this browser was
-      // already controlled, the installed worker represents a newer app shell.
       const watchInstallingWorker = () => {
         const worker = registration.installing
         if (!worker) return
@@ -57,8 +53,35 @@ export default defineNuxtPlugin(() => {
       }
       registration.addEventListener('updatefound', watchInstallingWorker)
       watchInstallingWorker()
+      if (registration.waiting && navigator.serviceWorker.controller) updateAvailable.value = true
 
-      const checkForUpdate = () => registration.update().catch(() => undefined)
+      const checkForDeployedVersion = async () => {
+        try {
+          const response = await fetch(`/app-version?time=${Date.now()}`, { cache: 'no-store' })
+          const deployed = await response.json() as { version?: string }
+          if (deployed.version && deployed.version !== runtimeConfig.public.appVersion) updateAvailable.value = true
+        } catch {
+          // An offline installed app should continue working without warnings.
+        }
+      }
+      const checkForUpdate = () => {
+        void registration.update().catch(() => undefined)
+        void checkForDeployedVersion()
+      }
+
+      window.addEventListener('opendojos:apply-update', async () => {
+        updateInstalling.value = true
+        await registration.update().catch(() => undefined)
+        if (registration.waiting) {
+          reloadingForUpdate = true
+          registration.waiting.postMessage({ type: 'SKIP_WAITING' })
+          // Reload even if a browser fails to dispatch controllerchange.
+          window.setTimeout(() => window.location.reload(), 5000)
+          return
+        }
+        window.location.reload()
+      })
+
       // Check at launch, whenever the installed app returns to the foreground,
       // and periodically while it remains open. Browser update throttling still
       // applies, so these calls are inexpensive.

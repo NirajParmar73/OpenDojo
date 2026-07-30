@@ -1,5 +1,5 @@
 // Increment this whenever the offline page, manifest, or PWA icons change.
-const CACHE_NAME = 'opendojos-static-v11'
+const CACHE_NAME = 'opendojos-static-v12'
 const OFFLINE_URL = '/offline.html'
 const STATIC_ASSETS = [
   OFFLINE_URL,
@@ -22,7 +22,10 @@ const STATIC_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(STATIC_ASSETS)))
-  self.skipWaiting()
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'SKIP_WAITING') self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
