@@ -123,7 +123,7 @@ const runtimeConfig = useRuntimeConfig()
 const isPlatformHost = computed(() =>
   classifyAppHost(useRequestURL().hostname, String(runtimeConfig.public.tenantBaseDomain || '')).surface === 'platform'
 )
-const publicPaths = new Set(['/', '/pricing', '/terms', '/privacy', '/refund-policy', '/contact'])
+const publicPaths = new Set(['/', '/pricing', '/terms', '/privacy', '/refund-policy', '/contact', '/help', '/help/organizations', '/help/students', '/help/glossary', '/faq'])
 const isPublicLanding = computed(() => publicPaths.has(route.path) && !loggedIn.value)
 const { data: profile, refresh: refreshProfile } = await useFetch<any>('/api/user/profile', { immediate: false })
 const { data: staffPermissions, refresh: refreshStaffPermissions } = await useFetch<any>('/api/users/me/permissions', { immediate: false })
@@ -152,7 +152,7 @@ const canManageStaff = computed(() =>
 const canUseFinance = computed(() => canManageStaff.value || canManageLocations.value)
 
 const allNavigation = [
-  { label: 'Workspace', items: [{ label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' }, { label: 'Getting started', to: '/getting-started', icon: 'i-lucide-list-checks' }] },
+  { label: 'Workspace', items: [{ label: 'Dashboard', to: '/', icon: 'i-lucide-layout-dashboard' }, { label: 'Getting started', to: '/getting-started', icon: 'i-lucide-list-checks' }, { label: 'Help Center', to: '/help', icon: 'i-lucide-life-buoy' }] },
   {
     label: 'People',
     items: [

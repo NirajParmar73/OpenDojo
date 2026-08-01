@@ -9,6 +9,7 @@
           <span class="font-normal text-slate-500">Student portal</span>
         </NuxtLink>
         <div class="flex items-center gap-3">
+          <NuxtLink to="/help/students" class="hidden text-sm font-medium text-slate-600 hover:text-primary sm:inline dark:text-slate-300">Help</NuxtLink>
           <PwaInstallButton label="Install Student app" />
           <button
             class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"

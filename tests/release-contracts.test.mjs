@@ -253,7 +253,7 @@ test('public discovery exposes pricing and crawler metadata', async () => {
   assert.match(robots, /Sitemap: https:\/\/opendojos\.com\/sitemap\.xml/)
   assert.match(robots, /Disallow: \/api\//)
   assert.match(sitemap, /<loc>https:\/\/opendojos\.com\/pricing<\/loc>/)
-  assert.doesNotMatch(sitemap, /\/settings|\/students|\/portal/)
+  assert.doesNotMatch(sitemap, /<loc>https:\/\/opendojos\.com\/(?:settings|students|portal)(?:\/|<)/)
 })
 
 test('location managers receive territory-scoped staff management', async () => {
