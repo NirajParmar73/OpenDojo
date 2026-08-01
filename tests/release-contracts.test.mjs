@@ -330,3 +330,24 @@ test('student spreadsheet imports preview safely and reuse transactional enrolme
   assert.match(enrollment, /tables\.studentFeeAssignments/)
   assert.match(studentCreate, /enrollStudent/)
 })
+
+test('shared page fragments use compiled Vue components', async () => {
+  const affectedPages = await Promise.all([
+    read('app/pages/students/[id].vue'),
+    read('app/pages/students/index.vue'),
+    read('app/pages/finance.vue')
+  ])
+  const compiledComponents = await Promise.all([
+    read('app/components/InfoItem.vue'),
+    read('app/components/EmptyState.vue'),
+    read('app/components/StudentAvatar.vue'),
+    read('app/components/MetricCard.vue')
+  ])
+
+  for (const page of affectedPages) {
+    assert.doesNotMatch(page, /defineComponent\([\s\S]*?template:\s*['"]/)
+  }
+  for (const component of compiledComponents) {
+    assert.match(component, /<template>/)
+  }
+})

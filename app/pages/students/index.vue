@@ -162,7 +162,7 @@
           </table>
         </div>
 
-        <EmptyState v-if="!filteredStudents.length" icon="i-lucide-users-round" :message="students.length ? 'No students match your search or filter.' : 'Add your first student to begin managing your dojo.'" />
+        <EmptyState v-if="!filteredStudents.length" roomy icon="i-lucide-users-round" :message="students.length ? 'No students match your search or filter.' : 'Add your first student to begin managing your dojo.'" />
       </template>
     </UCard>
 
@@ -413,19 +413,6 @@ async function archiveStudent(student: any) {
     toast.add({ color: 'error', title: 'Could not archive student', description: error.data?.statusMessage || error.message })
   }
 }
-
-const StudentAvatar = defineComponent({
-  props: { student: { type: Object, required: true }, size: { type: String, default: 'default' } },
-  computed: {
-    initials() { const student = this.student as any; return `${student.firstName?.[0] || ''}${student.lastName?.[0] || ''}` },
-  },
-  template: '<img v-if="student.avatar" :src="student.avatar" alt="" class="h-11 w-11 shrink-0 rounded-xl object-cover" :class="{ \'h-9 w-9 rounded-lg\': size === \'sm\' }"><div v-else class="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-sm font-semibold text-slate-500 dark:bg-slate-800 dark:text-slate-300" :class="{ \'h-9 w-9 rounded-lg\': size === \'sm\' }">{{ initials }}</div>',
-})
-
-const EmptyState = defineComponent({
-  props: { icon: { type: String, required: true }, message: { type: String, required: true } },
-  template: '<div class="py-12 text-center"><UIcon :name="icon" class="mx-auto h-8 w-8 text-slate-300 dark:text-slate-600" /><p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{{ message }}</p></div>',
-})
 
 onMounted(loadData)
 </script>

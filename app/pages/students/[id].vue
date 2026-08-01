@@ -534,13 +534,4 @@ async function recordGrading() {
   }
 }
 
-const InfoItem = defineComponent({
-  props: { label: { type: String, required: true }, value: { type: [String, Number], default: null }, capitalize: { type: Boolean, default: false } },
-  template: '<div><dt class="text-xs font-medium uppercase tracking-wide text-slate-400">{{ label }}</dt><dd class="mt-1 break-words text-sm font-medium" :class="{ capitalize }">{{ value || \'Not provided\' }}</dd></div>',
-})
-
-const EmptyState = defineComponent({
-  props: { icon: { type: String, required: true }, message: { type: String, required: true } },
-  template: '<div class="py-10 text-center"><UIcon :name="icon" class="mx-auto h-7 w-7 text-slate-300 dark:text-slate-600" /><p class="mt-3 text-sm text-slate-500 dark:text-slate-400">{{ message }}</p></div>',
-})
 </script>
