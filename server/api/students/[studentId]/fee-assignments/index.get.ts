@@ -1,6 +1,7 @@
 import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { isDojoAccessible } from '../../../../utils/permissions'
+import { calculateFeeBalance } from '../../../../utils/fees'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -43,19 +44,20 @@ export default defineEventHandler(async (event) => {
     orderBy: (a, { desc }) => [desc(a.startDate)],
   }) as any[] // cast to any
 
-  // Calculate balance
   const assignmentsWithBalance = assignments.map(assignment => {
-    const totalPaid = assignment.payments?.reduce((sum: number, payment: any) => {
-      const refundedTuition = (payment.refunds || [])
-        .filter((refund: any) => refund.status === 'completed')
-        .reduce((refundSum: number, refund: any) => refundSum + refund.tuitionAmount, 0)
-      return sum + (payment.tuitionAmount ?? payment.amount) - refundedTuition
-    }, 0) || 0
-    const netAmount = assignment.feePlan.amount - (assignment.discount || 0)
+    const balance = calculateFeeBalance({
+      amount: assignment.feePlan.amount,
+      discount: assignment.discount,
+      frequency: assignment.feePlan.frequency,
+      startDate: assignment.startDate,
+      endDate: assignment.endDate,
+      dueDay: assignment.dueDay,
+      payments: assignment.payments,
+    })
     return {
       ...assignment,
-      outstanding: netAmount - totalPaid,
-      netAmount,
+      outstanding: balance.outstandingAmount,
+      netAmount: balance.netAmountPerPeriod,
     }
   })
 

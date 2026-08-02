@@ -38,6 +38,23 @@ test('legacy payments still credit their full amount to tuition', () => {
   assert.equal(balance.outstandingAmount, 40_00)
 })
 
+test('advance payments never produce a negative outstanding balance', () => {
+  const input = {
+    amount: 1_200_00,
+    discount: 200_00,
+    frequency: 'monthly',
+    startDate: new Date('2026-07-01'),
+    payments: [{ amount: 1_000_00 }, { amount: 1_000_00 }],
+  }
+
+  const beforeAugustIsDue = fees.calculateFeeBalance(input, new Date('2026-07-31'))
+  assert.equal(beforeAugustIsDue.outstandingAmount, 0)
+
+  const afterAugustIsDue = fees.calculateFeeBalance(input, new Date('2026-08-02'))
+  assert.equal(afterAugustIsDue.expectedAmount, 2_000_00)
+  assert.equal(afterAugustIsDue.outstandingAmount, 0)
+})
+
 test('completed tuition refunds restore the outstanding fee balance', () => {
   const balance = fees.calculateFeeBalance({
     amount: 100_00,

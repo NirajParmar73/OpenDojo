@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm'
 import { isDojoAccessible } from '../../../../utils/permissions'
 
 const updateAssignmentSchema = z.object({
+  startDate: z.string().optional(),
   endDate: z.string().optional().nullable(),
   dueDay: z.number().int().min(1).max(28).optional(),
   discount: z.number().int().min(0).optional(),
@@ -56,6 +57,7 @@ export default defineEventHandler(async (event) => {
   const body = await readValidatedBody(event, updateAssignmentSchema.parse)
 
   const updateData: any = {}
+  if (body.startDate !== undefined) updateData.startDate = new Date(body.startDate)
   if (body.endDate !== undefined) updateData.endDate = body.endDate ? new Date(body.endDate) : null
   if (body.dueDay !== undefined) updateData.dueDay = body.dueDay
   if (body.discount !== undefined) updateData.discount = body.discount
