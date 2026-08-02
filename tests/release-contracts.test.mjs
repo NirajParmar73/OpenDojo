@@ -201,6 +201,16 @@ test('finance managers receive scoped receipt and refund access', async () => {
   assert.match(permissions, /isDojoWithinHierarchyNode\(organizationId, dojoId, assignment\.scopeId\)/)
 })
 
+test('fee-period corrections are permission checked and audited', async () => {
+  const correction = await read('server/api/payments/[id]/billing-period.patch.ts')
+  assert.match(correction, /hasFinanceManagementAccess/)
+  assert.match(correction, /payment\.student\.organizationId !== organizationId/)
+  assert.match(correction, /payment\.billing_period_corrected/)
+  assert.match(correction, /reason: z\.string\(\)\.trim\(\)\.min\(3/)
+  assert.match(correction, /24 months in the future/)
+  assert.match(correction, /does not align with this fee plan schedule/)
+})
+
 test('database migrations remain in strictly increasing journal order', async () => {
   const journal = JSON.parse(await read('server/database/drizzle-postgres/meta/_journal.json'))
   assert.ok(journal.entries.every((entry, index) => index === 0 || entry.when > journal.entries[index - 1].when))

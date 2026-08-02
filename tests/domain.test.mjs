@@ -12,6 +12,7 @@ async function importTypeScript(file) {
 }
 
 const fees = await importTypeScript('server/utils/fees.ts')
+const feeLedger = await importTypeScript('server/utils/fee-ledger.ts')
 const currency = await importTypeScript('server/utils/currency.ts')
 const refunds = await importTypeScript('server/utils/refunds.ts')
 const csv = await importTypeScript('server/utils/csv.ts')
@@ -53,6 +54,33 @@ test('advance payments never produce a negative outstanding balance', () => {
   const afterAugustIsDue = fees.calculateFeeBalance(input, new Date('2026-08-02'))
   assert.equal(afterAugustIsDue.expectedAmount, 2_000_00)
   assert.equal(afterAugustIsDue.outstandingAmount, 0)
+})
+
+test('fee ledger identifies prepaid and missing billing periods', () => {
+  const ledger = feeLedger.buildFeePeriodLedger({
+    amount: 1_200_00,
+    discount: 200_00,
+    frequency: 'monthly',
+    startDate: new Date('2026-07-01'),
+    dueDay: 1,
+    payments: [
+      { id: 1, amount: 1_000_00, paymentDate: new Date('2026-07-02'), billingPeriod: '2026-07', receiptNumber: 'JUL' },
+      { id: 2, amount: 1_000_00, paymentDate: new Date('2026-07-31'), billingPeriod: '2026-08', receiptNumber: 'AUG' },
+    ],
+  }, new Date('2026-08-02'))
+
+  assert.equal(ledger.firstUnpaidPeriod, null)
+  assert.equal(ledger.creditAmount, 0)
+  assert.equal(ledger.periods.find(period => period.key === '2026-08').status, 'paid_in_advance')
+  assert.equal(ledger.periods.find(period => period.key === '2026-07').status, 'paid')
+
+  const missingJuly = feeLedger.buildFeePeriodLedger({
+    amount: 1_000_00,
+    frequency: 'monthly',
+    startDate: new Date('2026-07-01'),
+    payments: [{ id: 3, amount: 1_000_00, paymentDate: new Date('2026-07-31'), billingPeriod: '2026-08', receiptNumber: 'AUG-ONLY' }],
+  }, new Date('2026-08-02'))
+  assert.equal(missingJuly.firstUnpaidPeriod, '2026-07')
 })
 
 test('completed tuition refunds restore the outstanding fee balance', () => {

@@ -2,6 +2,7 @@ import { db, tables } from '../../../../utils/database'
 import { eq, and } from 'drizzle-orm'
 import { isDojoAccessible } from '../../../../utils/permissions'
 import { calculateFeeBalance } from '../../../../utils/fees'
+import { buildFeePeriodLedger } from '../../../../utils/fee-ledger'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -54,10 +55,20 @@ export default defineEventHandler(async (event) => {
       dueDay: assignment.dueDay,
       payments: assignment.payments,
     })
+    const ledger = buildFeePeriodLedger({
+      amount: assignment.feePlan.amount,
+      discount: assignment.discount,
+      frequency: assignment.feePlan.frequency,
+      startDate: assignment.startDate,
+      endDate: assignment.endDate,
+      dueDay: assignment.dueDay,
+      payments: assignment.payments,
+    })
     return {
       ...assignment,
       outstanding: balance.outstandingAmount,
       netAmount: balance.netAmountPerPeriod,
+      ledger,
     }
   })
 

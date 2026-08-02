@@ -139,9 +139,24 @@
             </div>
             <EmptyState v-else icon="i-lucide-wallet-cards" message="No fee plan is assigned to this student." />
           </UCard>
+          <UCard v-for="assignment in feeAssignments" :key="`ledger-${assignment.id}`">
+            <template #header>
+              <div class="flex flex-wrap items-start justify-between gap-3">
+                <div><h3 class="font-semibold">Fee-period ledger</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ assignment.feePlan?.name }} · Payments are matched to their recorded fee period.</p></div>
+                <div class="flex flex-wrap gap-2"><UBadge :color="assignment.ledger?.firstUnpaidPeriod ? 'warning' : 'success'" variant="subtle">{{ assignment.ledger?.firstUnpaidLabel ? `First unpaid: ${assignment.ledger.firstUnpaidLabel}` : 'All due periods paid' }}</UBadge><UBadge color="neutral" variant="subtle">Credit: {{ formatCurrency(assignment.ledger?.creditAmount || 0) }}</UBadge></div>
+              </div>
+            </template>
+            <div v-if="assignment.ledger?.periods?.length" class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead class="border-b border-slate-100 text-left text-xs uppercase tracking-wide text-slate-400 dark:border-slate-800"><tr><th class="px-3 py-3">Fee period</th><th class="px-3 py-3">Due</th><th class="px-3 py-3">Paid</th><th class="px-3 py-3">Period balance</th><th class="px-3 py-3">Running balance</th><th class="px-3 py-3">Status</th><th class="px-3 py-3">Receipts</th></tr></thead>
+                <tbody><tr v-for="period in assignment.ledger.periods" :key="period.key" class="border-b border-slate-100 last:border-0 dark:border-slate-800"><td class="px-3 py-4 font-medium">{{ period.label }}</td><td class="px-3 py-4">{{ formatCurrency(period.amountDue) }}</td><td class="px-3 py-4">{{ formatCurrency(period.paidAmount) }}</td><td class="px-3 py-4" :class="period.outstandingAmount ? 'font-medium text-amber-600 dark:text-amber-400' : ''">{{ formatCurrency(period.outstandingAmount) }}</td><td class="px-3 py-4" :class="period.runningBalance > 0 ? 'text-amber-600 dark:text-amber-400' : period.runningBalance < 0 ? 'text-emerald-600 dark:text-emerald-400' : ''">{{ formatCurrency(period.runningBalance) }}</td><td class="px-3 py-4"><UBadge :color="feePeriodStatusColor(period.status)" variant="subtle">{{ feePeriodStatusLabel(period.status) }}</UBadge></td><td class="px-3 py-4"><div class="flex flex-wrap gap-1"><UButton v-for="receipt in period.payments" :key="receipt.id" :href="`/api/payments/${receipt.id}/receipt`" external size="xs" color="primary" variant="soft" icon="i-lucide-download">{{ receipt.receiptNumber }}</UButton><span v-if="!period.payments.length" class="text-slate-400">—</span></div></td></tr></tbody>
+              </table>
+            </div>
+            <EmptyState v-else icon="i-lucide-calendar-range" message="No fee periods are available yet." />
+          </UCard>
           <UCard>
-            <template #header><h3 class="font-semibold">Payment history</h3></template>
-            <div v-if="payments.length" class="divide-y divide-slate-100 dark:divide-slate-800"><div v-for="payment in payments" :key="payment.id" class="flex flex-wrap items-center justify-between gap-3 py-4"><div><p class="font-medium">{{ formatCurrency(payment.amount) }}</p><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ formatDate(payment.paymentDate) }} · {{ payment.assignment?.feePlan?.name || 'Unassigned payment' }}<span v-if="payment.feeItems?.length"> · {{ payment.feeItems.length }} additional fee{{ payment.feeItems.length === 1 ? '' : 's' }}</span></p></div><UBadge color="neutral" variant="subtle" class="capitalize">{{ payment.method }}</UBadge></div></div>
+            <template #header><div><h3 class="font-semibold">Payment history</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Receipts and their recorded fee periods.</p></div></template>
+            <div v-if="payments.length" class="divide-y divide-slate-100 dark:divide-slate-800"><div v-for="payment in payments" :key="payment.id" class="py-4"><div class="flex flex-wrap items-center justify-between gap-3"><div><p class="font-medium">{{ formatCurrency(payment.amount) }}</p><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">{{ formatDate(payment.paymentDate) }} · {{ payment.assignment?.feePlan?.name || 'Unassigned payment' }} · Fee period: {{ formatPaymentPeriod(payment) }}<span v-if="payment.feeItems?.length"> · {{ payment.feeItems.length }} additional fee{{ payment.feeItems.length === 1 ? '' : 's' }}</span></p></div><div class="flex items-center gap-2"><UBadge color="neutral" variant="subtle" class="capitalize">{{ payment.method }}</UBadge><UButton :href="`/api/payments/${payment.id}/receipt`" external size="xs" color="primary" variant="soft" icon="i-lucide-download">PDF</UButton><UButton v-if="canManageFinance && payment.assignmentId" size="xs" color="neutral" variant="ghost" icon="i-lucide-calendar-cog" @click="beginBillingPeriodCorrection(payment)">Correct period</UButton></div></div><form v-if="editingPaymentPeriodId === payment.id" class="mt-4 grid gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-4 sm:grid-cols-[minmax(0,12rem)_minmax(0,1fr)_auto] dark:border-amber-900 dark:bg-amber-950/20" @submit.prevent="correctBillingPeriod(payment)"><UFormField label="Correct fee period" required><UInput v-model="billingPeriodCorrection.billingPeriod" type="month" required /></UFormField><UFormField label="Reason for correction" required><UInput v-model="billingPeriodCorrection.reason" maxlength="500" placeholder="Required for the audit log" required /></UFormField><div class="flex items-end gap-2"><UButton type="submit" :loading="correctingBillingPeriod">Save correction</UButton><UButton type="button" color="neutral" variant="ghost" @click="cancelBillingPeriodCorrection">Cancel</UButton></div></form></div></div>
             <EmptyState v-else icon="i-lucide-receipt-text" message="No payments have been recorded yet." />
           </UCard>
         </div>
@@ -226,6 +241,10 @@ const canManagePortalAccess = computed(() =>
   portalManagerRoles.includes(user.value?.role || '')
   || (accessProfile.value?.assignments || []).some(assignment => portalManagerRoles.includes(assignment.role))
 )
+const canManageFinance = computed(() =>
+  portalManagerRoles.includes(user.value?.role || '')
+  || (accessProfile.value?.assignments || []).some(assignment => portalManagerRoles.includes(assignment.role))
+)
 const isChildRoute = computed(() => route.path !== `/students/${route.params.id}`)
 const toast = useToast()
 const studentId = Number(route.params.id)
@@ -269,7 +288,7 @@ const { data: programEnrollmentData, refresh: refreshProgramEnrollments } = awai
 const { data: programs } = await useFetch<any[]>('/api/organization/programs')
 const { data: attendanceData } = await useAsyncData(`student-${studentId}-attendance`, () => $fetch<any>(`/api/students/${studentId}/attendance`))
 const { data: feeAssignmentData, refresh: refreshFeeAssignments } = await useAsyncData(`student-${studentId}-fee-assignments`, () => $fetch<any[]>(`/api/students/${studentId}/fee-assignments`))
-const { data: paymentData } = await useAsyncData(`student-${studentId}-payments`, () => $fetch<any[]>(`/api/students/${studentId}/payments`))
+const { data: paymentData, refresh: refreshPayments } = await useAsyncData(`student-${studentId}-payments`, () => $fetch<any[]>(`/api/students/${studentId}/payments`))
 const { data: guardianData, refresh: refreshGuardians } = await useAsyncData(`student-${studentId}-guardians`, () => $fetch<any[]>(`/api/students/${studentId}/guardians`))
 const { data: documentData, refresh: refreshDocuments } = await useAsyncData(`student-${studentId}-documents`, () => $fetch<any[]>(`/api/students/${studentId}/documents`))
 const { data: gradingData, refresh: refreshGradings } = await useAsyncData(`student-${studentId}-gradings`, () => $fetch<any[]>(`/api/students/${studentId}/gradings`))
@@ -280,6 +299,9 @@ const { data: organization } = await useFetch<{ currency?: string }>('/api/organ
 const savingFeeAssignment = ref(false)
 const editingAssignmentId = ref<number | null>(null)
 const feeAssignmentForm = reactive({ feePlanId: null as number | null, startDate: new Date().toISOString().slice(0, 10), discount: 0, discountReason: '' })
+const editingPaymentPeriodId = ref<number | null>(null)
+const correctingBillingPeriod = ref(false)
+const billingPeriodCorrection = reactive({ billingPeriod: '', reason: '' })
 
 const attendance = computed(() => attendanceData.value || { records: [] })
 const feeAssignments = computed(() => feeAssignmentData.value || [])
@@ -316,6 +338,60 @@ function formatDate(value?: number | string | null) {
 }
 
 function formatCurrency(amount?: number) { return new Intl.NumberFormat(undefined, { style: 'currency', currency: organization.value?.currency || 'USD' }).format((amount || 0) / 100) }
+
+function formatPaymentPeriod(payment: any) {
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(payment.billingPeriod || '')) return 'Legacy / not specified'
+  const [year, month] = payment.billingPeriod.split('-').map(Number)
+  const start = new Date(Date.UTC(year, month - 1, 1))
+  const label = (date: Date) => date.toLocaleDateString('en-IN', { month: 'long', year: 'numeric', timeZone: 'UTC' })
+  const frequency = payment.assignment?.feePlan?.frequency
+  const months = frequency === 'quarterly' ? 3 : frequency === 'half-annually' ? 6 : frequency === 'annual' ? 12 : 1
+  if (frequency === 'one-time') return `One-time · ${label(start)}`
+  if (months === 1) return label(start)
+  const end = new Date(Date.UTC(year, month + months - 2, 1))
+  return `${label(start)} – ${label(end)}`
+}
+
+function feePeriodStatusLabel(status: string) {
+  return ({ paid_in_advance: 'Paid in advance', paid: 'Paid', partially_paid: 'Partially paid', overdue: 'Overdue', due: 'Due' } as Record<string, string>)[status] || status
+}
+
+function feePeriodStatusColor(status: string): 'success' | 'error' | 'warning' {
+  return status === 'paid' || status === 'paid_in_advance' ? 'success' : status === 'overdue' ? 'error' : 'warning'
+}
+
+function beginBillingPeriodCorrection(payment: any) {
+  editingPaymentPeriodId.value = payment.id
+  billingPeriodCorrection.billingPeriod = payment.billingPeriod || new Date(payment.paymentDate).toISOString().slice(0, 7)
+  billingPeriodCorrection.reason = ''
+}
+
+function cancelBillingPeriodCorrection() {
+  editingPaymentPeriodId.value = null
+  billingPeriodCorrection.billingPeriod = ''
+  billingPeriodCorrection.reason = ''
+}
+
+async function correctBillingPeriod(payment: any) {
+  if (!billingPeriodCorrection.billingPeriod || billingPeriodCorrection.reason.trim().length < 3) {
+    toast.add({ color: 'warning', title: 'Choose a fee period and enter a brief reason' })
+    return
+  }
+  correctingBillingPeriod.value = true
+  try {
+    await $fetch(`/api/payments/${payment.id}/billing-period`, {
+      method: 'PATCH',
+      body: { billingPeriod: billingPeriodCorrection.billingPeriod, reason: billingPeriodCorrection.reason.trim() },
+    })
+    await Promise.all([refreshPayments(), refreshFeeAssignments()])
+    cancelBillingPeriodCorrection()
+    toast.add({ color: 'success', title: 'Fee period corrected', description: 'The ledger and audit log have been updated.' })
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not correct fee period', description: error.data?.statusMessage || error.message })
+  } finally {
+    correctingBillingPeriod.value = false
+  }
+}
 
 function attendanceColor(status: string) {
   return status === 'present' ? 'success' : status === 'late' ? 'warning' : status === 'excused' ? 'neutral' : 'error'
