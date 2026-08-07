@@ -36,7 +36,7 @@
         <UFormField v-if="newStudent.dojoId && newStudent.assignFeePlan" label="Recurring discount"><UInput v-model.number="newStudent.initialDiscount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField>
         <UFormField v-if="newStudent.dojoId && newStudent.assignFeePlan && newStudent.initialDiscount" label="Discount reason" required><UInput v-model="newStudent.discountReason" placeholder="e.g. Sibling discount" required /></UFormField>
         <UFormField label="Gender"><USelect v-model="newStudent.gender" :items="genderOptions" placeholder="Optional" /></UFormField>
-        <UFormField label="Emergency contact"><UInput v-model="newStudent.emergencyContact" /></UFormField>
+        <UFormField label="Emergency contact person"><UInput v-model="newStudent.emergencyContact" /></UFormField>
         <UFormField label="Emergency phone"><UInput v-model="newStudent.emergencyPhone" /></UFormField>
         <UFormField label="Profile photo" description="Optional. JPG, PNG, GIF, or WebP up to 5 MB.">
           <div class="flex items-center gap-3">

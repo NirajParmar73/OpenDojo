@@ -37,7 +37,7 @@
         <UFormField label="State / province"><UInput v-model="form.stateProvince" /></UFormField>
         <UFormField label="City"><UInput v-model="form.city" /></UFormField>
         <UFormField label="Postal / ZIP code"><UInput v-model="form.postalCode" /></UFormField>
-        <UFormField label="Emergency contact"><UInput v-model="form.emergencyContact" /></UFormField>
+        <UFormField label="Emergency contact person"><UInput v-model="form.emergencyContact" /></UFormField>
         <UFormField label="Emergency phone"><UInput v-model="form.emergencyPhone" /></UFormField>
         <UFormField label="Medical notes" class="md:col-span-2"><UTextarea v-model="form.medicalNotes" :rows="3" /></UFormField>
         <div class="flex justify-end gap-3 pt-2 md:col-span-2"><UButton :to="`/students/${studentId}`" color="neutral" variant="ghost">Cancel</UButton><UButton type="submit" color="primary" :loading="saving">Save changes</UButton></div>

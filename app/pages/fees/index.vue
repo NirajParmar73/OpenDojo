@@ -26,13 +26,16 @@
 
       <UCard class="mb-6">
         <div class="mb-4"><h2 class="text-lg font-semibold">Fee plans for this student</h2><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Assign the monthly, quarterly, annual, or one-time plan that applies to this student. End an active plan before starting a replacement so their payment history remains clear.</p></div>
-        <form @submit.prevent="addAssignment" class="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <UFormField label="Fee plan" required><USelect v-model="newAssignment.feePlanId" :items="feePlanOptions" placeholder="Choose a fee plan" required /></UFormField>
+        <form class="mb-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4" @submit.prevent="saveAssignment">
+          <UFormField label="Fee plan" required><USelect v-model="newAssignment.feePlanId" :items="feePlanOptions" placeholder="Choose a fee plan" :disabled="editingAssignmentId !== null" required /></UFormField>
           <UFormField label="Plan starts on" required><UInput v-model="newAssignment.startDate" type="date" required /></UFormField>
           <UFormField label="Due day"><UInput v-model.number="newAssignment.dueDay" type="number" min="1" max="28" required /></UFormField>
           <UFormField label="Discount"><UInput v-model.number="newAssignment.discount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField>
           <UFormField v-if="newAssignment.discount" label="Discount reason" required><UInput v-model="newAssignment.discountReason" placeholder="Reason for discount" required /></UFormField>
-          <div class="self-end"><UButton type="submit" class="w-full" :loading="addingAssignment">Assign plan</UButton></div>
+          <div class="flex self-end gap-2">
+            <UButton type="submit" class="flex-1" :loading="savingAssignment">{{ editingAssignmentId !== null ? 'Save changes' : 'Assign plan' }}</UButton>
+            <UButton v-if="editingAssignmentId !== null" type="button" color="neutral" variant="ghost" @click="resetAssignmentForm">Cancel</UButton>
+          </div>
         </form>
         <div class="overflow-x-auto">
           <table class="min-w-full divide-y divide-gray-200 text-sm">
@@ -60,7 +63,10 @@
                 <td class="px-3 py-2">{{ ass.dueDay }}{{ ordinal(ass.dueDay) }}</td>
                 <td class="px-3 py-2"><UBadge :color="ass.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ ass.status }}</UBadge></td>
                 <td class="px-3 py-2">
-                  <UButton v-if="ass.status === 'active'" color="warning" variant="ghost" size="xs" @click="endAssignment(ass.id)">End plan</UButton>
+                  <div class="flex items-center gap-1">
+                    <UButton variant="ghost" size="xs" icon="i-lucide-pencil" @click="editAssignment(ass)">Edit</UButton>
+                    <UButton v-if="ass.status === 'active'" color="warning" variant="ghost" size="xs" @click="endAssignment(ass.id)">End plan</UButton>
+                  </div>
                 </td>
               </tr>
               <tr v-if="assignments.length === 0">
@@ -182,7 +188,8 @@ const newAssignment = reactive({
   discount: 0,
   discountReason: '',
 })
-const addingAssignment = ref(false)
+const savingAssignment = ref(false)
+const editingAssignmentId = ref<number | null>(null)
 
 const paymentForm = reactive({
   assignmentId: undefined as number | undefined,
@@ -309,16 +316,42 @@ async function loadData() {
   }
 }
 
-async function addAssignment() {
+function resetAssignmentForm() {
+  editingAssignmentId.value = null
+  newAssignment.feePlanId = undefined
+  newAssignment.startDate = today
+  newAssignment.dueDay = new Date().getDate() > 28 ? 28 : new Date().getDate()
+  newAssignment.discount = 0
+  newAssignment.discountReason = ''
+}
+
+function editAssignment(assignment: any) {
+  editingAssignmentId.value = assignment.id
+  newAssignment.feePlanId = assignment.feePlanId
+  newAssignment.startDate = new Date(assignment.startDate).toISOString().slice(0, 10)
+  newAssignment.dueDay = assignment.dueDay
+  newAssignment.discount = (assignment.discount || 0) / 100
+  newAssignment.discountReason = assignment.discountReason || ''
+}
+
+async function saveAssignment() {
   if (!newAssignment.feePlanId || !newAssignment.startDate || !newAssignment.dueDay || (newAssignment.discount && !newAssignment.discountReason.trim())) {
     toast.add({ color: 'warning', title: 'Choose a plan, start date, due day, and a reason for any discount' })
     return
   }
-  addingAssignment.value = true
+  savingAssignment.value = true
   try {
-    await $fetch(`/api/students/${studentId.value}/fee-assignments`, {
-      method: 'POST' as any,
-      body: {
+    const editing = editingAssignmentId.value !== null
+    await $fetch(editing
+      ? `/api/students/${studentId.value}/fee-assignments/${editingAssignmentId.value}`
+      : `/api/students/${studentId.value}/fee-assignments`, {
+      method: editing ? 'PATCH' : 'POST',
+      body: editing ? {
+        startDate: newAssignment.startDate,
+        dueDay: newAssignment.dueDay,
+        discount: newAssignment.discount ? Math.round(newAssignment.discount * 100) : 0,
+        discountReason: newAssignment.discountReason.trim() || null,
+      } : {
         feePlanId: newAssignment.feePlanId,
         startDate: newAssignment.startDate,
         dueDay: newAssignment.dueDay,
@@ -326,17 +359,13 @@ async function addAssignment() {
         discountReason: newAssignment.discountReason.trim() || undefined,
       },
     })
-    toast.add({ color: 'success', title: 'Assignment added' })
+    toast.add({ color: 'success', title: editing ? 'Fee plan updated' : 'Assignment added' })
     await loadData()
-    newAssignment.feePlanId = undefined
-    newAssignment.startDate = today
-    newAssignment.dueDay = new Date().getDate() > 28 ? 28 : new Date().getDate()
-    newAssignment.discount = 0
-    newAssignment.discountReason = ''
+    resetAssignmentForm()
   } catch (err: any) {
-    toast.add({ color: 'error', title: 'Failed to add assignment', description: apiErrorMessage(err) })
+    toast.add({ color: 'error', title: editingAssignmentId.value !== null ? 'Failed to update fee plan' : 'Failed to add assignment', description: apiErrorMessage(err) })
   } finally {
-    addingAssignment.value = false
+    savingAssignment.value = false
   }
 }
 

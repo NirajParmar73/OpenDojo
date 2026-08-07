@@ -74,7 +74,7 @@
               <InfoItem label="Date of birth" :value="student.dateOfBirth ? formatDate(student.dateOfBirth) : undefined" />
               <InfoItem label="Gender" :value="student.gender" capitalize />
               <InfoItem label="Address" :value="student.address" />
-              <InfoItem label="Emergency contact" :value="student.emergencyContact" />
+              <InfoItem label="Emergency contact person" :value="student.emergencyContact" />
               <InfoItem label="Emergency phone" :value="student.emergencyPhone" />
               <InfoItem label="Medical notes" :value="student.medicalNotes" />
             </dl>

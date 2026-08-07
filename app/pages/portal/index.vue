@@ -33,7 +33,7 @@
             <UFormField label="Email"><UInput v-model="profile.email" type="email" /></UFormField>
             <UFormField label="Phone"><UInput v-model="profile.phone" /></UFormField>
             <UFormField label="Address" class="sm:col-span-2"><UInput v-model="profile.address" /></UFormField>
-            <UFormField label="Emergency contact"><UInput v-model="profile.emergencyContact" /></UFormField>
+            <UFormField label="Emergency contact person"><UInput v-model="profile.emergencyContact" /></UFormField>
             <UFormField label="Emergency phone"><UInput v-model="profile.emergencyPhone" /></UFormField>
             <div class="sm:col-span-2"><UButton type="submit" :loading="savingProfile">Save contact details</UButton></div>
           </form>
