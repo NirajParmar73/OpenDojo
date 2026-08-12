@@ -10,6 +10,8 @@ const updateUserSchema = z.object({
   email: z.string().email().optional(),
   danDegree: z.string().optional().nullable(),
   role: z.enum(['admin', 'member']).optional(),
+  status: z.enum(['active', 'inactive', 'archived']).optional(),
+  password: z.string().min(8).optional(),
   assignments: z.array(z.object({
     role: z.enum(['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']),
     scopeType: z.enum(['node', 'dojo']),
@@ -50,13 +52,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 404, statusMessage: 'User not found' })
   }
   if (existingUser.role === 'owner' && session.user.role !== 'owner') throw createError({ statusCode: 403, statusMessage: 'Only an owner can manage an owner account' })
+  if (existingUser.role === 'owner' && body.status !== undefined && body.status !== 'active') {
+    throw createError({ statusCode: 403, statusMessage: 'The organization owner account must remain active' })
+  }
   if (body.role !== undefined && body.role !== existingUser.role && session.user.role !== 'owner') {
     throw createError({ statusCode: 403, statusMessage: 'Only the organization owner can change an account access level' })
   }
 
   const allowed = await getAllowedAssignmentsForCreator(session.user.id, orgId)
   const managementScope = await getHierarchyManagementScope(session.user.id, orgId)
-  if (session.user.role !== 'owner' && allowed.allowedRoles.length === 0) {
+  if (!['owner', 'admin'].includes(session.user.role) && allowed.allowedRoles.length === 0) {
     throw createError({ statusCode: 403, statusMessage: 'You do not have permission to manage users' })
   }
   if (!canEditManagedUser(session.user.id, session.user.role, existingUser, allowed)) throw createError({ statusCode: 403, statusMessage: 'This user is not a lower-level member entirely within your territory' })
@@ -108,6 +113,8 @@ export default defineEventHandler(async (event) => {
   if (body.email !== undefined) updateData.email = body.email
   if (body.danDegree !== undefined) updateData.danDegree = body.danDegree
   if (body.role !== undefined) updateData.role = body.role
+  if (body.status !== undefined) updateData.status = body.status
+  if (body.password !== undefined) updateData.passwordHash = await hashPassword(body.password)
   updateData.updatedAt = new Date()
 
   await db.update(tables.users)
@@ -178,7 +185,7 @@ export default defineEventHandler(async (event) => {
     entityId: Number(id),
     targetLabel: updatedUser!.name,
     scope: auditAssignment ? { type: auditAssignment.scopeType, id: auditAssignment.scopeId } : { type: 'organization' },
-    details: body.assignments !== undefined ? `${body.assignments.length} scoped assignment${body.assignments.length === 1 ? '' : 's'} configured` : Object.keys(updateData).filter(key => key !== 'updatedAt').join(', '),
+    details: body.assignments !== undefined ? `${body.assignments.length} scoped assignment${body.assignments.length === 1 ? '' : 's'} configured` : Object.keys(updateData).filter(key => key !== 'updatedAt').map(key => key === 'passwordHash' ? 'password reset' : key).join(', '),
   })
   return {
     success: true,

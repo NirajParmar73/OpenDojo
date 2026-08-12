@@ -80,6 +80,7 @@
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Email</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Access level</th>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Dan Degree</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Certificate</th>
               <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Responsibilities</th>
@@ -95,6 +96,7 @@
               <td class="px-4 py-4">{{ user.name }}</td>
               <td class="px-4 py-4">{{ user.email }}</td>
               <td class="px-4 py-4">{{ formatAccountAccess(user.role) }}</td>
+              <td class="px-4 py-4"><UBadge :color="user.status === 'active' ? 'success' : 'neutral'" variant="subtle" class="capitalize">{{ user.status || 'active' }}</UBadge></td>
               <td class="px-4 py-4">{{ user.danDegree || '-' }}</td>
               <td class="px-4 py-4">
                 <a v-if="user.certificateUrl" :href="user.certificateUrl" target="_blank" class="text-blue-600 hover:underline">View</a>
@@ -122,7 +124,7 @@
               </td>
             </tr>
             <tr v-if="users.length === 0">
-              <td colspan="8" class="px-6 py-4 text-center text-gray-500">No users yet.</td>
+              <td colspan="9" class="px-6 py-4 text-center text-gray-500">No users yet.</td>
             </tr>
           </tbody>
         </table>

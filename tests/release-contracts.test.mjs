@@ -172,6 +172,31 @@ test('guided setup and getting started surface the student spreadsheet importer'
   assert.match(guide, /Import spreadsheet/)
 })
 
+test('payment student selector excludes inactive and archived students', async () => {
+  const fees = await read('app/pages/fees/index.vue')
+
+  assert.match(fees, /const filteredStudents[\s\S]*student\.status === 'active'/)
+})
+
+test('staff lifecycle status controls sign-in and existing sessions', async () => {
+  const schema = await read('server/database/schema.ts')
+  const editPage = await read('app/pages/users/[id]/edit.vue')
+  const updateUser = await read('server/api/users/[id].patch.ts')
+  const login = await read('server/api/auth/login.post.ts')
+  const accessMiddleware = await read('server/middleware/tenant-access.ts')
+  const permissions = await read('server/utils/permissions.ts')
+  const migration = await read('server/database/drizzle-postgres/0023_staff_account_status.sql')
+
+  assert.match(schema, /status: t\.text\(\{ enum: \['active', 'inactive', 'archived'\] \}\)\.notNull\(\)\.default\('active'\)/)
+  assert.match(editPage, /Account status[\s\S]*New password/)
+  assert.match(updateUser, /The organization owner account must remain active/)
+  assert.match(login, /user\.status !== 'active'/)
+  assert.match(accessMiddleware, /user\.status !== 'active'/)
+  assert.match(permissions, /user\.role === 'owner' \|\| user\.role === 'admin'/)
+  assert.match(permissions, /actorRole === 'owner' \|\| actorRole === 'admin'/)
+  assert.match(migration, /users_status_valid/)
+})
+
 test('refunds preserve original payments and flow through balances and reports', async () => {
   const schema = await read('server/database/schema.ts')
   const migration = await read('server/database/drizzle-postgres/0021_majestic_miracleman.sql')

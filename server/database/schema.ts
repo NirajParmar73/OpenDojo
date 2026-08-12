@@ -34,6 +34,7 @@ export const users = pgTable('users', (t) => ({
   email: t.text().notNull().unique(),
   passwordHash: t.text().notNull(),
   role: t.text().notNull().default('member'),
+  status: t.text({ enum: ['active', 'inactive', 'archived'] }).notNull().default('active'),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }),
   avatar: t.text(),
   danDegree: t.text(),

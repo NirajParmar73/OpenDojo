@@ -17,6 +17,8 @@
             <UFormField label="Email" required><UInput v-model="form.email" type="email" required /></UFormField>
             <UFormField label="Dan degree"><UInput v-model="form.danDegree" /></UFormField>
             <UFormField label="Account access level"><USelect v-model="form.role" :items="accountRoleOptions" :disabled="user.role === 'owner'" /></UFormField>
+            <UFormField label="Account status" help="Inactive and archived accounts cannot sign in."><USelect v-model="form.status" :items="statusOptions" :disabled="user.role === 'owner'" /></UFormField>
+            <UFormField label="New password" help="Leave blank to keep the current password."><UInput v-model="form.password" type="password" minlength="8" placeholder="At least 8 characters" /></UFormField>
             <UFormField label="Profile photo" class="md:col-span-2">
               <div class="flex items-center gap-3">
                 <img v-if="user.avatar" :src="user.avatar" alt="Staff profile photo" class="h-12 w-12 rounded-full object-cover" />
@@ -78,7 +80,8 @@ const savingQualification = ref(false)
 const staffCameraInput = ref<HTMLInputElement | null>(null)
 const staffGalleryInput = ref<HTMLInputElement | null>(null)
 const qualificationForm = reactive({ programId: null as number | null, qualification: '', issuer: '', expiresAt: '' })
-const form = reactive<any>({ name: '', email: '', danDegree: '', role: 'member', assignments: [] })
+const form = reactive<any>({ name: '', email: '', danDegree: '', role: 'member', status: 'active', password: '', assignments: [] })
+const statusOptions = [{ label: 'Active', value: 'active' }, { label: 'Inactive', value: 'inactive' }, { label: 'Archived', value: 'archived' }]
 const roleScopeMap: Record<string, 'node' | 'dojo'> = { group_manager: 'node', location_manager: 'dojo', instructor: 'dojo', staff: 'dojo' }
 const allRoleOptions = [{ label: 'Location group manager', value: 'group_manager' }, { label: 'Location manager', value: 'location_manager' }, { label: 'Instructor', value: 'instructor' }, { label: 'Staff', value: 'staff' }]
 const legacyNodeRoles = ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head']
@@ -123,6 +126,8 @@ watchEffect(() => {
     email: user.value.email,
     danDegree: user.value.danDegree || '',
     role: user.value.role,
+    status: user.value.status || 'active',
+    password: '',
     assignments: user.value.assignments.map((assignment: any) => ({ role: displayRole(assignment.role), scopeId: assignment.scopeId })),
   })
 })
@@ -179,11 +184,16 @@ async function save() {
     toast.add({ color: 'warning', title: 'Select a scope for every responsibility' })
     return
   }
+  if (form.password && form.password.length < 8) {
+    toast.add({ color: 'warning', title: 'New password must be at least 8 characters' })
+    return
+  }
 
   saving.value = true
   try {
-    const body: any = { name: form.name, email: form.email, danDegree: form.danDegree || null, assignments }
+    const body: any = { name: form.name, email: form.email, danDegree: form.danDegree || null, status: form.status, assignments }
     if (user.value.role !== 'owner') body.role = form.role
+    if (form.password) body.password = form.password
     await $fetch(`/api/users/${userId}`, { method: 'PATCH', body })
     toast.add({ color: 'success', title: 'Staff member updated' })
     await router.push('/users')

@@ -33,6 +33,10 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 401, statusMessage: 'Invalid credentials' })
   }
 
+  if (user.status !== 'active') {
+    throw createError({ statusCode: 403, statusMessage: 'This staff account is not active. Contact your administrator.' })
+  }
+
   // Fetch organization name and logo
   let orgName = null
   let orgLogo = null

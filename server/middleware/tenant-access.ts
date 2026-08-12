@@ -36,9 +36,9 @@ export default defineEventHandler(async (event) => {
   }
 
   const user = await db.query.users.findFirst({ where: eq(tables.users.id, session.user.id) })
-  if (!user || user.role !== session.user.role || user.organizationId !== session.user.organizationId) {
+  if (!user || user.status !== 'active' || user.role !== session.user.role || user.organizationId !== session.user.organizationId) {
     await clearUserSession(event)
-    throw createError({ statusCode: 401, statusMessage: 'Your account permissions changed. Please sign in again.' })
+    throw createError({ statusCode: 401, statusMessage: 'Your account access changed. Please contact your administrator or sign in again.' })
   }
 
   if (!user.organizationId) {

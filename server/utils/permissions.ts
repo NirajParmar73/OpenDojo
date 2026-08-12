@@ -199,7 +199,7 @@ export async function getAllowedAssignmentsForCreator(userId: number, organizati
   })
   if (!user) return { allowedRoles: [], allowedNodeIds: [], allowedDojoIds: [] }
 
-  if (user.role === 'owner') {
+  if (user.role === 'owner' || user.role === 'admin') {
     const allNodes = await db.query.hierarchyNodes.findMany({
       where: eq(tables.hierarchyNodes.organizationId, organizationId),
     })
@@ -207,7 +207,9 @@ export async function getAllowedAssignmentsForCreator(userId: number, organizati
       where: eq(tables.dojos.organizationId, organizationId),
     })
     return {
-      allowedRoles: ['admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member'],
+      allowedRoles: user.role === 'owner'
+        ? ['admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member']
+        : ['country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head', 'instructor', 'member'],
       allowedNodeIds: allNodes.map(n => n.id),
       allowedDojoIds: allDojos.map(d => d.id),
     }
@@ -289,7 +291,7 @@ function isAssignmentWithinTerritory(assignment: ScopedAssignment, permissions: 
 }
 
 export function canViewManagedUser(actorUserId: number, actorRole: string, target: ManagedUser, permissions: AssignmentPermissions) {
-  if (actorRole === 'owner' || target.id === actorUserId) return true
+  if (actorRole === 'owner' || actorRole === 'admin' || target.id === actorUserId) return true
   return target.assignments.length > 0 && target.assignments.every(assignment => isAssignmentWithinTerritory(assignment, permissions))
 }
 

@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, statusMessage: 'User has no organization' })
   }
   const allowed = await getAllowedAssignmentsForCreator(currentUser.id, orgId)
-  if (currentUser.role !== 'owner' && allowed.allowedNodeIds.length === 0 && allowed.allowedDojoIds.length === 0) throw createError({ statusCode: 403, statusMessage: 'No staff management territory is assigned to this account' })
+  if (!['owner', 'admin'].includes(currentUser.role) && allowed.allowedNodeIds.length === 0 && allowed.allowedDojoIds.length === 0) throw createError({ statusCode: 403, statusMessage: 'No staff management territory is assigned to this account' })
 
   const users = await db.query.users.findMany({
   where: eq(tables.users.organizationId, orgId),

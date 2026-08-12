@@ -224,7 +224,8 @@ const dojoOptions = computed(() => {
   return [{ label: 'All accessible dojos', value: 'all' }, ...[...dojos].map(([id, name]) => ({ label: name, value: id }))]
 })
 const filteredStudents = computed(() => (studentDirectory.value || []).filter(student =>
-  (selectedHierarchyId.value === 'all' || student.dojo?.nodeId === selectedHierarchyId.value)
+  student.status === 'active'
+  && (selectedHierarchyId.value === 'all' || student.dojo?.nodeId === selectedHierarchyId.value)
   && (selectedDojoId.value === 'all' || student.dojoId === selectedDojoId.value)
 ))
 const studentOptions = computed(() => filteredStudents.value.map(student => ({
