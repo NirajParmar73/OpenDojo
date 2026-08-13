@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { writeAuditLog } from '../../../../utils/audit'
 import { db, tables } from '../../../../utils/database'
 import { hasFinanceManagementAccess } from '../../../../utils/permissions'
+import { reconcileStudentFeeNotifications } from '../../../../utils/student-notifications'
 
 const createRefundSchema = z.object({
   amount: z.number().int().positive(),
@@ -88,6 +89,7 @@ export default defineEventHandler(async (event) => {
     scope: refund.payment.student.dojoId ? { type: 'dojo', id: refund.payment.student.dojoId } : { type: 'organization' },
     details: `${refund.created.refundNumber} | ${(body.amount / 100).toFixed(2)} | Original receipt ${refund.payment.receiptNumber}`,
   })
+  await reconcileStudentFeeNotifications(refund.payment.studentId, organizationId).catch(error => console.error('Could not reconcile student fee notifications after refund.', error))
 
   return { success: true, refund: refund.created }
 })

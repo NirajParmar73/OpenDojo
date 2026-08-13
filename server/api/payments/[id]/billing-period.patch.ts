@@ -3,6 +3,7 @@ import { z } from 'zod'
 import { writeAuditLog } from '../../../utils/audit'
 import { db, tables } from '../../../utils/database'
 import { hasFinanceManagementAccess } from '../../../utils/permissions'
+import { reconcileStudentFeeNotifications } from '../../../utils/student-notifications'
 
 const updateBillingPeriodSchema = z.object({
   billingPeriod: z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/, 'Choose a valid fee period'),
@@ -70,6 +71,7 @@ export default defineEventHandler(async (event) => {
     scope: payment.student.dojoId ? { type: 'dojo', id: payment.student.dojoId } : { type: 'organization' },
     details: `${payment.receiptNumber} | ${previousPeriod || 'not set'} → ${body.billingPeriod} | ${body.reason}`,
   })
+  await reconcileStudentFeeNotifications(payment.studentId, organizationId).catch(error => console.error('Could not reconcile student fee notifications after billing-period correction.', error))
 
   return { success: true, payment: updated }
 })

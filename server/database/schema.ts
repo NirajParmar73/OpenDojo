@@ -323,6 +323,59 @@ export const studentPortalAccounts = pgTable('student_portal_accounts', (t) => (
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// Fee reminders are materialized per student and billing period so they can be
+// read, resurfaced on a cadence, and resolved independently of the ledger.
+// The fee ledger remains the source of truth for the outstanding amount.
+export const studentNotifications = pgTable('student_notifications', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  assignmentId: t.integer('assignment_id').references(() => studentFeeAssignments.id, { onDelete: 'cascade' }).notNull(),
+  type: t.text({ enum: ['fee_overdue'] }).notNull().default('fee_overdue'),
+  billingPeriod: t.text('billing_period').notNull(),
+  title: t.text().notNull(),
+  message: t.text().notNull(),
+  outstandingAmount: t.integer('outstanding_amount').notNull(),
+  actionUrl: t.text('action_url').notNull().default('/portal?tab=fees'),
+  readAt: t.timestamp('read_at', { withTimezone: true }),
+  resolvedAt: t.timestamp('resolved_at', { withTimezone: true }),
+  lastRemindedAt: t.timestamp('last_reminded_at', { withTimezone: true }).notNull(),
+  nextReminderAt: t.timestamp('next_reminder_at', { withTimezone: true }).notNull(),
+  reminderCount: t.integer('reminder_count').notNull().default(1),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => ({
+  periodRecipient: uniqueIndex('student_notifications_period_recipient_idx').on(table.studentId, table.assignmentId, table.billingPeriod),
+  inbox: index('student_notifications_inbox_idx').on(table.organizationId, table.studentId, table.resolvedAt),
+}))
+
+// Announcements are queried by organization/dojo rather than copied to every
+// student. Per-student read receipts keep publishing inexpensive.
+export const announcements = pgTable('announcements', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }),
+  title: t.text().notNull(),
+  message: t.text().notNull(),
+  severity: t.text({ enum: ['info', 'success', 'warning', 'urgent'] }).notNull().default('info'),
+  publishedAt: t.timestamp('published_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  expiresAt: t.timestamp('expires_at', { withTimezone: true }),
+  createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => ({
+  audience: index('announcements_audience_idx').on(table.organizationId, table.dojoId, table.publishedAt),
+}))
+
+export const announcementReads = pgTable('announcement_reads', (t) => ({
+  id: t.serial('id').primaryKey(),
+  announcementId: t.integer('announcement_id').references(() => announcements.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  readAt: t.timestamp('read_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+}), table => ({
+  recipient: uniqueIndex('announcement_reads_recipient_idx').on(table.announcementId, table.studentId),
+}))
+
 // Immutable organization activity trail. Scope makes every event visible only
 // to owners or staff responsible for the relevant hierarchy territory / dojo.
 export const auditLogs = pgTable('audit_logs', (t) => ({
@@ -584,6 +637,8 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   dojos: many(dojos),
   students: many(students),
   auditLogs: many(auditLogs),
+  notifications: many(studentNotifications),
+  announcements: many(announcements),
 }))
 
 export const hierarchyLevelsRelations = relations(hierarchyLevels, ({ many }) => ({
@@ -615,6 +670,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   assignments: many(assignments),
   auditLogs: many(auditLogs),
   paymentRefunds: many(paymentRefunds),
+  announcements: many(announcements),
 }))
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({
@@ -664,7 +720,8 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   attendance: many(attendance),
   documents: many(documents),
   portalAccounts: many(studentPortalAccounts),
-  
+  notifications: many(studentNotifications),
+  announcementReads: many(announcementReads),
 }))
 
 export const studentGradingsRelations = relations(studentGradings, ({ one }) => ({
@@ -830,6 +887,24 @@ export const studentProgramEnrollmentsRelations = relations(studentProgramEnroll
 
 export const studentPortalAccountsRelations = relations(studentPortalAccounts, ({ one }) => ({
   student: one(students, { fields: [studentPortalAccounts.studentId], references: [students.id] }),
+}))
+
+export const studentNotificationsRelations = relations(studentNotifications, ({ one }) => ({
+  organization: one(organizations, { fields: [studentNotifications.organizationId], references: [organizations.id] }),
+  student: one(students, { fields: [studentNotifications.studentId], references: [students.id] }),
+  assignment: one(studentFeeAssignments, { fields: [studentNotifications.assignmentId], references: [studentFeeAssignments.id] }),
+}))
+
+export const announcementsRelations = relations(announcements, ({ one, many }) => ({
+  organization: one(organizations, { fields: [announcements.organizationId], references: [organizations.id] }),
+  dojo: one(dojos, { fields: [announcements.dojoId], references: [dojos.id] }),
+  creator: one(users, { fields: [announcements.createdBy], references: [users.id] }),
+  reads: many(announcementReads),
+}))
+
+export const announcementReadsRelations = relations(announcementReads, ({ one }) => ({
+  announcement: one(announcements, { fields: [announcementReads.announcementId], references: [announcements.id] }),
+  student: one(students, { fields: [announcementReads.studentId], references: [students.id] }),
 }))
 
 export const studentAchievementsRelations = relations(studentAchievements, ({ one }) => ({

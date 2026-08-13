@@ -187,6 +187,7 @@ const allNavigation = [
   {
     label: 'Organization',
     items: [
+      { label: 'Announcements', to: '/settings/announcements', icon: 'i-lucide-megaphone' },
       { label: 'Settings', to: '/settings', icon: 'i-lucide-settings-2' },
     ],
   },
@@ -209,8 +210,9 @@ const navigation = computed(() => {
   if (section.label === 'Organization' && !['owner', 'admin'].includes(user.value?.role || '')) {
     return {
       ...section,
-      items: canManageLocations.value
+          items: canManageLocations.value
         ? [
+            { label: 'Announcements', to: '/settings/announcements', icon: 'i-lucide-megaphone' },
             { label: 'Location groups', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
             { label: 'Audit log', to: '/settings/audit-log', icon: 'i-lucide-scroll-text' },
           ]
@@ -255,6 +257,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/settings/programs': { title: 'Martial arts & programs', section: 'Organization' },
   '/settings/affiliations': { title: 'Affiliations & memberships', section: 'Organization' },
   '/settings/audit-log': { title: 'Audit log', section: 'Organization' },
+  '/settings/announcements': { title: 'Announcements', section: 'Organization' },
 }
 
 const currentPage = computed(() => {

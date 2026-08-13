@@ -169,6 +169,13 @@
       "when": 1786525000000,
       "tag": "0023_staff_account_status",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1786595831337,
+      "tag": "0024_supreme_adam_warlock",
+      "breakpoints": true
     }
   ]
 }

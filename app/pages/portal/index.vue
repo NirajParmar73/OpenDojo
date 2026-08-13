@@ -84,8 +84,9 @@
 </template>
 <script setup lang="ts">
 definePageMeta({ middleware: 'portal-auth', layout: 'portal' })
-const toast = useToast(); const tab = ref('profile'); const savingProfile = ref(false); const tabs = [{ label: 'Profile', value: 'profile' }, { label: 'Attendance', value: 'attendance' }, { label: 'Progress', value: 'progress' }, { label: 'Achievements', value: 'achievements' }, { label: 'Fees', value: 'fees' }, { label: 'Documents', value: 'documents' }, { label: 'Password', value: 'password' }]
+const route = useRoute(); const toast = useToast(); const allowedTabs = ['profile', 'attendance', 'progress', 'achievements', 'fees', 'documents', 'password']; const tab = ref(allowedTabs.includes(String(route.query.tab)) ? String(route.query.tab) : 'profile'); const savingProfile = ref(false); const tabs = [{ label: 'Profile', value: 'profile' }, { label: 'Attendance', value: 'attendance' }, { label: 'Progress', value: 'progress' }, { label: 'Achievements', value: 'achievements' }, { label: 'Fees', value: 'fees' }, { label: 'Documents', value: 'documents' }, { label: 'Password', value: 'password' }]
 const { data, pending, error, refresh } = await useFetch<any>('/api/portal/me')
+watch(() => route.query.tab, (value) => { if (allowedTabs.includes(String(value))) tab.value = String(value) })
 const studentInitials = computed(() => data.value ? `${data.value.student.firstName?.[0] || ''}${data.value.student.lastName?.[0] || ''}`.toUpperCase() : 'S')
 const portalRefunds = computed(() => (data.value?.payments || []).flatMap((payment: any) =>
   (payment.refunds || [])

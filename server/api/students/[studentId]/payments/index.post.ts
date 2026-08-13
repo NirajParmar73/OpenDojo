@@ -4,6 +4,7 @@ import { eq, and } from 'drizzle-orm'
 import { randomUUID } from 'node:crypto'
 import { isDojoAccessible } from '../../../../utils/permissions'
 import { writeAuditLog } from '../../../../utils/audit'
+import { reconcileStudentFeeNotifications } from '../../../../utils/student-notifications'
 
 const createPaymentSchema = z.object({
   amount: z.number().int().positive(),
@@ -113,6 +114,7 @@ export default defineEventHandler(async (event) => {
     scope: student.dojoId ? { type: 'dojo', id: student.dojoId } : { type: 'organization' },
     details: `₹${(body.amount / 100).toFixed(2)} | ${body.billingPeriod} | ${payment.receiptNumber}`,
   })
+  await reconcileStudentFeeNotifications(Number(studentId), orgId).catch(error => console.error('Could not reconcile student fee notifications after payment.', error))
 
   return { success: true, payment }
 })

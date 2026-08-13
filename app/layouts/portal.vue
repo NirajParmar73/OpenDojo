@@ -11,6 +11,7 @@
         <div class="flex items-center gap-3">
           <NuxtLink to="/help/students" class="hidden text-sm font-medium text-slate-600 hover:text-primary sm:inline dark:text-slate-300">Help</NuxtLink>
           <PwaInstallButton label="Install Student app" />
+          <StudentNotificationBell v-if="loggedIn" />
           <button
             class="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 shadow-sm transition hover:text-primary dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"
             :aria-label="colorMode.value === 'dark' ? 'Use light mode' : 'Use dark mode'"
@@ -29,6 +30,7 @@
       </div>
     </header>
     <main class="px-4 py-8 sm:px-6">
+      <StudentNotificationBanners v-if="loggedIn" />
       <slot />
     </main>
   </div>
