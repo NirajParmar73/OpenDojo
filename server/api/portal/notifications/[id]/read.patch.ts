@@ -22,9 +22,19 @@ export default defineEventHandler(async (event) => {
       eq(tables.studentNotifications.organizationId, organizationId),
     ))
   } else {
-    const student = await db.query.students.findFirst({ where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)) })
+    const student = await db.query.students.findFirst({ where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)), with: { dojo: { columns: { nodeId: true } } } })
     const announcement = await db.query.announcements.findFirst({ where: and(eq(tables.announcements.id, id), eq(tables.announcements.organizationId, organizationId)) })
-    if (!student || !announcement || (announcement.dojoId !== null && announcement.dojoId !== student.dojoId)) {
+    let territoryMatches = announcement?.scopeNodeId === null
+    if (student?.dojo?.nodeId && announcement?.scopeNodeId) {
+      const nodes = await db.query.hierarchyNodes.findMany({ where: eq(tables.hierarchyNodes.organizationId, organizationId), columns: { id: true, parentId: true } })
+      const nodesById = new Map(nodes.map(node => [node.id, node]))
+      let nodeId: number | null = student.dojo.nodeId
+      while (nodeId !== null) {
+        if (nodeId === announcement.scopeNodeId) { territoryMatches = true; break }
+        nodeId = nodesById.get(nodeId)?.parentId ?? null
+      }
+    }
+    if (!student || !announcement || (announcement.dojoId !== null && announcement.dojoId !== student.dojoId) || !territoryMatches) {
       throw createError({ statusCode: 404, statusMessage: 'Notification not found' })
     }
     await db.insert(tables.announcementReads).values({ announcementId: id, studentId }).onConflictDoUpdate({

@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull, lte, or } from 'drizzle-orm'
+import { and, eq, gt, inArray, isNull, lte, or } from 'drizzle-orm'
 import { db, tables } from '../../../utils/database'
 
 export default defineEventHandler(async (event) => {
@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   if (!studentId || !organizationId || user?.role !== 'student') {
     throw createError({ statusCode: 403, statusMessage: 'Student portal access required' })
   }
-  const student = await db.query.students.findFirst({ where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)) })
+  const student = await db.query.students.findFirst({ where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)), with: { dojo: { columns: { nodeId: true } } } })
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
 
   const now = new Date()
@@ -19,9 +19,21 @@ export default defineEventHandler(async (event) => {
     isNull(tables.studentNotifications.resolvedAt),
   ))
 
-  const audience = student.dojoId
-    ? or(isNull(tables.announcements.dojoId), eq(tables.announcements.dojoId, student.dojoId))
-    : isNull(tables.announcements.dojoId)
+  const territoryNodeIds: number[] = []
+  if (student.dojo?.nodeId) {
+    const nodes = await db.query.hierarchyNodes.findMany({ where: eq(tables.hierarchyNodes.organizationId, organizationId), columns: { id: true, parentId: true } })
+    const nodesById = new Map(nodes.map(node => [node.id, node]))
+    let nodeId: number | null = student.dojo.nodeId
+    while (nodeId !== null) {
+      territoryNodeIds.push(nodeId)
+      nodeId = nodesById.get(nodeId)?.parentId ?? null
+    }
+  }
+  const audience = or(
+    and(isNull(tables.announcements.dojoId), isNull(tables.announcements.scopeNodeId)),
+    ...(student.dojoId ? [eq(tables.announcements.dojoId, student.dojoId)] : []),
+    ...(territoryNodeIds.length ? [inArray(tables.announcements.scopeNodeId, territoryNodeIds)] : []),
+  )
   const announcements = await db.query.announcements.findMany({
     where: and(eq(tables.announcements.organizationId, organizationId), audience, lte(tables.announcements.publishedAt, now), or(isNull(tables.announcements.expiresAt), gt(tables.announcements.expiresAt, now))),
     columns: { id: true },

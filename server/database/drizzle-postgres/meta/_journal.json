@@ -176,6 +176,13 @@
       "when": 1786595831337,
       "tag": "0024_supreme_adam_warlock",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1786599737917,
+      "tag": "0025_red_lizard",
+      "breakpoints": true
     }
   ]
 }

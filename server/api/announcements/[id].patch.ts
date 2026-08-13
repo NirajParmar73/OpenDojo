@@ -9,6 +9,7 @@ const schema = z.object({
   message: z.string().trim().min(2).max(5000),
   severity: z.enum(['info', 'success', 'warning', 'urgent']),
   dojoId: z.number().int().positive().nullable(),
+  scopeNodeId: z.number().int().positive().nullable(),
   publishedAt: z.string().datetime(),
   expiresAt: z.string().datetime().nullable(),
 })
@@ -20,10 +21,10 @@ export default defineEventHandler(async (event) => {
   if (!id) throw createError({ statusCode: 400, statusMessage: 'Invalid announcement' })
   const existing = await db.query.announcements.findFirst({ where: and(eq(tables.announcements.id, id), eq(tables.announcements.organizationId, session.user.organizationId)) })
   if (!existing) throw createError({ statusCode: 404, statusMessage: 'Announcement not found' })
-  await assertAnnouncementAudienceAccess(session.user, existing.dojoId)
+  await assertAnnouncementAudienceAccess(session.user, { dojoId: existing.dojoId, scopeNodeId: existing.scopeNodeId })
 
   const body = await readValidatedBody(event, schema.parse)
-  await assertAnnouncementAudienceAccess(session.user, body.dojoId)
+  await assertAnnouncementAudienceAccess(session.user, { dojoId: body.dojoId, scopeNodeId: body.scopeNodeId })
   const publishedAt = new Date(body.publishedAt)
   const expiresAt = body.expiresAt ? new Date(body.expiresAt) : null
   if (expiresAt && expiresAt <= publishedAt) throw createError({ statusCode: 400, statusMessage: 'Expiry must be after publication' })
@@ -33,6 +34,7 @@ export default defineEventHandler(async (event) => {
     message: body.message,
     severity: body.severity,
     dojoId: body.dojoId,
+    scopeNodeId: body.scopeNodeId,
     publishedAt,
     expiresAt,
     updatedAt: new Date(),
@@ -44,8 +46,7 @@ export default defineEventHandler(async (event) => {
     entityType: 'announcement',
     entityId: id,
     targetLabel: announcement!.title,
-    scope: announcement!.dojoId ? { type: 'dojo', id: announcement!.dojoId } : { type: 'organization' },
+    scope: announcement!.dojoId ? { type: 'dojo', id: announcement!.dojoId } : announcement!.scopeNodeId ? { type: 'node', id: announcement!.scopeNodeId } : { type: 'organization' },
   })
   return announcement
 })
-

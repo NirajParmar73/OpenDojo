@@ -355,6 +355,9 @@ export const announcements = pgTable('announcements', (t) => ({
   id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
   dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'cascade' }),
+  // A hierarchy node targets every dojo below that territory. Both audience
+  // columns being null means the entire organization.
+  scopeNodeId: t.integer('scope_node_id').references(() => hierarchyNodes.id, { onDelete: 'cascade' }),
   title: t.text().notNull(),
   message: t.text().notNull(),
   severity: t.text({ enum: ['info', 'success', 'warning', 'urgent'] }).notNull().default('info'),
@@ -364,7 +367,7 @@ export const announcements = pgTable('announcements', (t) => ({
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }), table => ({
-  audience: index('announcements_audience_idx').on(table.organizationId, table.dojoId, table.publishedAt),
+  audience: index('announcements_audience_idx').on(table.organizationId, table.dojoId, table.scopeNodeId, table.publishedAt),
 }))
 
 export const announcementReads = pgTable('announcement_reads', (t) => ({
@@ -898,6 +901,7 @@ export const studentNotificationsRelations = relations(studentNotifications, ({ 
 export const announcementsRelations = relations(announcements, ({ one, many }) => ({
   organization: one(organizations, { fields: [announcements.organizationId], references: [organizations.id] }),
   dojo: one(dojos, { fields: [announcements.dojoId], references: [dojos.id] }),
+  scopeNode: one(hierarchyNodes, { fields: [announcements.scopeNodeId], references: [hierarchyNodes.id] }),
   creator: one(users, { fields: [announcements.createdBy], references: [users.id] }),
   reads: many(announcementReads),
 }))

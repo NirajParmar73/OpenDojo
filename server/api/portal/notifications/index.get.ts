@@ -14,15 +14,32 @@ export default defineEventHandler(async (event) => {
   const student = await db.query.students.findFirst({
     where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)),
     columns: { id: true, dojoId: true },
+    with: { dojo: { columns: { nodeId: true } } },
   })
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
 
   const now = new Date()
   await reconcileStudentFeeNotifications(studentId, organizationId, now)
 
-  const audience = student.dojoId
-    ? or(isNull(tables.announcements.dojoId), eq(tables.announcements.dojoId, student.dojoId))
-    : isNull(tables.announcements.dojoId)
+  const territoryNodeIds: number[] = []
+  if (student.dojo?.nodeId) {
+    const nodes = await db.query.hierarchyNodes.findMany({
+      where: eq(tables.hierarchyNodes.organizationId, organizationId),
+      columns: { id: true, parentId: true },
+    })
+    const nodesById = new Map(nodes.map(node => [node.id, node]))
+    let nodeId: number | null = student.dojo.nodeId
+    while (nodeId !== null) {
+      territoryNodeIds.push(nodeId)
+      nodeId = nodesById.get(nodeId)?.parentId ?? null
+    }
+  }
+  const organizationAudience = and(isNull(tables.announcements.dojoId), isNull(tables.announcements.scopeNodeId))
+  const audience = or(
+    organizationAudience,
+    ...(student.dojoId ? [eq(tables.announcements.dojoId, student.dojoId)] : []),
+    ...(territoryNodeIds.length ? [inArray(tables.announcements.scopeNodeId, territoryNodeIds)] : []),
+  )
   const [feeNotices, announcements] = await Promise.all([
     db.query.studentNotifications.findMany({
       where: and(
