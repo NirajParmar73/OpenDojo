@@ -13,6 +13,20 @@
           <div><p class="font-semibold">Notifications</p><p class="text-xs text-slate-500">{{ data.unreadCount }} unread</p></div>
           <UButton v-if="data.unreadCount" size="xs" color="neutral" variant="ghost" @click="markAllRead">Mark all read</UButton>
         </div>
+        <div class="flex items-center justify-between gap-4 border-b border-slate-200 px-4 py-2.5 dark:border-slate-800">
+          <div class="flex items-center gap-2 text-xs text-slate-500"><UIcon :name="soundEnabled ? 'i-lucide-volume-2' : 'i-lucide-volume-x'" class="h-4 w-4" />Notification sounds</div>
+          <button
+            type="button"
+            role="switch"
+            :aria-checked="soundEnabled"
+            class="relative h-5 w-9 rounded-full transition"
+            :class="soundEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'"
+            @click="toggleSound"
+          >
+            <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all" :class="soundEnabled ? 'left-[18px]' : 'left-0.5'" />
+            <span class="sr-only">{{ soundEnabled ? 'Disable' : 'Enable' }} notification sounds</span>
+          </button>
+        </div>
         <div v-if="data.items.length" class="max-h-96 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
           <button
             v-for="item in data.items"
@@ -42,17 +56,70 @@ import type { StudentNotification } from '~/composables/useStudentNotifications'
 
 const { data, refresh, markRead, markAllRead } = useStudentNotifications()
 let timer: ReturnType<typeof setInterval> | undefined
+let audioContext: AudioContext | undefined
+let inboxInitialized = false
+let knownUnreadIds = new Set<string>()
+const soundEnabled = ref(false)
 
 onMounted(() => {
-  void refresh()
-  timer = setInterval(() => { if (document.visibilityState === 'visible') void refresh() }, 120_000)
+  soundEnabled.value = localStorage.getItem('opendojos-student-notification-sound') === 'enabled'
+  void refreshInbox()
+  timer = setInterval(() => { if (document.visibilityState === 'visible') void refreshInbox() }, 120_000)
   document.addEventListener('visibilitychange', refreshWhenVisible)
+  window.addEventListener('pointerdown', unlockAudio, { once: true })
+  window.addEventListener('keydown', unlockAudio, { once: true })
 })
 onBeforeUnmount(() => {
   if (timer) clearInterval(timer)
   document.removeEventListener('visibilitychange', refreshWhenVisible)
+  window.removeEventListener('pointerdown', unlockAudio)
+  window.removeEventListener('keydown', unlockAudio)
+  void audioContext?.close()
 })
-function refreshWhenVisible() { if (document.visibilityState === 'visible') void refresh() }
+function getAudioContext() {
+  audioContext ||= new AudioContext()
+  return audioContext
+}
+async function unlockAudio() {
+  if (!soundEnabled.value) return
+  const context = getAudioContext()
+  if (context.state === 'suspended') await context.resume()
+}
+async function playChime() {
+  if (!soundEnabled.value) return
+  const context = getAudioContext()
+  if (context.state === 'suspended') {
+    try { await context.resume() } catch { return }
+  }
+  if (context.state !== 'running') return
+  const start = context.currentTime
+  for (const [offset, frequency] of [[0, 659.25], [0.14, 880]] as const) {
+    const oscillator = context.createOscillator()
+    const gain = context.createGain()
+    oscillator.type = 'sine'
+    oscillator.frequency.setValueAtTime(frequency, start + offset)
+    gain.gain.setValueAtTime(0.0001, start + offset)
+    gain.gain.exponentialRampToValueAtTime(0.12, start + offset + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.22)
+    oscillator.connect(gain)
+    gain.connect(context.destination)
+    oscillator.start(start + offset)
+    oscillator.stop(start + offset + 0.23)
+  }
+}
+async function toggleSound() {
+  soundEnabled.value = !soundEnabled.value
+  localStorage.setItem('opendojos-student-notification-sound', soundEnabled.value ? 'enabled' : 'disabled')
+  if (soundEnabled.value) await playChime()
+}
+async function refreshInbox() {
+  await refresh()
+  const unreadIds = new Set(data.value.items.filter(item => !item.read).map(item => item.id))
+  if (inboxInitialized && [...unreadIds].some(id => !knownUnreadIds.has(id))) await playChime()
+  knownUnreadIds = unreadIds
+  inboxInitialized = true
+}
+function refreshWhenVisible() { if (document.visibilityState === 'visible') void refreshInbox() }
 async function open(item: StudentNotification) {
   if (!item.read) await markRead(item.id)
   if (item.actionUrl) await navigateTo(item.actionUrl)
@@ -65,4 +132,3 @@ function iconClass(item: StudentNotification) {
 }
 function formatDate(value: string) { return new Intl.DateTimeFormat(undefined, { dateStyle: 'medium' }).format(new Date(value)) }
 </script>
-
