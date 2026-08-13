@@ -183,6 +183,13 @@
       "when": 1786599737917,
       "tag": "0025_red_lizard",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1786602614598,
+      "tag": "0026_living_kid_colt",
+      "breakpoints": true
     }
   ]
 }

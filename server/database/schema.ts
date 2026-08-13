@@ -323,6 +323,23 @@ export const studentPortalAccounts = pgTable('student_portal_accounts', (t) => (
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// Each browser installation gets its own Web Push subscription. Endpoints are
+// globally unique and are reassigned when a shared device signs in as another
+// student, preventing notifications from leaking between portal accounts.
+export const studentPushSubscriptions = pgTable('student_push_subscriptions', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  endpoint: t.text().notNull().unique(),
+  p256dh: t.text().notNull(),
+  auth: t.text().notNull(),
+  userAgent: t.text('user_agent'),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => ({
+  recipient: index('student_push_subscriptions_recipient_idx').on(table.organizationId, table.studentId),
+}))
+
 // Fee reminders are materialized per student and billing period so they can be
 // read, resurfaced on a cadence, and resolved independently of the ledger.
 // The fee ledger remains the source of truth for the outstanding amount.
@@ -363,6 +380,7 @@ export const announcements = pgTable('announcements', (t) => ({
   severity: t.text({ enum: ['info', 'success', 'warning', 'urgent'] }).notNull().default('info'),
   publishedAt: t.timestamp('published_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   expiresAt: t.timestamp('expires_at', { withTimezone: true }),
+  pushSentAt: t.timestamp('push_sent_at', { withTimezone: true }),
   createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
@@ -642,6 +660,7 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   auditLogs: many(auditLogs),
   notifications: many(studentNotifications),
   announcements: many(announcements),
+  pushSubscriptions: many(studentPushSubscriptions),
 }))
 
 export const hierarchyLevelsRelations = relations(hierarchyLevels, ({ many }) => ({
@@ -725,6 +744,7 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   portalAccounts: many(studentPortalAccounts),
   notifications: many(studentNotifications),
   announcementReads: many(announcementReads),
+  pushSubscriptions: many(studentPushSubscriptions),
 }))
 
 export const studentGradingsRelations = relations(studentGradings, ({ one }) => ({
@@ -890,6 +910,11 @@ export const studentProgramEnrollmentsRelations = relations(studentProgramEnroll
 
 export const studentPortalAccountsRelations = relations(studentPortalAccounts, ({ one }) => ({
   student: one(students, { fields: [studentPortalAccounts.studentId], references: [students.id] }),
+}))
+
+export const studentPushSubscriptionsRelations = relations(studentPushSubscriptions, ({ one }) => ({
+  organization: one(organizations, { fields: [studentPushSubscriptions.organizationId], references: [organizations.id] }),
+  student: one(students, { fields: [studentPushSubscriptions.studentId], references: [students.id] }),
 }))
 
 export const studentNotificationsRelations = relations(studentNotifications, ({ one }) => ({

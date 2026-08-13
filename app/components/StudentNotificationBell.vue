@@ -27,6 +27,26 @@
             <span class="sr-only">{{ soundEnabled ? 'Disable' : 'Enable' }} notification sounds</span>
           </button>
         </div>
+        <div class="border-b border-slate-200 px-4 py-2.5 dark:border-slate-800">
+          <div class="flex items-center justify-between gap-4">
+            <div class="flex items-center gap-2 text-xs text-slate-500"><UIcon :name="pushEnabled ? 'i-lucide-smartphone' : 'i-lucide-smartphone-off'" class="h-4 w-4" />Device notifications</div>
+            <button
+              type="button"
+              role="switch"
+              :aria-checked="pushEnabled"
+              :disabled="!pushSupported || pushBusy"
+              class="relative h-5 w-9 rounded-full transition disabled:cursor-not-allowed disabled:opacity-40"
+              :class="pushEnabled ? 'bg-primary' : 'bg-slate-300 dark:bg-slate-700'"
+              @click="togglePush"
+            >
+              <span class="absolute top-0.5 h-4 w-4 rounded-full bg-white shadow-sm transition-all" :class="pushEnabled ? 'left-[18px]' : 'left-0.5'" />
+              <span class="sr-only">{{ pushEnabled ? 'Disable' : 'Enable' }} device notifications</span>
+            </button>
+          </div>
+          <p v-if="pushError" class="mt-1.5 text-[11px] leading-4 text-amber-600 dark:text-amber-400">{{ pushError }}</p>
+          <p v-else-if="!pushSupported" class="mt-1.5 text-[11px] leading-4 text-slate-400">Requires HTTPS and a supported browser. On iPhone or iPad, install the Student app first.</p>
+          <p v-else class="mt-1.5 text-[11px] leading-4 text-slate-400">Shows alerts even when the Student app is closed.</p>
+        </div>
         <div v-if="data.items.length" class="max-h-96 divide-y divide-slate-100 overflow-y-auto dark:divide-slate-800">
           <button
             v-for="item in data.items"
@@ -55,6 +75,14 @@
 import type { StudentNotification } from '~/composables/useStudentNotifications'
 
 const { data, refresh, markRead, markAllRead } = useStudentNotifications()
+const {
+  supported: pushSupported,
+  enabled: pushEnabled,
+  busy: pushBusy,
+  error: pushError,
+  initialize: initializePush,
+  toggle: togglePush,
+} = useStudentPushNotifications()
 let timer: ReturnType<typeof setInterval> | undefined
 let audioContext: AudioContext | undefined
 let inboxInitialized = false
@@ -63,6 +91,7 @@ const soundEnabled = ref(false)
 
 onMounted(() => {
   soundEnabled.value = localStorage.getItem('opendojos-student-notification-sound') === 'enabled'
+  void initializePush()
   void refreshInbox()
   timer = setInterval(() => { if (document.visibilityState === 'visible') void refreshInbox() }, 120_000)
   document.addEventListener('visibilitychange', refreshWhenVisible)

@@ -1,6 +1,7 @@
 import { and, eq } from 'drizzle-orm'
 import { buildFeePeriodLedger } from './fee-ledger'
 import { db, tables } from './database'
+import { sendPushToStudents } from './student-push'
 
 export const FEE_REMINDER_CUTOFF_DAY = 10
 export const FEE_REMINDER_INTERVAL_DAYS = 3
@@ -49,6 +50,7 @@ export async function reconcileStudentFeeNotifications(studentId: number, organi
   const existingByPeriod = new Map(existing.map(item => [`${item.assignmentId}:${item.billingPeriod}`, item]))
   const activePeriods = new Set<string>()
   const currency = organization?.currency || 'USD'
+  const pushNotices: Array<{ title: string, message: string }> = []
 
   for (const assignment of assignments) {
     if (!assignment.feePlan || assignment.feePlan.frequency !== 'monthly') continue
@@ -73,7 +75,7 @@ export async function reconcileStudentFeeNotifications(studentId: number, organi
       const message = `${money(period.outstandingAmount, currency)} remains outstanding. This notice will stop when the payment is recorded.`
 
       if (!current) {
-        await db.insert(tables.studentNotifications).values({
+        const inserted = await db.insert(tables.studentNotifications).values({
           organizationId,
           studentId,
           assignmentId: assignment.id,
@@ -83,7 +85,8 @@ export async function reconcileStudentFeeNotifications(studentId: number, organi
           outstandingAmount: period.outstandingAmount,
           lastRemindedAt: now,
           nextReminderAt: addDays(now, FEE_REMINDER_INTERVAL_DAYS),
-        }).onConflictDoNothing()
+        }).onConflictDoNothing().returning({ id: tables.studentNotifications.id })
+        if (inserted.length) pushNotices.push({ title, message })
         continue
       }
 
@@ -99,6 +102,7 @@ export async function reconcileStudentFeeNotifications(studentId: number, organi
         reminderCount: reminderDue ? current.reminderCount + 1 : current.reminderCount,
         updatedAt: now,
       }).where(eq(tables.studentNotifications.id, current.id))
+      if (reminderDue) pushNotices.push({ title, message })
     }
   }
 
@@ -109,5 +113,14 @@ export async function reconcileStudentFeeNotifications(studentId: number, organi
         .where(eq(tables.studentNotifications.id, notice.id))
     }
   }
-}
 
+  if (pushNotices.length) {
+    const latest = pushNotices.at(-1)!
+    await sendPushToStudents([studentId], {
+      title: pushNotices.length === 1 ? latest.title : `${pushNotices.length} fee payments need attention`,
+      body: pushNotices.length === 1 ? latest.message : 'Open the student portal to review the outstanding fee reminders.',
+      url: '/portal?tab=fees',
+      tag: `fee-reminder-${studentId}`,
+    }).catch(error => console.error('Could not dispatch student fee push notification.', error))
+  }
+}

@@ -50,9 +50,20 @@ NUXT_PUBLIC_SUPPORT_PHONE=
 NUXT_PUBLIC_LEGAL_ADDRESS=
 NUXT_TENANT_BASE_DOMAIN=
 NUXT_SESSION_COOKIE_DOMAIN=
+NUXT_PUBLIC_WEB_PUSH_PUBLIC_KEY=PASTE_THE_PERMANENT_VAPID_PUBLIC_KEY
+NUXT_WEB_PUSH_PRIVATE_KEY=PASTE_THE_PERMANENT_VAPID_PRIVATE_KEY
+NUXT_WEB_PUSH_SUBJECT=mailto:your-support-email@example.com
+NUXT_NOTIFICATION_CRON_SECRET=GENERATE_ANOTHER_64_CHARACTER_RANDOM_VALUE
 ```
 
 Generate the session password on your own computer with `openssl rand -hex 32`, or use a password manager generator. Keep it unchanged after the first deployment; changing it signs everyone out.
+
+Generate the Web Push keys once on your computer with
+`pnpm push:generate-keys`. Keep the same pair across deployments. Configure an
+EasyPanel cron job (or a VPS cron/systemd timer) to send an authenticated `POST`
+request to `/api/internal/notifications/dispatch` every 15 minutes, using
+`Authorization: Bearer YOUR_NOTIFICATION_CRON_SECRET`. Do not put the secret in
+the request URL.
 
 5. In **Mounts**, add a **Volume** named `uploads` at `/app/public/uploads`. This keeps logos, documents, and avatars after redeployments.
 6. In **Domains & Proxy**, add `opendojos.com` with proxy port `3000`. Add `www.opendojos.com` too if you want it to work; choose one as the primary domain and redirect the other to it.

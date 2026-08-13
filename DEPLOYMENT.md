@@ -12,7 +12,15 @@ NUXT_SESSION_PASSWORD=use-a-unique-random-secret-of-at-least-32-characters
 NUXT_PUBLIC_APP_URL=https://app.your-domain.com
 NUXT_PUBLIC_LEGAL_ENTITY_NAME=Your legal business name
 NUXT_PUBLIC_SUPPORT_EMAIL=support@your-domain.com
+NUXT_PUBLIC_WEB_PUSH_PUBLIC_KEY=your-permanent-vapid-public-key
+NUXT_WEB_PUSH_PRIVATE_KEY=your-permanent-vapid-private-key
+NUXT_WEB_PUSH_SUBJECT=mailto:support@your-domain.com
+NUXT_NOTIFICATION_CRON_SECRET=use-a-separate-unique-random-secret
 ```
+
+Generate the Web Push key pair once with `pnpm push:generate-keys`, store both
+values in the production secret store, and keep them unchanged. Replacing the
+key pair invalidates devices that already enabled notifications.
 
 Set `NUXT_PUBLIC_SUPPORT_PHONE`, `NUXT_PUBLIC_LEGAL_ADDRESS`, and `NUXT_TENANT_BASE_DOMAIN` when applicable. Do not commit `.env` or user uploads.
 
@@ -28,6 +36,23 @@ NODE_ENV=production bun .output/server/index.mjs
 ```
 
 Run migrations before each application release. Back up PostgreSQL and the persistent upload directory before upgrades.
+
+## Notification scheduler
+
+Immediate announcements are dispatched during publishing. Scheduled
+announcements and due fee reminders require a scheduler to call the protected
+dispatch endpoint every 15 minutes:
+
+```bash
+curl --fail --request POST \
+  --header "Authorization: Bearer $NUXT_NOTIFICATION_CRON_SECRET" \
+  https://app.your-domain.com/api/internal/notifications/dispatch
+```
+
+Use a cron service, VPS system timer, or hosting scheduler. Keep the scheduler
+secret out of URLs and logs. Web Push and service workers require HTTPS in
+production. On iPhone and iPad, the student must install the PWA to the Home
+Screen before enabling device notifications.
 
 ## Release gates
 

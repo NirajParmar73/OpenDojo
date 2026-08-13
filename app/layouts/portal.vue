@@ -40,8 +40,10 @@
 const { loggedIn, clear } = useUserSession()
 const router = useRouter()
 const colorMode = useColorMode()
+const { disable: disablePush } = useStudentPushNotifications()
 
 async function logout() {
+  await disablePush()
   await $fetch('/api/auth/logout', { method: 'POST' })
   await clear()
   await router.push('/portal/login')

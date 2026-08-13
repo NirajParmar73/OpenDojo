@@ -1,5 +1,5 @@
 // Increment this whenever the offline page, manifest, or PWA icons change.
-const CACHE_NAME = 'opendojos-static-v12'
+const CACHE_NAME = 'opendojos-static-v13'
 const OFFLINE_URL = '/offline.html'
 const STATIC_ASSETS = [
   OFFLINE_URL,
@@ -64,4 +64,47 @@ self.addEventListener('fetch', (event) => {
       return response
     }))
   )
+})
+
+self.addEventListener('push', (event) => {
+  let payload = {}
+  try {
+    payload = event.data?.json() || {}
+  } catch {
+    payload = { body: event.data?.text() || 'You have a new student portal notification.' }
+  }
+
+  const title = typeof payload.title === 'string' ? payload.title : 'OpenDojos Student'
+  const body = typeof payload.body === 'string' ? payload.body : 'You have a new notification.'
+  const url = typeof payload.url === 'string' && payload.url.startsWith('/portal') ? payload.url : '/portal'
+  const tag = typeof payload.tag === 'string' ? payload.tag : 'student-notification'
+  event.waitUntil(self.registration.showNotification(title, {
+    body,
+    tag,
+    renotify: true,
+    silent: false,
+    icon: '/student-pwa-icon-192.png',
+    badge: '/student-pwa-icon-192.png',
+    vibrate: [220, 90, 220],
+    data: { url },
+  }))
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const rawUrl = event.notification.data?.url || '/portal'
+  const target = new URL(rawUrl, self.location.origin)
+  if (target.origin !== self.location.origin || !target.pathname.startsWith('/portal')) target.pathname = '/portal'
+
+  event.waitUntil(self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(async (windowClients) => {
+    const portalClient = windowClients.find(client => {
+      const clientUrl = new URL(client.url)
+      return clientUrl.origin === target.origin && clientUrl.pathname.startsWith('/portal')
+    })
+    if (portalClient) {
+      await portalClient.navigate(target.href)
+      return portalClient.focus()
+    }
+    return self.clients.openWindow(target.href)
+  }))
 })

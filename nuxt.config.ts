@@ -53,6 +53,9 @@ export default defineNuxtConfig({
       appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
       razorpayKeyId: process.env.NUXT_RAZORPAY_KEY_ID || '',
       razorpayKeySecret: process.env.NUXT_RAZORPAY_KEY_SECRET || '',
+      webPushPrivateKey: process.env.NUXT_WEB_PUSH_PRIVATE_KEY || '',
+      webPushSubject: process.env.NUXT_WEB_PUSH_SUBJECT || '',
+      notificationCronSecret: process.env.NUXT_NOTIFICATION_CRON_SECRET || '',
       public: {
       appUrl: process.env.NUXT_PUBLIC_APP_URL || '',
       tenantBaseDomain: process.env.NUXT_PUBLIC_TENANT_BASE_DOMAIN || process.env.NUXT_TENANT_BASE_DOMAIN || '',
@@ -61,6 +64,7 @@ export default defineNuxtConfig({
       supportPhone: process.env.NUXT_PUBLIC_SUPPORT_PHONE || '',
       legalAddress: process.env.NUXT_PUBLIC_LEGAL_ADDRESS || '',
       razorpayKeyId: process.env.NUXT_RAZORPAY_KEY_ID || '',
+      webPushPublicKey: process.env.NUXT_PUBLIC_WEB_PUSH_PUBLIC_KEY || '',
       appVersion
     },
     session:{

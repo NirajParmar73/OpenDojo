@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { db, tables } from '../../utils/database'
 import { assertAnnouncementAudienceAccess } from '../../utils/announcements'
 import { writeAuditLog } from '../../utils/audit'
+import { dispatchAnnouncementPush } from '../../utils/student-push'
 
 const schema = z.object({
   title: z.string().trim().min(2).max(160),
@@ -44,5 +45,6 @@ export default defineEventHandler(async (event) => {
     targetLabel: announcement.title,
     scope: announcement.dojoId ? { type: 'dojo', id: announcement.dojoId } : announcement.scopeNodeId ? { type: 'node', id: announcement.scopeNodeId } : { type: 'organization' },
   })
+  await dispatchAnnouncementPush(announcement).catch(error => console.error('Could not dispatch announcement push notification.', error))
   return announcement
 })

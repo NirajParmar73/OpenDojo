@@ -12,6 +12,7 @@
     "typecheck": "nuxt typecheck",
     "migrations:generate": "drizzle-kit generate",
     "migrations:migrate": "drizzle-kit migrate",
+    "push:generate-keys": "web-push generate-vapid-keys --json",
     "subscription:set": "bun server/scripts/set-subscription-plan.ts"
   },
   "dependencies": {
@@ -27,11 +28,13 @@
     "pdfkit": "^0.19.1",
     "postgres": "^3.4.9",
     "tailwindcss": "^4.3.2",
+    "web-push": "3.6.7",
     "zod": "^4.4.3"
   },
   "devDependencies": {
     "@nuxt/eslint": "^1.16.0",
     "@types/pdfkit": "^0.17.6",
+    "@types/web-push": "^3.6.4",
     "drizzle-kit": "^0.31.10",
     "eslint": "^10.7.0",
     "typescript": "5.9.3",
