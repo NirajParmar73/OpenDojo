@@ -92,20 +92,43 @@ async function playChime() {
     try { await context.resume() } catch { return }
   }
   if (context.state !== 'running') return
-  const start = context.currentTime
-  for (const [offset, frequency] of [[0, 659.25], [0.14, 880]] as const) {
-    const oscillator = context.createOscillator()
-    const gain = context.createGain()
-    oscillator.type = 'sine'
-    oscillator.frequency.setValueAtTime(frequency, start + offset)
-    gain.gain.setValueAtTime(0.0001, start + offset)
-    gain.gain.exponentialRampToValueAtTime(0.12, start + offset + 0.02)
-    gain.gain.exponentialRampToValueAtTime(0.0001, start + offset + 0.22)
-    oscillator.connect(gain)
-    gain.connect(context.destination)
-    oscillator.start(start + offset)
-    oscillator.stop(start + offset + 0.23)
+  const start = context.currentTime + 0.01
+  const compressor = context.createDynamicsCompressor()
+  const masterGain = context.createGain()
+
+  compressor.threshold.setValueAtTime(-16, start)
+  compressor.knee.setValueAtTime(10, start)
+  compressor.ratio.setValueAtTime(5, start)
+  compressor.attack.setValueAtTime(0.003, start)
+  compressor.release.setValueAtTime(0.18, start)
+  masterGain.gain.setValueAtTime(0.7, start)
+  masterGain.connect(compressor)
+  compressor.connect(context.destination)
+
+  const playNote = (offset: number, frequency: number, duration: number) => {
+    const noteStart = start + offset
+    for (const [type, multiplier, peak] of [
+      ['triangle', 1, 0.42],
+      ['sine', 2, 0.1],
+    ] as const) {
+      const oscillator = context.createOscillator()
+      const gain = context.createGain()
+      oscillator.type = type
+      oscillator.frequency.setValueAtTime(frequency * multiplier, noteStart)
+      gain.gain.setValueAtTime(0.0001, noteStart)
+      gain.gain.exponentialRampToValueAtTime(peak, noteStart + 0.012)
+      gain.gain.exponentialRampToValueAtTime(peak * 0.55, noteStart + 0.12)
+      gain.gain.exponentialRampToValueAtTime(0.0001, noteStart + duration)
+      oscillator.connect(gain)
+      gain.connect(masterGain)
+      oscillator.start(noteStart)
+      oscillator.stop(noteStart + duration + 0.02)
+    }
   }
+
+  // A bright, original two-note interval with enough sustain to cut through ambient noise.
+  playNote(0, 783.99, 0.42)
+  playNote(0.18, 1046.5, 0.62)
 }
 async function toggleSound() {
   soundEnabled.value = !soundEnabled.value
