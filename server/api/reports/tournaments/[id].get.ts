@@ -22,6 +22,7 @@ export default defineEventHandler(async (event) => {
   const pageHeight = doc.page.height
   const contentX = 36
   const contentWidth = pageWidth - 72
+  const contentBottom = pageHeight - 62
   const primary = '#7c2d12'
   const accent = '#dc6b57'
   const ink = '#1f2937'
@@ -47,7 +48,7 @@ export default defineEventHandler(async (event) => {
   }
 
   const newPage = () => { doc.addPage(); drawContinuationHeader() }
-  const ensureSpace = (height: number) => { if (y + height > pageHeight - 52) newPage() }
+  const ensureSpace = (height: number) => { if (y + height > contentBottom) newPage() }
   const sectionTitle = (title: string, subtitle?: string) => {
     ensureSpace(subtitle ? 50 : 36)
     doc.roundedRect(contentX, y + 1, 6, subtitle ? 35 : 22, 3).fill(accent)
@@ -77,7 +78,7 @@ export default defineEventHandler(async (event) => {
     ensureSpace(headerHeight + rowHeight)
     drawHeader()
     rows.forEach((row, rowIndex) => {
-      if (y + rowHeight > pageHeight - 52) { newPage(); drawHeader() }
+      if (y + rowHeight > contentBottom) { newPage(); drawHeader() }
       if (rowIndex % 2 === 0) doc.rect(contentX, y, contentWidth, rowHeight).fill('#f8fafc')
       let x = contentX
       row.forEach((value, index) => {
@@ -143,9 +144,9 @@ export default defineEventHandler(async (event) => {
   const range = doc.bufferedPageRange()
   for (let pageIndex = range.start; pageIndex < range.start + range.count; pageIndex++) {
     doc.switchToPage(pageIndex)
-    doc.moveTo(contentX, pageHeight - 38).lineTo(pageWidth - contentX, pageHeight - 38).strokeColor('#e2e8f0').lineWidth(0.6).stroke()
-    doc.fillColor(muted).font('Helvetica').fontSize(7.5).text(`Generated ${new Date().toLocaleString('en-IN')} · ${organization?.name || 'OpenDojos'}`, contentX, pageHeight - 28, { width: contentWidth / 2 })
-    doc.text(`Page ${pageIndex + 1} of ${range.count}`, pageWidth - contentX - 120, pageHeight - 28, { width: 120, align: 'right' })
+    doc.moveTo(contentX, pageHeight - 52).lineTo(pageWidth - contentX, pageHeight - 52).strokeColor('#e2e8f0').lineWidth(0.6).stroke()
+    doc.fillColor(muted).font('Helvetica').fontSize(7.5).text(`Generated ${new Date().toLocaleString('en-IN')} · ${organization?.name || 'OpenDojos'}`, contentX, pageHeight - 46, { width: contentWidth / 2, height: 10, lineBreak: false })
+    doc.text(`Page ${pageIndex + 1} of ${range.count}`, pageWidth - contentX - 120, pageHeight - 46, { width: 120, height: 10, align: 'right', lineBreak: false })
   }
   doc.end()
 
