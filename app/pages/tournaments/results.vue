@@ -26,11 +26,11 @@
       <div class="overflow-x-auto">
         <table class="min-w-[1050px] text-sm">
           <thead class="border-b border-slate-100 text-left text-xs uppercase text-slate-400 dark:border-slate-800">
-            <tr><th class="px-3 py-3">Student</th><th class="px-3 py-3">Age</th><th class="px-3 py-3">Event</th><th class="px-3 py-3">Competition category</th><th class="px-3 py-3">Belt division</th><th class="px-3 py-3">Result</th><th class="px-3 py-3">Place secured</th><th class="px-3 py-3">Medal</th><th></th></tr>
+            <tr><th class="sticky left-0 z-20 bg-white px-3 py-3 dark:bg-slate-900">Student</th><th class="px-3 py-3">Age</th><th class="px-3 py-3">Event</th><th class="px-3 py-3">Competition category</th><th class="px-3 py-3">Belt division</th><th class="px-3 py-3">Result</th><th class="px-3 py-3">Place secured</th><th class="px-3 py-3">Medal</th><th></th></tr>
           </thead>
           <tbody>
             <tr v-for="entry in entries" :key="entry.id" class="border-b border-slate-100 last:border-0 dark:border-slate-800">
-              <td class="px-3 py-3 font-medium">{{ entry.student?.firstName }} {{ entry.student?.lastName }}</td>
+              <td class="sticky left-0 z-10 bg-white px-3 py-3 font-medium text-slate-900 shadow-[2px_0_4px_-3px_rgba(15,23,42,0.45)] dark:bg-slate-900 dark:text-white">{{ entry.student?.firstName }} {{ entry.student?.lastName }}</td>
               <td class="px-3 py-3">{{ ageAtTournament(entry.student?.dateOfBirth) || '—' }}</td>
               <td class="px-3 py-3 capitalize">{{ entry.eventType }}</td>
               <td class="px-3 py-3">{{ entry.ageCategory || '—' }}</td>
@@ -59,22 +59,23 @@ const toast = useToast()
 const { data: tournaments } = await useFetch<any[]>('/api/tournaments')
 
 const tournamentOptions = computed(() => (tournaments.value || []).map(t => ({ label: `${t.name} - ${t.level}`, value: t.id })))
-const placeOptions = [{ label: 'Pending', value: null }, { label: '1st place', value: 1 }, { label: '2nd place', value: 2 }, { label: '3rd place', value: 3 }, { label: '4th place', value: 4 }]
+const placeOptions = [{ label: 'Pending', value: null }, { label: 'Did not win', value: 0 }, { label: '1st place', value: 1 }, { label: '2nd place', value: 2 }, { label: '3rd place', value: 3 }, { label: '4th place', value: 4 }]
 const changedEntries = computed(() => entries.value.filter(entry => isChanged(entry)))
 const changedCount = computed(() => changedEntries.value.length)
 
 watch(tournamentId, async id => {
-  entries.value = id ? await $fetch(`/api/tournaments/${id}/entries`) : []
+  const tournamentEntries = id ? await $fetch<any[]>(`/api/tournaments/${id}/entries`) : []
+  entries.value = tournamentEntries.map(entry => ({ ...entry, result: entry.result ?? 'Pending' }))
   savedEntries.value = Object.fromEntries(entries.value.map(entry => [entry.id, snapshot(entry)]))
 })
 
 function snapshot(entry: any) {
-  return { result: entry.result || null, placeSecured: entry.placeSecured || null }
+  return { result: entry.result || null, placeSecured: entry.placeSecured ?? null }
 }
 
 function isChanged(entry: any) {
   const saved = savedEntries.value[entry.id]
-  return !saved || saved.result !== (entry.result || null) || saved.placeSecured !== (entry.placeSecured || null)
+  return !saved || saved.result !== (entry.result || null) || saved.placeSecured !== (entry.placeSecured ?? null)
 }
 
 function medalFor(place: number | null) {
@@ -101,7 +102,7 @@ async function persist(entry: any) {
       ageCategory: entry.ageCategory || null,
       weightCategory: entry.weightCategory || null,
       result: entry.result || null,
-      placeSecured: entry.placeSecured || null
+      placeSecured: entry.placeSecured ?? null
     }
   })
   savedEntries.value[entry.id] = snapshot(entry)
@@ -136,8 +137,3 @@ async function saveAll() {
   toast.add({ color: 'success', title: `${changes.length} tournament result${changes.length === 1 ? '' : 's'} saved` })
 }
 </script>
-
-<style scoped>
-table th:first-child { position: sticky; left: 0; z-index: 2; background: rgb(15 23 42); }
-table td:first-child { position: sticky; left: 0; z-index: 1; background: rgb(15 23 42); box-shadow: 2px 0 4px -3px rgba(0,0,0,.7); }
-</style>
