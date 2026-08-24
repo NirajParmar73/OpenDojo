@@ -1,6 +1,17 @@
 import { and, eq } from 'drizzle-orm'
+import { z } from 'zod'
 import { db, tables } from './database'
 import { getAccessibleDojoIds } from './permissions'
+
+export const tournamentReportFilterSchema = z.object({
+  dojoId: z.coerce.number().int().positive().optional(),
+  beltDivision: z.enum(['colour', 'brown_black']).optional(),
+  ageCategory: z.string().trim().min(1).max(100).optional(),
+  eventType: z.string().trim().min(1).max(100).optional(),
+  outcome: z.enum(['gold', 'silver', 'bronze', 'pending', 'did_not_win']).optional(),
+})
+
+export type TournamentReportFilters = z.infer<typeof tournamentReportFilterSchema>
 
 function yearsOld(dateOfBirth: Date | null, onDate: Date) {
   if (!dateOfBirth) return null
@@ -30,7 +41,7 @@ function resultFor(record: { result: string | null, placeSecured: number | null 
   return record.placeSecured === 0 ? 'Did not win' : record.placeSecured === 1 ? '1st place' : record.placeSecured === 2 ? '2nd place' : record.placeSecured === 3 ? '3rd place' : record.placeSecured === 4 ? '4th place' : 'Pending'
 }
 
-export async function buildTournamentReport(userId: number, organizationId: number, tournamentId: number) {
+export async function buildTournamentReport(userId: number, organizationId: number, tournamentId: number, filters: TournamentReportFilters = {}) {
   const tournament = await db.query.tournaments.findFirst({
     where: and(eq(tables.tournaments.id, tournamentId), eq(tables.tournaments.organizationId, organizationId)),
   })
@@ -46,7 +57,7 @@ export async function buildTournamentReport(userId: number, organizationId: numb
   if (!visible.length) throw createError({ statusCode: 403, statusMessage: 'This tournament has no entries in your permitted territory' })
 
   const onDate = tournament.ageCutoffDate || tournament.startDate
-  const details = visible.map(record => {
+  const allDetails = visible.map(record => {
     const medal = medalFor(record)
     return {
       id: record.id,
@@ -67,6 +78,31 @@ export async function buildTournamentReport(userId: number, organizationId: numb
       medalCount: medal ? medalCount(record) : 0,
     }
   })
+
+  const availableFilters = {
+    dojos: [...new Map(allDetails.filter(record => record.dojoId !== null).map(record => [record.dojoId as number, { label: record.dojoName, value: record.dojoId as number }])).values()].sort((a, b) => a.label.localeCompare(b.label)),
+    beltDivisions: [...new Map(allDetails.map(record => [record.beltDivision, { label: record.beltDivisionLabel, value: record.beltDivision }])).values()].sort((a, b) => a.label.localeCompare(b.label)),
+    ageCategories: [...new Set(allDetails.map(record => record.ageCategory))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true })),
+    eventTypes: [...new Set(allDetails.map(record => record.eventType))].sort((a, b) => a.localeCompare(b)),
+  }
+  const details = allDetails.filter(record => {
+    if (filters.dojoId !== undefined && record.dojoId !== filters.dojoId) return false
+    if (filters.beltDivision && record.beltDivision !== filters.beltDivision) return false
+    if (filters.ageCategory && record.ageCategory !== filters.ageCategory) return false
+    if (filters.eventType && record.eventType !== filters.eventType) return false
+    if (filters.outcome === 'gold' || filters.outcome === 'silver' || filters.outcome === 'bronze') return record.medal === filters.outcome
+    if (filters.outcome === 'pending') return !record.medal && record.placeSecured === null
+    if (filters.outcome === 'did_not_win') return !record.medal && record.placeSecured === 0
+    return true
+  })
+
+  const appliedFilterLabels = [
+    filters.dojoId !== undefined ? `Dojo: ${availableFilters.dojos.find(dojo => dojo.value === filters.dojoId)?.label || `#${filters.dojoId}`}` : null,
+    filters.beltDivision ? `Belt: ${availableFilters.beltDivisions.find(division => division.value === filters.beltDivision)?.label}` : null,
+    filters.ageCategory ? `Age: ${filters.ageCategory}` : null,
+    filters.eventType ? `Event: ${filters.eventType}` : null,
+    filters.outcome ? `Outcome: ${({ gold: 'Gold', silver: 'Silver', bronze: 'Bronze', pending: 'Pending', did_not_win: 'Did not win' } as const)[filters.outcome]}` : null,
+  ].filter((label): label is string => Boolean(label))
 
   const summary = {
     competitors: new Set(details.map(record => record.studentId)).size,
@@ -115,5 +151,5 @@ export async function buildTournamentReport(userId: number, organizationId: numb
   })).sort((a, b) => b.points - a.points || b.gold - a.gold || b.silver - a.silver || a.dojoName.localeCompare(b.dojoName))
   const winners = details.filter(record => record.medal).sort((a, b) => a.beltDivision.localeCompare(b.beltDivision) || a.ageCategory.localeCompare(b.ageCategory, undefined, { numeric: true }) || a.eventType.localeCompare(b.eventType) || (a.placeSecured || 99) - (b.placeSecured || 99) || a.studentName.localeCompare(b.studentName))
 
-  return { organization, tournament, summary, categories, dojos, winners, details }
+  return { organization, tournament, summary, categories, dojos, winners, details, availableFilters, appliedFilters: filters, appliedFilterLabels }
 }

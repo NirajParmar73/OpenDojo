@@ -20,6 +20,27 @@
         <UButton :disabled="!selectedTournamentId" color="neutral" variant="soft" icon="i-lucide-bar-chart-3" :loading="loadingReport" @click="loadReport">Generate report</UButton>
       </div>
       <UAlert v-else color="neutral" variant="subtle" icon="i-lucide-trophy" title="No tournament records in your territory" description="Record student achievements first; each tournament will then be available here." />
+
+      <div v-if="report" class="mt-6 border-t border-slate-200 pt-5 dark:border-slate-800">
+        <div class="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <h3 class="font-semibold">Report filters</h3>
+            <p class="mt-1 text-xs text-slate-500">Leave every filter on “All” to generate the complete report.</p>
+          </div>
+          <UBadge v-if="activeFilterCount" color="primary" variant="subtle">{{ activeFilterCount }} active</UBadge>
+        </div>
+        <div class="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <UFormField label="Dojo"><USelect v-model="filters.dojoId" :items="dojoFilterOptions" class="w-full" /></UFormField>
+          <UFormField label="Belt division"><USelect v-model="filters.beltDivision" :items="beltFilterOptions" class="w-full" /></UFormField>
+          <UFormField label="Age category"><USelect v-model="filters.ageCategory" :items="ageFilterOptions" class="w-full" /></UFormField>
+          <UFormField label="Event"><USelect v-model="filters.eventType" :items="eventFilterOptions" class="w-full" /></UFormField>
+          <UFormField label="Outcome"><USelect v-model="filters.outcome" :items="outcomeFilterOptions" class="w-full" /></UFormField>
+        </div>
+        <div class="mt-4 flex flex-wrap justify-end gap-2">
+          <UButton v-if="activeFilterCount" color="neutral" variant="ghost" icon="i-lucide-rotate-ccw" :disabled="loadingReport" @click="resetFilters">Reset</UButton>
+          <UButton color="neutral" variant="soft" icon="i-lucide-list-filter" :loading="loadingReport" @click="loadReport">Apply filters</UButton>
+        </div>
+      </div>
     </UCard>
 
     <div v-if="loadingReport" class="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -27,6 +48,8 @@
     </div>
 
     <div v-else-if="report" class="mt-6 space-y-6">
+      <UAlert v-if="report.appliedFilterLabels.length" color="primary" variant="subtle" icon="i-lucide-list-filter" title="Filtered report" :description="report.appliedFilterLabels.join(' · ')" />
+      <UAlert v-if="!report.summary.entries" color="warning" variant="subtle" icon="i-lucide-search-x" title="No matching entries" description="No tournament entries match the selected filters. Adjust or reset the filters to see results." />
       <UCard>
         <div class="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div class="flex items-center gap-4">
@@ -118,7 +141,22 @@ const downloading = ref(false)
 const sharing = ref(false)
 const loadingReport = ref(false)
 const report = ref<any>(null)
+const defaultFilters = () => ({ dojoId: 'all', beltDivision: 'all', ageCategory: 'all', eventType: 'all', outcome: 'all' })
+const filters = reactive(defaultFilters())
 const { data: tournaments } = await useFetch<Tournament[]>('/api/reports/tournaments')
+const dojoFilterOptions = computed(() => [{ label: 'All dojos', value: 'all' }, ...(report.value?.availableFilters.dojos || []).map((dojo: any) => ({ label: dojo.label, value: String(dojo.value) }))])
+const beltFilterOptions = computed(() => [{ label: 'All belt divisions', value: 'all' }, ...(report.value?.availableFilters.beltDivisions || [])])
+const ageFilterOptions = computed(() => [{ label: 'All age categories', value: 'all' }, ...(report.value?.availableFilters.ageCategories || []).map((value: string) => ({ label: value, value }))])
+const eventFilterOptions = computed(() => [{ label: 'All events', value: 'all' }, ...(report.value?.availableFilters.eventTypes || []).map((value: string) => ({ label: value, value }))])
+const outcomeFilterOptions = [
+  { label: 'All outcomes', value: 'all' },
+  { label: 'Gold', value: 'gold' },
+  { label: 'Silver', value: 'silver' },
+  { label: 'Bronze', value: 'bronze' },
+  { label: 'Pending', value: 'pending' },
+  { label: 'Did not win', value: 'did_not_win' },
+]
+const activeFilterCount = computed(() => Object.values(filters).filter(value => value !== 'all').length)
 const tournamentOptions = computed(() => (tournaments.value || []).map(tournament => ({ label: `${tournament.name} — ${tournament.level} (${new Date(tournament.startDate).toLocaleDateString('en-IN')})`, value: tournament.id })))
 const summaryStats = computed(() => report.value ? [
   { label: 'Competitors', value: report.value.summary.competitors, icon: 'i-lucide-users', color: 'text-primary' },
@@ -139,15 +177,31 @@ const medalStats = computed(() => report.value ? [
 function formatDate(value: string) { return new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' }) }
 function formatDateRange(start: string, end?: string | null) { return `${formatDate(start)}${end ? ` – ${formatDate(end)}` : ''}` }
 
+function reportQuery() {
+  return Object.fromEntries(Object.entries(filters)
+    .filter(([, value]) => value !== 'all')
+    .map(([key, value]) => [key, value]))
+}
+
+watch(selectedTournamentId, () => {
+  report.value = null
+  Object.assign(filters, defaultFilters())
+})
+
 async function loadReport() {
   if (!selectedTournamentId.value) return
   loadingReport.value = true
   report.value = null
   try {
-    report.value = await $fetch(`/api/reports/tournaments/${selectedTournamentId.value}/summary`)
+    report.value = await $fetch(`/api/reports/tournaments/${selectedTournamentId.value}/summary`, { query: reportQuery() })
   } catch (error: any) {
     toast.add({ color: 'error', title: 'Could not generate report', description: error.message })
   } finally { loadingReport.value = false }
+}
+
+async function resetFilters() {
+  Object.assign(filters, defaultFilters())
+  await loadReport()
 }
 
 function reportFilename() {
@@ -157,7 +211,8 @@ function reportFilename() {
 
 async function fetchPdf() {
   if (!selectedTournamentId.value) throw new Error('Select a tournament first')
-  const response = await fetch(`/api/reports/tournaments/${selectedTournamentId.value}`)
+  const query = new URLSearchParams(Object.fromEntries(Object.entries(report.value?.appliedFilters || {}).map(([key, value]) => [key, String(value)]))).toString()
+  const response = await fetch(`/api/reports/tournaments/${selectedTournamentId.value}${query ? `?${query}` : ''}`)
   if (!response.ok) throw new Error('Could not generate the tournament report')
   return new File([await response.blob()], reportFilename(), { type: 'application/pdf' })
 }

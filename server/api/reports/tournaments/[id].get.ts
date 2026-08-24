@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import PDFDocument from 'pdfkit'
-import { buildTournamentReport } from '../../../utils/tournament-report'
+import { buildTournamentReport, tournamentReportFilterSchema } from '../../../utils/tournament-report'
 
 type TableColumn = { label: string, width: number, align?: 'left' | 'center' | 'right' }
 
@@ -11,8 +11,9 @@ export default defineEventHandler(async (event) => {
   const tournamentId = Number(getRouterParam(event, 'id'))
   if (!Number.isInteger(tournamentId)) throw createError({ statusCode: 400, statusMessage: 'Invalid tournament' })
 
-  const report = await buildTournamentReport(session.user.id, session.user.organizationId, tournamentId)
-  const { organization, tournament, summary, categories, dojos, winners } = report
+  const filters = tournamentReportFilterSchema.parse(getQuery(event))
+  const report = await buildTournamentReport(session.user.id, session.user.organizationId, tournamentId, filters)
+  const { organization, tournament, summary, categories, dojos, winners, appliedFilterLabels } = report
   const doc = new PDFDocument({ margin: 36, size: 'A4', layout: 'landscape', bufferPages: true, info: { Title: `${tournament.name} performance report`, Author: organization?.name || 'OpenDojos' } })
   const chunks: Buffer[] = []
   doc.on('data', chunk => chunks.push(chunk))
@@ -104,6 +105,13 @@ export default defineEventHandler(async (event) => {
   const end = tournament.endDate ? ` – ${new Date(tournament.endDate).toLocaleDateString('en-IN', { dateStyle: 'medium' })}` : ''
   doc.font('Helvetica').fontSize(9).fillColor('#fed7aa').text(`${tournament.level} · ${tournament.venue || 'Venue not recorded'} · ${start}${end}`, pageWidth - 390, 68, { width: 354, align: 'right' })
   y = 148
+
+  if (appliedFilterLabels.length) {
+    doc.roundedRect(contentX, y, contentWidth, 34, 6).fill('#fff7ed')
+    doc.fillColor(primary).font('Helvetica-Bold').fontSize(8).text('FILTERED REPORT', contentX + 12, y + 7)
+    doc.fillColor(ink).font('Helvetica').fontSize(9).text(appliedFilterLabels.join('  /  '), contentX + 12, y + 19, { width: contentWidth - 24, height: 12, ellipsis: true })
+    y += 48
+  }
 
   sectionTitle('Executive summary', 'A consolidated view of participation, completed results, and medals in your permitted territory.')
   const statCards = [
