@@ -6,7 +6,10 @@
         <h2 class="mt-1 text-2xl font-semibold">Tournament performance report</h2>
         <p class="mt-2 text-sm leading-6 text-slate-500">Review winners, medal totals, competition categories, and dojo performance for your permitted territory.</p>
       </div>
-      <UButton v-if="report" icon="i-lucide-file-down" :loading="downloading" @click="download">Download PDF</UButton>
+      <div v-if="report" class="flex flex-wrap gap-2">
+        <UButton color="neutral" variant="soft" icon="i-lucide-share-2" :loading="sharing" :disabled="downloading" @click="sharePdf">Share PDF</UButton>
+        <UButton icon="i-lucide-file-down" :loading="downloading" :disabled="sharing" @click="download">Download PDF</UButton>
+      </div>
     </section>
 
     <UCard>
@@ -112,6 +115,7 @@ type Tournament = { id: number, name: string, level: string, venue: string | nul
 const toast = useToast()
 const selectedTournamentId = ref<number | undefined>()
 const downloading = ref(false)
+const sharing = ref(false)
 const loadingReport = ref(false)
 const report = ref<any>(null)
 const { data: tournaments } = await useFetch<Tournament[]>('/api/reports/tournaments')
@@ -146,20 +150,51 @@ async function loadReport() {
   } finally { loadingReport.value = false }
 }
 
+function reportFilename() {
+  const name = report.value?.tournament?.name || 'tournament'
+  return `${String(name).replace(/[^a-z0-9]+/gi, '_').replace(/^_+|_+$/g, '').toLowerCase()}_performance_report.pdf`
+}
+
+async function fetchPdf() {
+  if (!selectedTournamentId.value) throw new Error('Select a tournament first')
+  const response = await fetch(`/api/reports/tournaments/${selectedTournamentId.value}`)
+  if (!response.ok) throw new Error('Could not generate the tournament report')
+  return new File([await response.blob()], reportFilename(), { type: 'application/pdf' })
+}
+
+function savePdf(file: File) {
+  const url = URL.createObjectURL(file)
+  const link = document.createElement('a')
+  link.href = url
+  link.download = file.name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 1_000)
+}
+
 async function download() {
-  if (!selectedTournamentId.value) return
-  const preview = window.open('', '_blank')
   downloading.value = true
   try {
-    const response = await fetch(`/api/reports/tournaments/${selectedTournamentId.value}`)
-    if (!response.ok) throw new Error('Could not generate the tournament report')
-    const url = URL.createObjectURL(await response.blob())
-    if (preview) preview.location.href = url
-    else window.open(url, '_blank')
-    setTimeout(() => URL.revokeObjectURL(url), 60_000)
+    savePdf(await fetchPdf())
   } catch (error: any) {
-    preview?.close()
     toast.add({ color: 'error', title: 'Could not download report', description: error.message })
   } finally { downloading.value = false }
+}
+
+async function sharePdf() {
+  sharing.value = true
+  try {
+    const file = await fetchPdf()
+    const shareData = { files: [file], title: `${report.value.tournament.name} performance report` }
+    if (navigator.share && navigator.canShare?.(shareData)) {
+      await navigator.share(shareData)
+      return
+    }
+    savePdf(file)
+    toast.add({ color: 'info', title: 'PDF downloaded', description: 'File sharing is not supported by this device or browser. The PDF was downloaded so you can attach it manually.' })
+  } catch (error: any) {
+    if (error?.name !== 'AbortError') toast.add({ color: 'error', title: 'Could not share report', description: error.message })
+  } finally { sharing.value = false }
 }
 </script>
