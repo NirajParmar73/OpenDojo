@@ -36,7 +36,7 @@
               <td class="px-3 py-3">{{ entry.ageCategory || '—' }}</td>
               <td class="px-3 py-3">{{ entry.beltDivision === 'brown_black' ? 'Brown / Black' : 'Colour' }}</td>
               <td class="px-3 py-3"><UInput v-model="entry.result" placeholder="Pending" /></td>
-              <td class="px-3 py-3"><USelect v-model="entry.placeSecured" :items="placeOptions" /></td>
+              <td class="px-3 py-3"><USelect :model-value="entry.placeSecured" :items="placeOptions" @update:model-value="setPlace(entry, $event)" /></td>
               <td class="px-3 py-3"><UBadge :color="medalFor(entry.placeSecured) ? 'warning' : 'neutral'" variant="subtle">{{ medalFor(entry.placeSecured) || '-' }}</UBadge></td>
               <td class="px-3 py-3"><UButton size="xs" :loading="savingId === entry.id" :disabled="savingAll" @click="save(entry)">Save</UButton></td>
             </tr>
@@ -65,9 +65,23 @@ const changedCount = computed(() => changedEntries.value.length)
 
 watch(tournamentId, async id => {
   const tournamentEntries = id ? await $fetch<any[]>(`/api/tournaments/${id}/entries`) : []
-  entries.value = tournamentEntries.map(entry => ({ ...entry, result: entry.result ?? 'Pending' }))
+  entries.value = tournamentEntries.map(entry => ({ ...entry, result: resultFor(entry) }))
   savedEntries.value = Object.fromEntries(entries.value.map(entry => [entry.id, snapshot(entry)]))
 })
+
+function placementResult(place: number | null | undefined) {
+  return place === 0 ? 'Did not win' : place === 1 ? '1st place' : place === 2 ? '2nd place' : place === 3 ? '3rd place' : place === 4 ? '4th place' : 'Pending'
+}
+
+function resultFor(entry: any) {
+  const result = typeof entry.result === 'string' ? entry.result.trim() : ''
+  return result && result.toLowerCase() !== 'pending' ? result : placementResult(entry.placeSecured)
+}
+
+function setPlace(entry: any, place: number | null) {
+  entry.placeSecured = place
+  entry.result = placementResult(place)
+}
 
 function snapshot(entry: any) {
   return { result: entry.result || null, placeSecured: entry.placeSecured ?? null }
