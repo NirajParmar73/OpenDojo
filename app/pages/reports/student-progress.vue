@@ -6,7 +6,9 @@
       <p class="mt-2 text-sm text-slate-500">Choose a student within your permitted hierarchy to download a shareable progress report.</p>
     </section>
 
-    <UCard>
+    <UAlert v-if="!canViewStudentReports" color="warning" icon="i-lucide-lock" title="Report access required" description="Student reports are available to organization administrators and managers responsible for a territory or dojo." />
+
+    <UCard v-else>
       <div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Organization location">
           <USelect v-model="selectedNodeId" :items="nodeOptions" placeholder="All accessible locations" />
@@ -35,6 +37,13 @@ type ScopeNode = { id: number, name: string, label?: string, parentId: number | 
 type ScopeDojo = { id: number, name: string, nodeId: number }
 
 const toast = useToast()
+const { user } = useUserSession()
+const reportManagerRoles = ['owner', 'admin', 'country_head', 'state_head', 'district_head', 'city_head', 'zone_head', 'dojo_head']
+const { data: accessProfile } = await useFetch<{ assignments?: Array<{ role: string }> }>('/api/user/profile')
+const canViewStudentReports = computed(() =>
+  reportManagerRoles.includes(user.value?.role || '')
+  || (accessProfile.value?.assignments || []).some(assignment => reportManagerRoles.includes(assignment.role))
+)
 const studentId = ref<number | null>(null)
 const selectedNodeId = ref<number | null>(null)
 const selectedDojoId = ref<number | null>(null)
@@ -82,7 +91,7 @@ const dojoOptions = computed(() => [
 ])
 const programOptions = computed(() => [{ label: 'All programs', value: null }, ...(programs.value || []).map(program => ({ label: program.displayName, value: program.id }))])
 const filteredStudents = computed(() => (students.value || []).filter(student => !selectedDojoId.value || student.dojoId === selectedDojoId.value).filter(student => !selectedProgramId.value || student.programId === selectedProgramId.value).filter(student => filteredDojos.value.some(dojo => dojo.id === student.dojoId)))
-const studentOptions = computed(() => filteredStudents.value.map(student => ({ label: `${student.firstName} ${student.lastName}${student.dojo?.name ? ` — ${student.dojo.name}` : ''}`, value: student.id })))
+const studentOptions = computed(() => filteredStudents.value.map(student => ({ label: `${student.firstName} ${student.lastName}${student.dojo?.name ? ` — ${student.dojo.name}` : ''}${student.status === 'archived' ? ' — Archived' : ''}`, value: student.id })))
 
 watch(selectedNodeId, () => {
   selectedDojoId.value = null

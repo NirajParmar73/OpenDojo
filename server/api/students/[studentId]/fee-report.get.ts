@@ -3,7 +3,7 @@ import PDFDocument from 'pdfkit'
 import { db, tables } from '../../../utils/database'
 import { formatAmount } from '../../../utils/currency'
 import { calculateFeeBalance } from '../../../utils/fees'
-import { getAccessibleDojoIds } from '../../../utils/permissions'
+import { hasStudentReportAccess } from '../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -17,10 +17,7 @@ export default defineEventHandler(async (event) => {
     with: { dojo: true, program: true },
   })
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
-  if (student.dojoId) {
-    const accessible = await getAccessibleDojoIds(session.user.id, organizationId)
-    if (accessible !== null && !accessible.includes(student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'Access denied' })
-  } else if (session.user.role !== 'owner') throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+  if (!await hasStudentReportAccess(session.user.id, organizationId, student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'You do not have permission to view student reports' })
 
   const query = getQuery(event)
   const from = typeof query.from === 'string' && query.from ? new Date(`${query.from}T00:00:00`) : undefined

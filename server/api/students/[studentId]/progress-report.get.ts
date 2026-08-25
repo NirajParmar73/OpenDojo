@@ -3,7 +3,7 @@ import PDFDocument from 'pdfkit'
 import fs from 'node:fs'
 import path from 'node:path'
 import { db, tables } from '../../../utils/database'
-import { isDojoAccessible } from '../../../utils/permissions'
+import { hasStudentReportAccess } from '../../../utils/permissions'
 import { getCurrentBeltRankId } from '../../../utils/gradings'
 
 export default defineEventHandler(async (event) => {
@@ -18,7 +18,7 @@ export default defineEventHandler(async (event) => {
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
   const portalStudentId = Number((session.user as unknown as Record<string, unknown>).studentId)
   const isOwnPortalReport = session.user.role === 'student' && portalStudentId === studentId
-  if (!isOwnPortalReport && (student.dojoId ? !await isDojoAccessible(session.user.id, session.user.organizationId, student.dojoId) : session.user.role !== 'owner')) throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+  if (!isOwnPortalReport && !await hasStudentReportAccess(session.user.id, session.user.organizationId, student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'You do not have permission to view student reports' })
 
   const [gradings, attendance, achievements, organization] = await Promise.all([
     db.query.studentGradings.findMany({ where: eq(tables.studentGradings.studentId, studentId), with: { beltRank: true }, orderBy: (grading, { asc }) => [asc(grading.awardedDate)] }),

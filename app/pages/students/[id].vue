@@ -3,7 +3,7 @@
   <div v-else class="mx-auto max-w-7xl">
     <div class="mb-6 flex items-center justify-between gap-3">
       <UButton to="/students" color="neutral" variant="ghost" icon="i-lucide-arrow-left">All students</UButton>
-      <div class="flex flex-wrap gap-2"><UButton v-if="canManagePortalAccess" :to="`/students/${studentId}/portal-access`" color="neutral" variant="soft" icon="i-lucide-key-round">Portal access</UButton><UButton :href="`/api/students/${studentId}/progress-report`" target="_blank" color="neutral" variant="soft" icon="i-lucide-file-down">Progress report</UButton><UButton :to="`/grading-exams?studentId=${studentId}`" color="neutral" variant="soft" icon="i-lucide-award">Add to grading</UButton><UButton :to="`/fees?id=${studentId}`" color="primary" icon="i-lucide-circle-dollar-sign">Record payment</UButton></div>
+      <div class="flex flex-wrap gap-2"><UButton v-if="canManagePortalAccess" :to="`/students/${studentId}/portal-access`" color="neutral" variant="soft" icon="i-lucide-key-round">Portal access</UButton><UButton v-if="canViewStudentReports" :href="`/api/students/${studentId}/progress-report`" target="_blank" color="neutral" variant="soft" icon="i-lucide-file-down">Progress report</UButton><UButton :to="`/grading-exams?studentId=${studentId}`" color="neutral" variant="soft" icon="i-lucide-award">Add to grading</UButton><UButton :to="`/fees?id=${studentId}`" color="primary" icon="i-lucide-circle-dollar-sign">Record payment</UButton></div>
     </div>
 
     <div v-if="pending" class="grid gap-5 lg:grid-cols-[280px_1fr]">
@@ -106,7 +106,7 @@
         </UCard>
 
         <UCard v-if="activeTab === 'attendance'">
-          <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Attendance history</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Review classes attended or share a complete report.</p></div><UButton size="sm" color="primary" variant="soft" icon="i-lucide-download" :loading="downloadingAttendanceReport" @click="downloadAttendanceReport">Download PDF</UButton></div></template>
+          <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Attendance history</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Review classes attended or share a complete report.</p></div><UButton v-if="canViewStudentReports" size="sm" color="primary" variant="soft" icon="i-lucide-download" :loading="downloadingAttendanceReport" @click="downloadAttendanceReport">Download PDF</UButton></div></template>
           <div v-if="attendance.records?.length" class="divide-y divide-slate-100 dark:divide-slate-800">
             <div v-for="record in attendance.records" :key="record.id" class="flex flex-wrap items-center justify-between gap-3 py-4">
               <div>
@@ -123,7 +123,7 @@
           <UCard>
             <div class="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
               <div><p class="text-sm font-semibold text-primary">SHAREABLE RECORD</p><h3 class="mt-1 font-semibold">Fee history statement</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Download a professional payment history and current balance to share with the student or guardian.</p></div>
-              <div class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="statementFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="statementTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-eye" :loading="downloadingStatement" @click="downloadFeeStatement">Preview PDF</UButton></div></div>
+              <div v-if="canViewStudentReports" class="grid gap-3 sm:grid-cols-3"><UFormField label="Statement from"><UInput v-model="statementFrom" type="date" /></UFormField><UFormField label="Statement to"><UInput v-model="statementTo" type="date" /></UFormField><div class="self-end"><UButton color="primary" icon="i-lucide-eye" :loading="downloadingStatement" @click="downloadFeeStatement">Preview PDF</UButton></div></div>
             </div>
           </UCard>
           <UCard>
@@ -179,7 +179,7 @@
             <UFormField label="Notes" class="sm:col-span-2 lg:col-span-3"><UTextarea v-model="achievementForm.notes" placeholder="Optional notes" /></UFormField>
             <div class="flex justify-end gap-2 sm:col-span-2 lg:col-span-3"><UButton color="neutral" variant="ghost" @click="showAchievementForm = false; void 0">Cancel</UButton><UButton type="submit" color="primary" :loading="savingAchievement">Save achievement</UButton></div>
           </form>
-          <div v-if="achievements.length" class="space-y-3"><div v-for="achievement in achievements" :key="achievement.id" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><div class="flex items-start justify-between gap-3"><div><p class="font-medium">{{ achievement.tournamentName }}</p><p class="mt-1 text-sm text-primary">{{ achievement.tournamentLevel }}<span v-if="achievement.venue"> · {{ achievement.venue }}</span></p></div><div class="flex items-center gap-2"><a v-if="achievement.certificateUrl" :href="achievement.certificateUrl" target="_blank"><UButton size="xs" color="neutral" variant="soft" icon="i-lucide-file-badge">Certificate</UButton></a><UButton size="xs" color="primary" variant="soft" icon="i-lucide-file-down" @click="downloadAchievementCard(achievement.id)">Card</UButton><UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" @click="deleteAchievement(achievement.id)" /></div></div><div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-300"><span>{{ formatDate(achievement.startDate) }}<template v-if="achievement.endDate"> – {{ formatDate(achievement.endDate) }}</template></span><span v-if="achievement.eventType">{{ achievement.eventType }}</span><span v-if="achievement.ageCategory">{{ achievement.ageCategory }}</span><span v-if="achievement.weightCategory">{{ achievement.weightCategory }}</span><span v-if="achievement.result" class="font-medium">{{ achievement.result }}</span><span v-if="achievement.medalType" class="font-medium">{{ achievement.medalType }}</span><span v-if="achievement.medalsWon">{{ achievement.medalsWon }} medal{{ achievement.medalsWon === 1 ? '' : 's' }}</span></div><p v-if="achievement.notes" class="mt-3 text-sm">{{ achievement.notes }}</p></div></div>
+          <div v-if="achievements.length" class="space-y-3"><div v-for="achievement in achievements" :key="achievement.id" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800"><div class="flex items-start justify-between gap-3"><div><p class="font-medium">{{ achievement.tournamentName }}</p><p class="mt-1 text-sm text-primary">{{ achievement.tournamentLevel }}<span v-if="achievement.venue"> · {{ achievement.venue }}</span></p></div><div class="flex items-center gap-2"><a v-if="achievement.certificateUrl" :href="achievement.certificateUrl" target="_blank"><UButton size="xs" color="neutral" variant="soft" icon="i-lucide-file-badge">Certificate</UButton></a><UButton v-if="canViewStudentReports" size="xs" color="primary" variant="soft" icon="i-lucide-file-down" @click="downloadAchievementCard(achievement.id)">Card</UButton><UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" @click="deleteAchievement(achievement.id)" /></div></div><div class="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-sm text-slate-600 dark:text-slate-300"><span>{{ formatDate(achievement.startDate) }}<template v-if="achievement.endDate"> – {{ formatDate(achievement.endDate) }}</template></span><span v-if="achievement.eventType">{{ achievement.eventType }}</span><span v-if="achievement.ageCategory">{{ achievement.ageCategory }}</span><span v-if="achievement.weightCategory">{{ achievement.weightCategory }}</span><span v-if="achievement.result" class="font-medium">{{ achievement.result }}</span><span v-if="achievement.medalType" class="font-medium">{{ achievement.medalType }}</span><span v-if="achievement.medalsWon">{{ achievement.medalsWon }} medal{{ achievement.medalsWon === 1 ? '' : 's' }}</span></div><p v-if="achievement.notes" class="mt-3 text-sm">{{ achievement.notes }}</p></div></div>
           <EmptyState v-else icon="i-lucide-trophy" message="No tournament achievements have been recorded yet." />
         </UCard>
 
@@ -244,6 +244,10 @@ const canManagePortalAccess = computed(() =>
   || (accessProfile.value?.assignments || []).some(assignment => portalManagerRoles.includes(assignment.role))
 )
 const canManageFinance = computed(() =>
+  portalManagerRoles.includes(user.value?.role || '')
+  || (accessProfile.value?.assignments || []).some(assignment => portalManagerRoles.includes(assignment.role))
+)
+const canViewStudentReports = computed(() =>
   portalManagerRoles.includes(user.value?.role || '')
   || (accessProfile.value?.assignments || []).some(assignment => portalManagerRoles.includes(assignment.role))
 )

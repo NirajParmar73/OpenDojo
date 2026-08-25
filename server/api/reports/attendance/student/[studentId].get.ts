@@ -4,7 +4,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { z } from 'zod'
 import { db, tables } from '../../../../utils/database'
-import { getAccessibleDojoIds } from '../../../../utils/permissions'
+import { hasStudentReportAccess } from '../../../../utils/permissions'
 
 const querySchema = z.object({ from: z.string().optional(), to: z.string().optional() })
 
@@ -20,10 +20,7 @@ export default defineEventHandler(async (event) => {
     with: { dojo: true, program: true },
   }) as any
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
-  if (student.dojoId) {
-    const accessible = await getAccessibleDojoIds(session.user.id, organizationId)
-    if (accessible !== null && !accessible.includes(student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'Access denied' })
-  } else if (session.user.role !== 'owner') throw createError({ statusCode: 403, statusMessage: 'Access denied' })
+  if (!await hasStudentReportAccess(session.user.id, organizationId, student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'You do not have permission to view student reports' })
 
   const organization = await db.query.organizations.findFirst({ where: eq(tables.organizations.id, organizationId) })
   const { from, to } = querySchema.parse(getQuery(event))

@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import path from 'node:path'
 import PDFDocument from 'pdfkit'
 import { db, tables } from '../../../../../utils/database'
+import { hasStudentReportAccess } from '../../../../../utils/permissions'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -12,6 +13,7 @@ export default defineEventHandler(async (event) => {
   const achievement = await db.query.studentAchievements.findFirst({ where: and(eq(tables.studentAchievements.id, achievementId), eq(tables.studentAchievements.studentId, studentId), eq(tables.studentAchievements.organizationId, session.user.organizationId)), with: { tournament: true } })
   const student = await db.query.students.findFirst({ where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, session.user.organizationId)), with: { dojo: true } })
   if (!achievement || !student) throw createError({ statusCode: 404, statusMessage: 'Achievement not found' })
+  if (!await hasStudentReportAccess(session.user.id, session.user.organizationId, student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'You do not have permission to view student reports' })
   const organization = await db.query.organizations.findFirst({ where: eq(tables.organizations.id, session.user.organizationId) })
 
   const doc = new PDFDocument({ margin: 48, size: 'A4' })

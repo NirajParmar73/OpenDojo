@@ -466,3 +466,24 @@ test('eligible candidates can be bulk scheduled and retain an editable participa
   assert.match(readiness, /Create exams & register students/)
   assert.match(readinessPage, /PromotionReadinessPanel bulk-actions/)
 })
+
+test('student PDF reports require management access and identify archived students', async () => {
+  const permissions = await read('server/utils/permissions.ts')
+  const progressReport = await read('server/api/students/[studentId]/progress-report.get.ts')
+  const attendanceReport = await read('server/api/reports/attendance/student/[studentId].get.ts')
+  const feeReport = await read('server/api/students/[studentId]/fee-report.get.ts')
+  const achievementReport = await read('server/api/students/[studentId]/achievements/[id]/report.get.ts')
+  const studentPage = await read('app/pages/students/[id].vue')
+  const reportPage = await read('app/pages/reports/student-progress.vue')
+
+  assert.match(permissions, /studentReportManagerRoles/)
+  assert.match(permissions, /hasStudentReportAccess/)
+  assert.match(permissions, /ordinary instructors and members do not receive report/)
+  for (const report of [progressReport, attendanceReport, feeReport, achievementReport]) {
+    assert.match(report, /hasStudentReportAccess/)
+  }
+  assert.match(progressReport, /isOwnPortalReport/)
+  assert.match(studentPage, /v-if="canViewStudentReports"/)
+  assert.match(reportPage, /Report access required/)
+  assert.match(reportPage, /student\.status === 'archived' \? ' — Archived'/)
+})
