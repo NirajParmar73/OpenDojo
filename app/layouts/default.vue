@@ -166,6 +166,7 @@ const allNavigation = [
     items: [
       { label: 'Dojos & schedules', to: '/dojos', icon: 'i-lucide-building-2' },
       { label: 'Attendance', to: '/attendance', icon: 'i-lucide-calendar-check-2' },
+      { label: 'Promotion readiness', to: '/promotion-eligibility', icon: 'i-lucide-list-checks' },
       { label: 'Grading exams', to: '/grading-exams', icon: 'i-lucide-award' },
       { label: 'Tournament setup', to: '/tournaments', icon: 'i-lucide-trophy' },
       { label: 'Tournament results', to: '/tournament-results', icon: 'i-lucide-medal' },
@@ -188,6 +189,7 @@ const allNavigation = [
     label: 'Organization',
     items: [
       { label: 'Announcements', to: '/settings/announcements', icon: 'i-lucide-megaphone' },
+      { label: 'Syllabus', to: '/settings/syllabus', icon: 'i-lucide-book-open-check' },
       { label: 'Settings', to: '/settings', icon: 'i-lucide-settings-2' },
     ],
   },
@@ -213,6 +215,7 @@ const navigation = computed(() => {
           items: canManageLocations.value
         ? [
             { label: 'Announcements', to: '/settings/announcements', icon: 'i-lucide-megaphone' },
+            { label: 'Syllabus', to: '/settings/syllabus', icon: 'i-lucide-book-open-check' },
             { label: 'Location groups', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
             { label: 'Audit log', to: '/settings/audit-log', icon: 'i-lucide-scroll-text' },
           ]
@@ -235,6 +238,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/dojos': { title: 'Dojos & schedules', section: 'Operations' },
   '/getting-started': { title: 'Getting started', section: 'Organization' },
   '/attendance': { title: 'Attendance', section: 'Operations' },
+  '/promotion-eligibility': { title: 'Promotion readiness', section: 'Operations' },
   '/tournaments': { title: 'Tournament management', section: 'Operations' },
   '/tournament-results': { title: 'Tournament results', section: 'Operations' },
   '/reports/attendance': { title: 'Attendance reports', section: 'Insights' },
@@ -254,6 +258,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/settings/hierarchy/nodes': { title: 'Location groups', section: 'Organization' },
   '/settings/hierarchy/levels': { title: 'Location types', section: 'Organization' },
   '/settings/belts': { title: 'Belt system', section: 'Organization' },
+  '/settings/syllabus': { title: 'Syllabus', section: 'Organization' },
   '/settings/programs': { title: 'Martial arts & programs', section: 'Organization' },
   '/settings/affiliations': { title: 'Affiliations & memberships', section: 'Organization' },
   '/settings/audit-log': { title: 'Audit log', section: 'Organization' },

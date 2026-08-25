@@ -211,7 +211,9 @@
           <EmptyState v-else icon="i-lucide-files" message="No documents have been uploaded yet." />
         </UCard>
 
-        <UCard v-else>
+        <StudentSyllabusPanel v-if="activeTab === 'syllabus'" :student-id="studentId" />
+
+        <UCard v-if="activeTab === 'gradings'">
           <template #header><div class="flex items-center justify-between gap-3"><div><h3 class="font-semibold">Grading history</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Record milestones and keep a complete progression history.</p></div><UButton size="sm" color="primary" icon="i-lucide-award" @click="openNewGrading">Record grading</UButton></div></template>
           <form v-if="showGradingForm" class="mb-5 grid gap-4 rounded-2xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-2" @submit.prevent="recordGrading">
             <UFormField label="Awarded rank" required><USelect v-model="gradingForm.beltRankId" :items="beltRankOptions" placeholder="Select a rank" /></UFormField>
@@ -280,6 +282,7 @@ const tabs = [
   { value: 'achievements', label: 'Achievements', icon: 'i-lucide-trophy' },
   { value: 'guardians', label: 'Guardians', icon: 'i-lucide-contact-round' },
   { value: 'documents', label: 'Documents', icon: 'i-lucide-files' },
+  { value: 'syllabus', label: 'Syllabus', icon: 'i-lucide-book-open-check' },
   { value: 'gradings', label: 'Gradings', icon: 'i-lucide-award' },
 ]
 

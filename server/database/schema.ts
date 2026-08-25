@@ -269,14 +269,94 @@ export const gradingExamAttempts = pgTable('grading_exam_attempts', (t) => ({
   id: t.serial('id').primaryKey(), examId: t.integer('exam_id').references(() => gradingExams.id, { onDelete: 'cascade' }).notNull(),
   studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
   targetBeltRankId: t.integer('target_belt_rank_id').references(() => beltRanks.id, { onDelete: 'set null' }),
-  attendanceStatus: t.text('attendance_status', { enum: ['registered', 'appeared', 'absent', 'withdrawn'] }).notNull().default('registered'),
+  attendanceStatus: t.text('attendance_status', { enum: ['registered', 'confirmed', 'appeared', 'absent', 'withdrawn'] }).notNull().default('registered'),
   result: t.text({ enum: ['pending', 'passed', 'failed'] }).notNull().default('pending'), feeAmount: t.integer('fee_amount').notNull().default(0),
   paymentStatus: t.text('payment_status', { enum: ['pending', 'paid', 'waived', 'refunded'] }).notNull().default('pending'),
   paymentMethod: t.text('payment_method', { enum: ['cash', 'bank_transfer', 'card', 'other'] }), paymentReference: t.text('payment_reference'),
   paidAt: t.timestamp('paid_at', { withTimezone: true }), waiverReason: t.text('waiver_reason'), notes: t.text(),
   gradingId: t.integer('grading_id').references(() => studentGradings.id, { onDelete: 'set null' }),
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(), updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => [
+  uniqueIndex('grading_exam_attempt_student_unique').on(table.examId, table.studentId),
+])
+
+// A syllabus is the stable identity for one target rank and scope. Published
+// versions are immutable; students remain pinned to the version they started.
+export const syllabi = pgTable('syllabi', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  beltSystemId: t.integer('belt_system_id').references(() => beltSystems.id, { onDelete: 'cascade' }).notNull(),
+  targetBeltRankId: t.integer('target_belt_rank_id').references(() => beltRanks.id, { onDelete: 'cascade' }).notNull(),
+  scopeType: t.text('scope_type', { enum: ['organization', 'node', 'dojo'] }).notNull().default('organization'),
+  scopeId: t.integer('scope_id'),
+  title: t.text().notNull(),
+  createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => [
+  index('syllabi_org_rank_scope_idx').on(table.organizationId, table.targetBeltRankId, table.scopeType, table.scopeId),
+])
+
+export const syllabusVersions = pgTable('syllabus_versions', (t) => ({
+  id: t.serial('id').primaryKey(),
+  syllabusId: t.integer('syllabus_id').references(() => syllabi.id, { onDelete: 'cascade' }).notNull(),
+  version: t.integer().notNull(),
+  status: t.text({ enum: ['draft', 'published', 'archived'] }).notNull().default('draft'),
+  inheritPrevious: t.boolean('inherit_previous').notNull().default(true),
+  parentVersionId: t.integer('parent_version_id').references((): AnyPgColumn => syllabusVersions.id, { onDelete: 'set null' }),
+  publishedAt: t.timestamp('published_at', { withTimezone: true }),
+  publishedBy: t.integer('published_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => [
+  uniqueIndex('syllabus_versions_number_unique').on(table.syllabusId, table.version),
+])
+
+export const syllabusSections = pgTable('syllabus_sections', (t) => ({
+  id: t.serial('id').primaryKey(),
+  versionId: t.integer('version_id').references(() => syllabusVersions.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  description: t.text(),
+  order: t.integer().notNull().default(1),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
+
+export const syllabusItems = pgTable('syllabus_items', (t) => ({
+  id: t.serial('id').primaryKey(),
+  sectionId: t.integer('section_id').references(() => syllabusSections.id, { onDelete: 'cascade' }).notNull(),
+  name: t.text().notNull(),
+  description: t.text(),
+  required: t.boolean().notNull().default(true),
+  order: t.integer().notNull().default(1),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
+export const studentSyllabusAssignments = pgTable('student_syllabus_assignments', (t) => ({
+  id: t.serial('id').primaryKey(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  versionId: t.integer('version_id').references(() => syllabusVersions.id, { onDelete: 'restrict' }).notNull(),
+  targetBeltRankId: t.integer('target_belt_rank_id').references(() => beltRanks.id, { onDelete: 'restrict' }).notNull(),
+  status: t.text({ enum: ['in_progress', 'eligible', 'completed'] }).notNull().default('in_progress'),
+  assignedAt: t.timestamp('assigned_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  completedAt: t.timestamp('completed_at', { withTimezone: true }),
+}), table => [
+  uniqueIndex('student_syllabus_target_unique').on(table.studentId, table.targetBeltRankId),
+])
+
+export const studentSyllabusAssessments = pgTable('student_syllabus_assessments', (t) => ({
+  id: t.serial('id').primaryKey(),
+  assignmentId: t.integer('assignment_id').references(() => studentSyllabusAssignments.id, { onDelete: 'cascade' }).notNull(),
+  itemId: t.integer('item_id').references(() => syllabusItems.id, { onDelete: 'restrict' }).notNull(),
+  status: t.text({ enum: ['not_ready', 'ready'] }).notNull().default('not_ready'),
+  notes: t.text(),
+  assessedBy: t.integer('assessed_by').references(() => users.id, { onDelete: 'set null' }),
+  assessedAt: t.timestamp('assessed_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => [
+  uniqueIndex('student_syllabus_item_unique').on(table.assignmentId, table.itemId),
+])
 
 export const emailVerificationTokens = pgTable('email_verification_tokens', (t) => ({
   id: t.serial('id').primaryKey(),
@@ -769,6 +849,42 @@ export const gradingExamAttemptsRelations = relations(gradingExamAttempts, ({ on
   student: one(students, { fields: [gradingExamAttempts.studentId], references: [students.id] }),
   targetBeltRank: one(beltRanks, { fields: [gradingExamAttempts.targetBeltRankId], references: [beltRanks.id] }),
   grading: one(studentGradings, { fields: [gradingExamAttempts.gradingId], references: [studentGradings.id] }),
+}))
+
+export const syllabiRelations = relations(syllabi, ({ one, many }) => ({
+  organization: one(organizations, { fields: [syllabi.organizationId], references: [organizations.id] }),
+  beltSystem: one(beltSystems, { fields: [syllabi.beltSystemId], references: [beltSystems.id] }),
+  targetBeltRank: one(beltRanks, { fields: [syllabi.targetBeltRankId], references: [beltRanks.id] }),
+  versions: many(syllabusVersions),
+}))
+
+export const syllabusVersionsRelations = relations(syllabusVersions, ({ one, many }) => ({
+  syllabus: one(syllabi, { fields: [syllabusVersions.syllabusId], references: [syllabi.id] }),
+  sections: many(syllabusSections),
+  assignments: many(studentSyllabusAssignments),
+}))
+
+export const syllabusSectionsRelations = relations(syllabusSections, ({ one, many }) => ({
+  version: one(syllabusVersions, { fields: [syllabusSections.versionId], references: [syllabusVersions.id] }),
+  items: many(syllabusItems),
+}))
+
+export const syllabusItemsRelations = relations(syllabusItems, ({ one, many }) => ({
+  section: one(syllabusSections, { fields: [syllabusItems.sectionId], references: [syllabusSections.id] }),
+  assessments: many(studentSyllabusAssessments),
+}))
+
+export const studentSyllabusAssignmentsRelations = relations(studentSyllabusAssignments, ({ one, many }) => ({
+  student: one(students, { fields: [studentSyllabusAssignments.studentId], references: [students.id] }),
+  version: one(syllabusVersions, { fields: [studentSyllabusAssignments.versionId], references: [syllabusVersions.id] }),
+  targetBeltRank: one(beltRanks, { fields: [studentSyllabusAssignments.targetBeltRankId], references: [beltRanks.id] }),
+  assessments: many(studentSyllabusAssessments),
+}))
+
+export const studentSyllabusAssessmentsRelations = relations(studentSyllabusAssessments, ({ one }) => ({
+  assignment: one(studentSyllabusAssignments, { fields: [studentSyllabusAssessments.assignmentId], references: [studentSyllabusAssignments.id] }),
+  item: one(syllabusItems, { fields: [studentSyllabusAssessments.itemId], references: [syllabusItems.id] }),
+  assessor: one(users, { fields: [studentSyllabusAssessments.assessedBy], references: [users.id] }),
 }))
 
 export const guardiansRelations = relations(guardians, ({ one }) => ({

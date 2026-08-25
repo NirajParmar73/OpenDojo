@@ -1,5 +1,6 @@
 import { and, eq } from 'drizzle-orm'
 import { db, tables } from '../../utils/database'
+import { getStudentSyllabusProgress } from '../../utils/syllabus'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -17,6 +18,7 @@ export default defineEventHandler(async (event) => {
   ])
   const attendanceRecords = attendance.sort((a, b) => new Date(b.session?.date || 0).getTime() - new Date(a.session?.date || 0).getTime())
   const present = attendanceRecords.filter(record => record.status === 'present' || record.status === 'late').length
+  const syllabus = await getStudentSyllabusProgress(studentId, session.user.organizationId)
   return {
     student,
     gradings,
@@ -25,6 +27,7 @@ export default defineEventHandler(async (event) => {
     documents,
     attendance: attendanceRecords,
     currency: organization?.currency || 'USD',
+    syllabus,
     attendanceSummary: {
       total: attendanceRecords.length,
       present,

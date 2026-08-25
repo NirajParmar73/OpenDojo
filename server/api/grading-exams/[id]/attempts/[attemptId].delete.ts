@@ -9,6 +9,7 @@ export default defineEventHandler(async event => {
   const attempt = await db.query.gradingExamAttempts.findFirst({ where: and(eq(tables.gradingExamAttempts.id, attemptId), eq(tables.gradingExamAttempts.examId, examId)) })
   if (!exam || !attempt || !await isDojoAccessible(session.user.id, session.user.organizationId, exam.dojoId)) throw createError({ statusCode: 404, statusMessage: 'Candidate not found' })
   if (attempt.gradingId) throw createError({ statusCode: 400, statusMessage: 'This candidate has already been promoted. Remove the grading record first if it was entered in error.' })
+  if (attempt.paymentStatus !== 'pending' || attempt.result !== 'pending') throw createError({ statusCode: 409, statusMessage: 'Withdraw this candidate instead of deleting them because financial or result history exists.' })
   await db.delete(tables.gradingExamAttempts).where(eq(tables.gradingExamAttempts.id, attemptId))
   return { success: true }
 })

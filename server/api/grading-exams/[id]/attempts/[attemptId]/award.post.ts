@@ -10,6 +10,7 @@ export default defineEventHandler(async event => {
   if (!attempt || attempt.exam.organizationId !== session.user.organizationId) throw createError({ statusCode: 404, statusMessage: 'Candidate not found' })
   if (!await isDojoAccessible(session.user.id, session.user.organizationId, attempt.exam.dojoId)) throw createError({ statusCode: 403, statusMessage: 'Access denied' })
   if (attempt.gradingId) return { success: true, gradingId: attempt.gradingId }
+  if (attempt.attendanceStatus !== 'appeared') throw createError({ statusCode: 400, statusMessage: 'Only candidates marked as appeared can be awarded a promotion' })
   if (attempt.result !== 'passed' || !['paid', 'waived'].includes(attempt.paymentStatus)) throw createError({ statusCode: 400, statusMessage: 'Only passed candidates with a settled or waived grading fee can be awarded' })
   if (!attempt.targetBeltRank || attempt.targetBeltRank.system.organizationId !== session.user.organizationId) throw createError({ statusCode: 400, statusMessage: 'Set a valid target rank before awarding promotion' })
   if (attempt.student.currentBeltRank && (attempt.targetBeltRank.systemId !== attempt.student.currentBeltRank.systemId || attempt.targetBeltRank.order <= attempt.student.currentBeltRank.order)) {

@@ -44,36 +44,33 @@ definePageMeta({ middleware: 'auth' })
 const toast = useToast(); const showForm = ref(false); const saving = ref(false); const savingEdit = ref(false); const editingId = ref<number | null>(null)
 const route = useRoute()
 const candidate = reactive<Record<number, number | undefined>>({}); const candidateRank = reactive<Record<number, number | undefined>>({}); const candidateFee = reactive<Record<number, number | undefined>>({})
-const { data: exams, pending, refresh } = await useFetch<any[]>('/api/grading-exams'); const { data: dojos } = await useFetch<any[]>('/api/dojos'); const { data: students } = await useFetch<any[]>('/api/students'); const { data: ranks } = await useFetch<any[]>('/api/belt-ranks', { query: { all: 'true' } }); const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
+const { data: exams, pending, refresh } = await useFetch<any[]>('/api/grading-exams'); const { data: dojos } = await useFetch<any[]>('/api/dojos'); const { data: students } = await useFetch<any[]>('/api/students'); const { data: eligibility } = await useFetch<any>('/api/grading-exams/eligibility'); const { data: ranks } = await useFetch<any[]>('/api/belt-ranks', { query: { all: 'true' } }); const { data: organization } = await useFetch<{ currency?: string }>('/api/organization/settings')
 const { currencyCode, toMinor, fromMinor } = useMoney(() => organization.value?.currency)
 const form = reactive({ dojoIds: [] as number[], name: '', scheduledAt: '' }); const editForm = reactive({ name: '', scheduledAt: '', status: 'open' })
-const rankOptions = computed(() => (ranks.value || []).map(rank => ({ label: rank.name, value: rank.id }))); const statusOptions = ['draft', 'open', 'completed', 'cancelled'].map(value => ({ label: value, value })); const attendanceOptions = ['registered', 'appeared', 'absent', 'withdrawn'].map(value => ({ label: value, value })); const paymentStatusOptions = ['pending', 'paid', 'waived', 'refunded'].map(value => ({ label: value, value })); const paymentMethodOptions = ['cash', 'bank_transfer', 'card', 'other'].map(value => ({ label: value.replace('_', ' '), value })); const resultOptions = ['pending', 'passed', 'failed'].map(value => ({ label: value, value })); const dateValue = (value: string) => new Date(value).toISOString().slice(0, 10); const formatDate = (value: string) => new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' })
+const rankOptions = computed(() => (ranks.value || []).map(rank => ({ label: rank.name, value: rank.id }))); const statusOptions = ['draft', 'open', 'completed', 'cancelled'].map(value => ({ label: value, value })); const attendanceOptions = ['registered', 'confirmed', 'appeared', 'absent', 'withdrawn'].map(value => ({ label: value, value })); const paymentStatusOptions = ['pending', 'paid', 'waived', 'refunded'].map(value => ({ label: value, value })); const paymentMethodOptions = ['cash', 'bank_transfer', 'card', 'other'].map(value => ({ label: value.replace('_', ' '), value })); const resultOptions = ['pending', 'passed', 'failed'].map(value => ({ label: value, value })); const dateValue = (value: string) => new Date(value).toISOString().slice(0, 10); const formatDate = (value: string) => new Date(value).toLocaleDateString('en-IN', { dateStyle: 'medium' })
 function toggleDojo(id: number, checked: boolean) { form.dojoIds = checked ? [...new Set([...form.dojoIds, id])] : form.dojoIds.filter(dojoId => dojoId !== id) }
 function toggleExamForm() { showForm.value = !showForm.value }
 function closeExamForm() { showForm.value = false }
-const studentOptions = (dojoId: number, attempts: any[]) => (students.value || []).filter(s => s.dojoId === dojoId && !attempts.some(a => a.studentId === s.id)).map(s => ({ label: `${s.firstName} ${s.lastName} · ${s.currentBeltRank?.name || 'No belt'}${s.program?.displayName ? ` · ${s.program.displayName}` : ''}`, value: s.id }))
+const studentOptions = (dojoId: number, attempts: any[]) => (eligibility.value?.candidates || []).filter((item: any) => item.eligible && item.dojoId === dojoId && !attempts.some(a => a.studentId === item.studentId)).map((item: any) => ({ label: `${item.studentName} · ${item.currentRank} → ${item.nextRank}`, value: item.studentId }))
 const selectedStudent = (studentId?: number) => (students.value || []).find(student => student.id === studentId)
 function currentBeltLabel(studentId?: number) {
   const student = selectedStudent(studentId)
   return student ? (student.currentBeltRank?.name || 'No belt assigned') : 'Select a student'
 }
 function targetRankOptions(studentId?: number) {
-  const student = selectedStudent(studentId)
-  if (!student) return []
-  const currentRank = student.currentBeltRank
-  const eligibleRanks = currentRank
-    ? (ranks.value || []).filter(rank => rank.systemId === currentRank.systemId && rank.order > currentRank.order)
-    : (ranks.value || []).filter(rank => !student.programId || rank.system?.programId === student.programId || !rank.system?.programId)
-  return eligibleRanks.map(rank => ({ label: rank.name, value: rank.id }))
+  const item = (eligibility.value?.candidates || []).find((candidate: any) => candidate.studentId === studentId)
+  return item?.nextRankId ? [{ label: item.nextRank, value: item.nextRankId }] : []
 }
 function selectCandidate(examId: number, studentId?: number) {
   candidate[examId] = studentId
-  candidateRank[examId] = undefined
+  candidateRank[examId] = targetRankOptions(studentId)[0]?.value
 }
 onMounted(() => {
   const requestedStudentId = Number(route.query.studentId)
   if (!requestedStudentId) return
   const student = selectedStudent(requestedStudentId)
+  const studentIsEligible = (eligibility.value?.candidates || []).some((item: any) => item.studentId === requestedStudentId && item.eligible)
+  if (!studentIsEligible) { toast.add({ title: 'Student is not grading eligible', description: 'Review their syllabus and other readiness requirements first.', color: 'warning' }); return }
   const exam = (exams.value || []).find(item => item.dojoId === student?.dojoId && !item.attempts.some((attempt: any) => attempt.studentId === requestedStudentId) && ['draft', 'open'].includes(item.status))
   if (exam) {
     selectCandidate(exam.id, requestedStudentId)

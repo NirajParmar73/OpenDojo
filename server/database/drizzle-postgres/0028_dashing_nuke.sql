@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX "grading_exam_attempt_student_unique" ON "grading_exam_attempts" USING btree ("exam_id","student_id");
