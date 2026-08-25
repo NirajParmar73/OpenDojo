@@ -10,12 +10,13 @@
     <UAlert v-else-if="error" color="error" title="Could not load syllabus progress" />
     <EmptyState v-else-if="!data?.version" icon="i-lucide-book-open-check" :message="data?.reason || 'No published syllabus is available for the next belt.'" />
     <div v-else class="space-y-5">
+      <UAlert v-if="data.migration?.available" color="warning" icon="i-lucide-refresh-cw" title="A newer syllabus is published" :description="`${data.migration.assessmentCount} recorded assessment${data.migration.assessmentCount === 1 ? '' : 's'} will be matched by section and item name. Renamed or removed requirements must be assessed again.`"><template #actions><UButton size="sm" color="warning" variant="soft" :loading="migrating" @click="moveToLatest">Move to latest syllabus</UButton></template></UAlert>
       <div class="h-2 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800"><div class="h-full rounded-full bg-emerald-500 transition-all" :style="{ width: `${percentage}%` }" /></div>
       <section v-for="section in data.sections" :key="section.id">
-        <h4 class="mb-2 text-sm font-semibold">{{ section.name }}</h4>
+        <h4 class="mb-2 flex items-center gap-2 text-sm font-semibold">{{ section.name }} <UBadge v-if="section.items.some((item: any) => item.inherited)" color="neutral" variant="subtle" size="xs">Includes earlier belt</UBadge></h4>
         <div class="divide-y divide-slate-100 rounded-xl border border-slate-200 dark:divide-slate-800 dark:border-slate-800">
           <div v-for="item in section.items" :key="item.id" class="flex flex-wrap items-center justify-between gap-3 p-3">
-            <div class="min-w-0 flex-1"><p class="text-sm font-medium">{{ item.name }} <span v-if="!item.required" class="text-xs font-normal text-slate-400">Optional</span></p><p v-if="item.description" class="mt-1 text-xs text-slate-500">{{ item.description }}</p></div>
+            <div class="min-w-0 flex-1"><p class="text-sm font-medium">{{ item.name }} <span v-if="item.inherited" class="text-xs font-normal text-slate-400">Earlier belt</span> <span v-if="!item.required" class="text-xs font-normal text-slate-400">Optional</span></p><p v-if="item.description" class="mt-1 text-xs text-slate-500">{{ item.description }}</p></div>
             <UButton v-if="data.canAssess" size="sm" :color="item.assessment?.status === 'ready' ? 'success' : 'neutral'" :variant="item.assessment?.status === 'ready' ? 'solid' : 'soft'" :loading="savingItemId === item.id" :icon="item.assessment?.status === 'ready' ? 'i-lucide-check' : 'i-lucide-circle'" @click="toggle(item)">{{ item.assessment?.status === 'ready' ? 'Ready' : 'Not ready' }}</UButton>
             <UBadge v-else :color="item.assessment?.status === 'ready' ? 'success' : 'neutral'" variant="subtle">{{ item.assessment?.status === 'ready' ? 'Ready' : 'Working on it' }}</UBadge>
           </div>
@@ -29,6 +30,7 @@
 const props = defineProps<{ studentId: number }>()
 const toast = useToast()
 const savingItemId = ref<number | null>(null)
+const migrating = ref(false)
 const { data, pending, error, refresh } = await useFetch<any>(() => `/api/students/${props.studentId}/syllabus`)
 const percentage = computed(() => data.value?.total ? Math.round((data.value.completed / data.value.total) * 100) : 0)
 async function toggle(item: any) {
@@ -36,5 +38,18 @@ async function toggle(item: any) {
   try { await $fetch(`/api/students/${props.studentId}/syllabus/items/${item.id}`, { method: 'PATCH', body: { status: item.assessment?.status === 'ready' ? 'not_ready' : 'ready' } }); await refresh() }
   catch (error: any) { toast.add({ color: 'error', title: 'Could not update readiness', description: apiErrorMessage(error) }) }
   finally { savingItemId.value = null }
+}
+async function moveToLatest() {
+  if (!confirm('Move this student to the latest published syllabus? Matching assessments will be preserved, while renamed or removed requirements must be assessed again.')) return
+  migrating.value = true
+  try {
+    const result = await $fetch<any>(`/api/students/${props.studentId}/syllabus/migrate`, { method: 'POST' })
+    await refresh()
+    toast.add({ color: 'success', title: 'Syllabus updated', description: `${result.preserved} assessments preserved${result.reassessmentRequired ? `; ${result.reassessmentRequired} require reassessment` : ''}.` })
+  } catch (error: any) {
+    toast.add({ color: 'error', title: 'Could not update syllabus', description: apiErrorMessage(error) })
+  } finally {
+    migrating.value = false
+  }
 }
 </script>

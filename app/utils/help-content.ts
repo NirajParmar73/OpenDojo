@@ -43,6 +43,19 @@ export const organizationSteps: HelpStep[] = [
     tip: 'A program answers “what does this student train in?” A belt rank answers “where are they in that program?”'
   },
   {
+    title: 'Build and publish your syllabus',
+    summary: 'Define exactly what candidates must know for each next belt.',
+    details: [
+      'Open Settings, then Syllabus. Choose the scope and belt you want to configure.',
+      'Create sections such as basics, stances, combinations, kata, sparring, fitness, theory, or any category your organization uses.',
+      'Add as many custom requirements as needed and decide which items are required. Enable previous-belt inheritance when your grading is cumulative.',
+      'Save drafts while editing and publish only when the requirements are ready for student assessment. Existing assigned versions preserve historical progress when a syllabus later changes.',
+      'Students with no assessments move to the latest publication automatically. If assessment has started, open the student’s Syllabus tab and choose Move to latest syllabus; matching section and item names keep their progress, while renamed or removed requirements must be assessed again.',
+      'Owners and administrators can manage the organization syllabus. Territory and dojo managers can manage a syllabus only for their assigned scope.'
+    ],
+    tip: 'Start with the smallest useful syllabus. Clear item names are easier for managers to assess and for students to understand.'
+  },
+  {
     title: 'Set up dojos, schedules, and instructors',
     summary: 'Connect each place, class time, and teacher before recording attendance.',
     details: [
@@ -91,11 +104,34 @@ export const organizationSteps: HelpStep[] = [
     summary: 'Turn the timetable into dated class records and keep student progress current.',
     details: [
       'Open Attendance, choose the dojo and scheduled class, and create or open the session for that date.',
-      'Mark each listed student present or absent and save the session.',
-      'Use grading exams to select eligible students and promote only to a higher configured rank.',
-      'Use Reports to review attendance, student progress, finance, and tournament achievements within your access scope.'
+      'Mark each listed student present, late, absent, or excused and save the session.',
+      'Open a student profile and use Syllabus to mark each published next-belt requirement ready or not ready.',
+      'Students with portal access can see the same syllabus organized by section, their completed count, and what remains.'
     ],
     tip: 'A schedule repeats every week. A session is one actual class on one specific date.'
+  },
+  {
+    title: 'Review eligibility and run a grading',
+    summary: 'Move only ready candidates into an exam while keeping participation flexible.',
+    details: [
+      'Open Promotion readiness. Eligibility checks the published next-belt syllabus, recent attendance, pending grading fees, existing open registrations, and the next configured rank.',
+      'Show eligible candidates, then choose all students, individual students, one dojo, or several dojos within your permitted scope.',
+      'Enter the exam details and choose Create exams & register students. A separate exam is created for each selected dojo so its candidates stay correctly scoped.',
+      'Open Grading exams afterward to confirm, withdraw, mark absent or appeared, or otherwise change whether each registered candidate is participating.',
+      'After the exam, record payment and result details, mark the candidate as appeared, and award the configured next rank when the requirements are satisfied.'
+    ],
+    tip: 'Eligibility is rechecked when exams are created, so an old selection cannot bypass current syllabus or attendance requirements.'
+  },
+  {
+    title: 'Use current and archived student reports',
+    summary: 'Keep historical records available without exposing them to ordinary staff.',
+    details: [
+      'Open Students and choose Archived from the status filter to find former students. Archived records stay separate from active grading and payment candidate lists.',
+      'Open the student profile to preview or print progress, attendance, achievement, and fee-history PDFs.',
+      'Owners and administrators can print reports throughout the organization. Territory and dojo managers can print them only for students inside their assigned scope.',
+      'Instructors and ordinary members cannot generate these reports merely because they can access a dojo. Students can still download only their own progress report through their portal.'
+    ],
+    tip: 'Archive a student when the historical record should remain available; delete only when your organization has a valid reason to remove the record.'
   },
   {
     title: 'Keep the workspace healthy',
@@ -103,7 +139,7 @@ export const organizationSteps: HelpStep[] = [
     details: [
       'Weekly: check attendance, new students, and payments that have been received.',
       'Monthly: review pending fees, expenses, staff access, and key reports.',
-      'Before a grading: check belt order, eligibility, and student details.',
+      'Before a grading: confirm the published syllabus, review readiness, and update any candidate who is no longer participating.',
       'When something looks wrong, note the page, time, and what you expected before contacting support. Never send a password.'
     ]
   }
@@ -136,7 +172,8 @@ export const studentSteps: HelpStep[] = [
     details: [
       'Your dashboard summarizes your profile, dojo, program, rank, and recent activity.',
       'Attendance shows dated class records. A missing class may simply not have been recorded yet.',
-      'Progress and achievements may include belt history, grading results, tournaments, or certificates depending on your organization.',
+      'Next grading syllabus shows the requirements published for your next belt, which items are ready, and what you are still working on.',
+      'Progress and achievements may also include belt history, grading results, tournaments, certificates, and a downloadable progress report depending on your organization.',
       'Fee information reflects records entered by the organization; contact them if a payment is missing or incorrect.'
     ]
   },
@@ -174,15 +211,19 @@ export const studentSteps: HelpStep[] = [
 ]
 
 export const faqItems: FaqItem[] = [
-  { id: 'what-is-opendojos', audience: 'Organizations', question: 'What is OpenDojos?', answer: 'OpenDojos is a workspace for martial-arts organizations to manage locations, staff, students, schedules, attendance, ranks, fees, expenses, tournaments, and reports. Students can use a separate portal to view information their organization makes available.' },
+  { id: 'what-is-opendojos', audience: 'Organizations', question: 'What is OpenDojos?', answer: 'OpenDojos is a workspace for martial-arts organizations to manage locations, staff, students, schedules, attendance, ranks, custom syllabi, grading exams, fees, expenses, tournaments, and reports. Students can use a separate portal to follow information and next-belt progress their organization makes available.' },
   { id: 'organization-vs-dojo', audience: 'Organizations', question: 'What is the difference between an organization and a dojo?', answer: 'The organization is the complete school, association, or business account. A dojo is one operating or training location inside that organization. A single organization can have one or several dojos.' },
   { id: 'need-location-groups', audience: 'Organizations', question: 'Do I need to create location groups?', answer: 'Usually not. Location groups are optional areas used to organize many dojos for reporting or delegated management. A single dojo, or a small organization that manages every location centrally, can work without them.', links: [{ label: 'Read the organization guide', to: '/help/organizations#set-up-dojos-schedules-and-instructors' }] },
   { id: 'add-students', audience: 'Organizations', question: 'How do I add students?', answer: 'Open Students to add one person manually. To move an existing spreadsheet, use Import spreadsheet and provide a CSV file. Review validation results before confirming the import.', links: [{ label: 'Student setup steps', to: '/help/organizations#add-students-safely' }] },
   { id: 'csv-meaning', audience: 'Organizations', question: 'What is a CSV file?', answer: 'CSV stands for comma-separated values. It is a simple spreadsheet format used to move rows of information between systems. In Excel use Save As; in Google Sheets use File, Download, Comma-separated values.' },
-  { id: 'staff-access', audience: 'Organizations', question: 'Can staff see every student and payment?', answer: 'Not necessarily. Access depends on both the person’s role and assigned scope. A location-scoped manager or instructor should see only the records needed for the locations and responsibilities assigned to them.' },
+  { id: 'staff-access', audience: 'Organizations', question: 'Can staff see every student and payment?', answer: 'Not necessarily. Access depends on both the person’s role and assigned scope. A location-scoped user sees records only for assigned locations, while sensitive student PDFs are limited to owners, administrators, and responsible territory or dojo managers.' },
   { id: 'fee-plan-payment', audience: 'Organizations', question: 'Why are fee plans and payments separate?', answer: 'A fee plan describes what should be charged, such as monthly tuition. A payment records what was actually received. Keeping them separate makes unpaid balances, partial payments, receipts, and refunds understandable.' },
   { id: 'attendance-schedule', audience: 'Organizations', question: 'Does creating a schedule record attendance?', answer: 'No. A schedule is the repeating timetable. Attendance is saved in a dated class session. Create or open the session for the relevant date, mark students, and save it.' },
-  { id: 'promote-student', audience: 'Organizations', question: 'How do I promote a student to the next belt?', answer: 'First confirm the organization belt order and the student’s current rank. Create a grading exam, add an eligible attempt, choose a higher target rank, then record the result and award it when appropriate.' },
+  { id: 'custom-syllabus', audience: 'Organizations', question: 'Can each organization or territory use a different belt syllabus?', answer: 'Yes. Owners and administrators can publish an organization syllabus, while assigned territory or dojo managers can publish requirements for their own scope. Each belt can contain custom sections and items, and cumulative syllabi can include requirements inherited from the previous belt. Unassessed students move to a new publication automatically; assessed students can be moved with the controlled update action on their Syllabus tab.' },
+  { id: 'promote-student', audience: 'Organizations', question: 'How do I promote a student to the next belt?', answer: 'Publish the next-belt syllabus, assess its required items on the student profile, and open Promotion readiness. Once the student also satisfies attendance, fee, registration, and rank checks, register them for a grading exam, mark them appeared, record the result, and award the next rank.' },
+  { id: 'multi-dojo-grading', audience: 'Organizations', question: 'Can I schedule eligible candidates from several dojos together?', answer: 'Yes. Promotion readiness lets you select all eligible students, selected dojos, or individual candidates across your permitted scope. One action creates a correctly scoped exam for each selected dojo and registers its candidates.' },
+  { id: 'change-grading-participation', audience: 'Organizations', question: 'Can I change participation after candidates are registered?', answer: 'Yes. Open Grading exams to confirm, withdraw, mark absent, or mark a candidate as appeared. Registration does not force the student to participate, and only appeared candidates can proceed to a recorded result and rank award.' },
+  { id: 'archived-student-reports', audience: 'Organizations', question: 'Can authorized staff print reports for archived students?', answer: 'Yes. Find the student with the Archived status filter and open their profile. Owners and administrators can print reports organization-wide; territory and dojo managers can print reports only within their assigned scope. Instructors and ordinary members do not receive student-report access merely from a dojo assignment.' },
   { id: 'correct-payment', audience: 'Organizations', question: 'How should I correct or refund a payment?', answer: 'Use the receipt and refund workflow so the original record remains traceable. Avoid deleting or rewriting historic financial records merely to make a total look right. Contact support if the correction is unusual.' },
   { id: 'student-login', audience: 'Students', question: 'Where do students sign in?', answer: 'Students sign in through the separate student portal for their organization, not the staff workspace. Use the portal link supplied by your school.', links: [{ label: 'Student getting started guide', to: '/help/students' }] },
   { id: 'no-student-account', audience: 'Students', question: 'Why can’t I sign in yet?', answer: 'Having a student record does not always mean portal access is enabled. Ask your organization to confirm that a portal account exists and that the registered email address is correct.' },
@@ -197,6 +238,7 @@ export const faqItems: FaqItem[] = [
 export const glossaryItems: GlossaryItem[] = [
   { term: 'Account', definition: 'The sign-in identity belonging to one person.', example: 'A student record can exist before a student portal account is enabled.' },
   { term: 'Affiliation', definition: 'A connection between the organization, dojo, instructor, or student and an outside association or governing body.' },
+  { term: 'Archived student', definition: 'A former or inactive student whose historical record remains available but is excluded from active candidate workflows.' },
   { term: 'Attendance session', definition: 'The record of one actual class on a specific date.', example: 'Monday 6 July at 6:00 pm is a session; “Mondays at 6:00 pm” is a schedule.' },
   { term: 'Audit log', definition: 'A history of important actions in the workspace, used to understand who changed something and when.' },
   { term: 'Belt rank', definition: 'A configured stage in a student’s progression, arranged from beginner to advanced.' },
@@ -208,6 +250,7 @@ export const glossaryItems: GlossaryItem[] = [
   { term: 'Expense', definition: 'Money spent by the organization, recorded separately from money collected.' },
   { term: 'Fee plan', definition: 'A rule describing the tuition a student is expected to pay.', example: '₹1,000 every month at the Central Dojo.' },
   { term: 'Grading exam', definition: 'A scheduled assessment where selected students attempt to move to a higher configured rank.' },
+  { term: 'Grading eligibility', definition: 'The current decision that a student can be registered for their next grading after syllabus, attendance, fee, registration, and rank checks pass.' },
   { term: 'Hierarchy', definition: 'The optional structure used to arrange location groups and dojos.', example: 'State → city → dojo.' },
   { term: 'Instructor', definition: 'A staff responsibility for teaching at one or more assigned dojos.' },
   { term: 'Location group', definition: 'An optional area that groups dojos for reporting or delegated management.', example: 'A city group containing three dojos.' },
@@ -224,6 +267,7 @@ export const glossaryItems: GlossaryItem[] = [
   { term: 'Schedule', definition: 'The repeating day and time when a class normally happens.' },
   { term: 'Scope', definition: 'The organization area or locations in which a staff member’s permissions apply.', example: 'An instructor may be scoped to one dojo.' },
   { term: 'Student record', definition: 'The organization’s stored profile for a student, including training and operational information.' },
+  { term: 'Syllabus', definition: 'The organization’s published set of sections and requirements a student must prepare for a configured belt rank.' },
   { term: 'Subscription plan', definition: 'The OpenDojos service level that determines workspace limits and available capabilities.' },
   { term: 'Tenant', definition: 'A technical word for one organization’s isolated workspace. Most users can simply read it as “your organization”.' },
   { term: 'Tournament entry', definition: 'A student’s registration in a tournament event or division.' },

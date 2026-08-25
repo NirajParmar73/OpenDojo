@@ -111,6 +111,59 @@ export async function getVersionSections(versionId: number) {
     .map(section => ({ ...section, items: section.items.slice().sort((left, right) => left.order - right.order) }))
 }
 
+type VersionSections = Awaited<ReturnType<typeof getVersionSections>>
+
+function normalizedSyllabusLabel(value: string) {
+  return value.trim().toLocaleLowerCase().replace(/\s+/g, ' ')
+}
+
+/** Merge cumulative sections with the same name for display while retaining
+ * every underlying item id for assessment and migration. */
+export function mergeSyllabusSections(sections: VersionSections, activeVersionId: number) {
+  const merged: Array<VersionSections[number] & {
+    inherited: boolean
+    sourceSectionIds: number[]
+    items: Array<VersionSections[number]['items'][number] & { inherited: boolean }>
+  }> = []
+  const byName = new Map<string, typeof merged[number]>()
+
+  for (const section of sections) {
+    const key = normalizedSyllabusLabel(section.name)
+    const inherited = section.versionId !== activeVersionId
+    const items = section.items.map(item => ({ ...item, inherited }))
+    const existing = byName.get(key)
+    if (existing) {
+      existing.sourceSectionIds.push(section.id)
+      existing.items.push(...items)
+      existing.inherited = existing.inherited && inherited
+      if (!existing.description && section.description) existing.description = section.description
+      continue
+    }
+    const displaySection = { ...section, inherited, sourceSectionIds: [section.id], items }
+    byName.set(key, displaySection)
+    merged.push(displaySection)
+  }
+  return merged
+}
+
+function syllabusItemMigrationKeys(sections: VersionSections) {
+  const keys = new Map<number, string>()
+  const sectionOccurrences = new Map<string, number>()
+  for (const section of sections) {
+    const sectionName = normalizedSyllabusLabel(section.name)
+    const sectionOccurrence = (sectionOccurrences.get(sectionName) || 0) + 1
+    sectionOccurrences.set(sectionName, sectionOccurrence)
+    const itemOccurrences = new Map<string, number>()
+    for (const item of section.items) {
+      const itemName = normalizedSyllabusLabel(item.name)
+      const itemOccurrence = (itemOccurrences.get(itemName) || 0) + 1
+      itemOccurrences.set(itemName, itemOccurrence)
+      keys.set(item.id, `${sectionName}:${sectionOccurrence}/${itemName}:${itemOccurrence}`)
+    }
+  }
+  return keys
+}
+
 export async function getStudentSyllabusProgress(studentId: number, organizationId: number) {
   const { student, nextRank } = await getNextBeltRank(studentId, organizationId)
   if (!student) return null
@@ -119,18 +172,28 @@ export async function getStudentSyllabusProgress(studentId: number, organization
   let assignment = await db.query.studentSyllabusAssignments.findFirst({
     where: and(eq(tables.studentSyllabusAssignments.studentId, studentId), eq(tables.studentSyllabusAssignments.targetBeltRankId, nextRank.id)),
   })
-  const version = assignment
+  const latestVersion = await resolvePublishedSyllabusVersion(organizationId, nextRank.id, student.dojoId)
+  let assessments = assignment
+    ? await db.query.studentSyllabusAssessments.findMany({ where: eq(tables.studentSyllabusAssessments.assignmentId, assignment.id) })
+    : []
+  let version = assignment
     ? await db.query.syllabusVersions.findFirst({ where: eq(tables.syllabusVersions.id, assignment.versionId) })
-    : await resolvePublishedSyllabusVersion(organizationId, nextRank.id, student.dojoId)
+    : latestVersion
+
+  // A student with no recorded assessment has no progress to preserve, so a
+  // newly published syllabus can safely replace the stale assignment.
+  if (assignment && latestVersion && assignment.versionId !== latestVersion.id && assessments.length === 0) {
+    await db.update(tables.studentSyllabusAssignments).set({ versionId: latestVersion.id, status: 'in_progress', completedAt: null }).where(eq(tables.studentSyllabusAssignments.id, assignment.id))
+    assignment = { ...assignment, versionId: latestVersion.id, status: 'in_progress', completedAt: null }
+    version = latestVersion
+    assessments = []
+  }
   if (!version) return { student, targetRank: nextRank, version: null, assignment: null, sections: [], ready: false, completed: 0, total: 0, reason: 'No published syllabus for the next rank' }
 
   const sections = await getVersionSections(version.id)
   const items = sections.flatMap(section => section.items)
-  const assessments = assignment
-    ? await db.query.studentSyllabusAssessments.findMany({ where: eq(tables.studentSyllabusAssessments.assignmentId, assignment.id) })
-    : []
   const assessmentByItem = new Map(assessments.map(item => [item.itemId, item]))
-  const enrichedSections = sections.map(section => ({
+  const enrichedSections = mergeSyllabusSections(sections, version.id).map(section => ({
     ...section,
     items: section.items.map(item => ({ ...item, assessment: assessmentByItem.get(item.id) || null })),
   }))
@@ -141,7 +204,58 @@ export async function getStudentSyllabusProgress(studentId: number, organization
     await db.update(tables.studentSyllabusAssignments).set({ status: ready ? 'eligible' : 'in_progress' }).where(eq(tables.studentSyllabusAssignments.id, assignment.id))
     assignment = { ...assignment, status: ready ? 'eligible' : 'in_progress' }
   }
-  return { student, targetRank: nextRank, version, assignment, sections: enrichedSections, ready, completed, total: required.length, reason: required.length ? null : 'The published syllabus has no required items' }
+  const migration = assignment && latestVersion && assignment.versionId !== latestVersion.id
+    ? { available: true, assessmentCount: assessments.length, fromVersion: version.version, toVersion: latestVersion.version }
+    : { available: false, assessmentCount: 0, fromVersion: version.version, toVersion: version.version }
+  return { student, targetRank: nextRank, version, assignment, sections: enrichedSections, migration, ready, completed, total: required.length, reason: required.length ? null : 'The published syllabus has no required items' }
+}
+
+export async function migrateStudentSyllabusToLatest(studentId: number, organizationId: number) {
+  const { student, nextRank } = await getNextBeltRank(studentId, organizationId)
+  if (!student || !nextRank) throw createError({ statusCode: 404, statusMessage: 'Student syllabus not found' })
+  const assignment = await db.query.studentSyllabusAssignments.findFirst({
+    where: and(eq(tables.studentSyllabusAssignments.studentId, studentId), eq(tables.studentSyllabusAssignments.targetBeltRankId, nextRank.id)),
+  })
+  if (!assignment) throw createError({ statusCode: 409, statusMessage: 'This student has not started the current syllabus' })
+  const latestVersion = await resolvePublishedSyllabusVersion(organizationId, nextRank.id, student.dojoId)
+  if (!latestVersion) throw createError({ statusCode: 409, statusMessage: 'No published syllabus is available for the next rank' })
+  if (assignment.versionId === latestVersion.id) return { changed: false, preserved: 0, reassessmentRequired: 0, progress: await getStudentSyllabusProgress(studentId, organizationId) }
+
+  const [oldSections, newSections, assessments] = await Promise.all([
+    getVersionSections(assignment.versionId),
+    getVersionSections(latestVersion.id),
+    db.query.studentSyllabusAssessments.findMany({ where: eq(tables.studentSyllabusAssessments.assignmentId, assignment.id) }),
+  ])
+  const oldKeys = syllabusItemMigrationKeys(oldSections)
+  const newKeys = syllabusItemMigrationKeys(newSections)
+  const newItemByKey = new Map([...newKeys.entries()].map(([itemId, key]) => [key, itemId]))
+  const preserved = assessments.flatMap((assessment) => {
+    const key = oldKeys.get(assessment.itemId)
+    const itemId = key ? newItemByKey.get(key) : undefined
+    return itemId ? [{ ...assessment, itemId }] : []
+  })
+
+  await db.transaction(async (tx) => {
+    await tx.delete(tables.studentSyllabusAssessments).where(eq(tables.studentSyllabusAssessments.assignmentId, assignment.id))
+    await tx.update(tables.studentSyllabusAssignments).set({ versionId: latestVersion.id, status: 'in_progress', completedAt: null }).where(eq(tables.studentSyllabusAssignments.id, assignment.id))
+    if (preserved.length) {
+      await tx.insert(tables.studentSyllabusAssessments).values(preserved.map(assessment => ({
+        assignmentId: assignment.id,
+        itemId: assessment.itemId,
+        status: assessment.status,
+        notes: assessment.notes,
+        assessedBy: assessment.assessedBy,
+        assessedAt: assessment.assessedAt,
+      })))
+    }
+  })
+
+  return {
+    changed: true,
+    preserved: preserved.length,
+    reassessmentRequired: assessments.length - preserved.length,
+    progress: await getStudentSyllabusProgress(studentId, organizationId),
+  }
 }
 
 export async function ensureStudentSyllabusAssignment(studentId: number, organizationId: number) {

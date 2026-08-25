@@ -6,7 +6,7 @@
         <div>
           <p class="text-sm font-semibold text-primary">MARTIAL-ARTS MANAGEMENT, MADE SIMPLE</p>
           <h1 class="mt-4 text-4xl font-semibold tracking-tight sm:text-6xl">Run your dojo. Grow your legacy.</h1>
-          <p class="mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-slate-300">OpenDojos brings students, instructors, classes, location-based fees, expenses, and reporting into one focused workspace.</p>
+          <p class="mt-6 max-w-xl text-lg leading-8 text-slate-600 dark:text-slate-300">OpenDojos brings students, classes, fees, customizable belt syllabi, grading readiness, multi-location exams, and secure reporting into one focused workspace.</p>
           <div class="mt-8 flex flex-wrap gap-3"><UButton to="/onboarding" size="xl" icon="i-lucide-building-2">Create your organization</UButton><UButton :to="staffSignInUrl" size="xl" color="neutral" variant="outline" external>Sign in to workspace</UButton></div>
         </div>
         <div class="relative aspect-[4/3] overflow-hidden rounded-[2rem] border border-slate-200 bg-[#f4ead4] shadow-2xl sm:aspect-[16/10] lg:aspect-[4/3] dark:border-white/10 dark:bg-slate-900">
@@ -17,12 +17,24 @@
           </div>
         </div>
       </section>
-      <section class="mt-12 grid gap-4 md:grid-cols-3">
+      <section class="mt-12 grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         <article v-for="item in landingFeatures" :key="item.title" class="rounded-2xl border border-slate-200 bg-white/80 p-5 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
           <UIcon :name="item.icon" class="h-5 w-5 text-primary" />
           <p class="mt-3 font-medium">{{ item.title }}</p>
           <p class="mt-1 text-sm leading-6 text-slate-500 dark:text-slate-400">{{ item.description }}</p>
         </article>
+      </section>
+
+      <section class="mt-20 overflow-hidden rounded-[2rem] bg-slate-950 px-6 py-10 text-white sm:px-10 sm:py-12">
+        <div class="max-w-3xl"><p class="text-sm font-semibold text-violet-300">FROM TRAINING TO THE NEXT BELT</p><h2 class="mt-3 text-3xl font-semibold tracking-tight sm:text-4xl">A grading workflow your whole organization can follow.</h2><p class="mt-4 leading-7 text-slate-300">Set your own requirements for every belt, show students what they are working toward, and schedule only candidates who are genuinely ready.</p></div>
+        <div class="mt-9 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <article v-for="(item, index) in gradingWorkflow" :key="item.title" class="rounded-2xl border border-white/10 bg-white/5 p-5"><span class="flex h-8 w-8 items-center justify-center rounded-full bg-violet-400/20 text-sm font-semibold text-violet-200">{{ index + 1 }}</span><h3 class="mt-4 font-semibold">{{ item.title }}</h3><p class="mt-2 text-sm leading-6 text-slate-300">{{ item.description }}</p></article>
+        </div>
+      </section>
+
+      <section class="mt-8 grid gap-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-sm md:grid-cols-[auto_1fr] md:items-center sm:p-8 dark:border-slate-800 dark:bg-slate-900">
+        <div class="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary"><UIcon name="i-lucide-shield-check" class="h-6 w-6" /></div>
+        <div><h2 class="text-xl font-semibold">Useful history, responsibly controlled.</h2><p class="mt-2 leading-7 text-slate-600 dark:text-slate-300">Owners, administrators, and assigned territory or dojo managers can review and print reports for archived students. Personal, attendance, grading, achievement, and fee reports remain limited by role and location scope.</p></div>
       </section>
     </main>
     <footer class="border-t border-slate-200 dark:border-slate-800"><div class="mx-auto flex max-w-7xl flex-col gap-3 px-6 py-7 text-sm text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-8 dark:text-slate-400"><span>© {{ new Date().getFullYear() }} OpenDojos</span><nav class="flex flex-wrap gap-x-5 gap-y-2" aria-label="Footer navigation"><NuxtLink to="/help" class="hover:text-primary">Help Center</NuxtLink><NuxtLink to="/faq" class="hover:text-primary">FAQ</NuxtLink><NuxtLink to="/pricing" class="hover:text-primary">Pricing</NuxtLink><NuxtLink to="/terms" class="hover:text-primary">Terms</NuxtLink><NuxtLink to="/privacy" class="hover:text-primary">Privacy</NuxtLink><NuxtLink to="/refund-policy" class="hover:text-primary">Refund policy</NuxtLink><NuxtLink to="/contact" class="hover:text-primary">Contact support</NuxtLink></nav></div></footer>
@@ -197,7 +209,20 @@ if (loggedIn.value && user.value?.role === 'student') {
 const colorMode = useColorMode()
 const { data: dashboard, pending, error, refresh } = await useFetch<Dashboard>('/api/dashboard', { immediate: false })
 if (loggedIn.value) await refresh()
-const landingFeatures = [{ title: 'Location-first operations', description: 'Set up a dojo in minutes. Add optional location groups only when you need them.', icon: 'i-lucide-map-pinned' }, { title: 'Students to progress reports', description: 'Track attendance, belts, fees, documents, and shareable progress.', icon: 'i-lucide-file-badge' }, { title: 'Financial control', description: 'Use fee structures for each location and see collections, expenses, and net revenue.', icon: 'i-lucide-chart-no-axes-combined' }]
+const landingFeatures = [
+  { title: 'Location-first operations', description: 'Run one dojo or organize many locations into territories with properly scoped staff access.', icon: 'i-lucide-map-pinned' },
+  { title: 'Complete student records', description: 'Add students individually or by spreadsheet, then manage attendance, programs, ranks, documents, and portal access.', icon: 'i-lucide-users-round' },
+  { title: 'Your syllabus, your way', description: 'Build belt requirements with custom sections and items, inherit earlier material, and publish organization or local versions.', icon: 'i-lucide-book-open-check' },
+  { title: 'Clear promotion readiness', description: 'Assess each syllabus item and combine it with recent attendance, fee status, and the configured next rank.', icon: 'i-lucide-list-checks' },
+  { title: 'Simple multi-dojo gradings', description: 'Select eligible candidates from one or several dojos, create their exams together, and update participation later.', icon: 'i-lucide-award' },
+  { title: 'Finance and secure reports', description: 'Manage tuition, additional charges, receipts, refunds, expenses, and scoped current or archived student reports.', icon: 'i-lucide-chart-no-axes-combined' },
+]
+const gradingWorkflow = [
+  { title: 'Publish requirements', description: 'Create the next-belt syllabus for the whole organization, a territory, or an individual dojo.' },
+  { title: 'Assess progress', description: 'Mark each required skill ready or not ready while students see their progress in the portal.' },
+  { title: 'Choose eligible students', description: 'Review readiness and select everyone, one dojo, several dojos, or individual candidates.' },
+  { title: 'Run the grading', description: 'Create dojo-specific exams in one action, then confirm, withdraw, mark attendance, record results, and award ranks.' },
+]
 const stats = computed(() => [
   { label: 'Dojos', value: dashboard.value?.totals.dojos || 0, icon: 'i-lucide-building-2' },
   { label: 'Students', value: dashboard.value?.totals.students || 0, icon: 'i-lucide-users-round' },
