@@ -16,6 +16,16 @@ test('public admissions are tenant-derived and require a profile photograph', as
   assert.match(submission, /Guardian name, relationship, and phone are required/)
 })
 
+test('the public admission dojo dropdown includes batch timings', async () => {
+  const formEndpoint = await read('server/api/public/admissions/form.get.ts')
+  const admissionPage = await read('app/pages/admissions/index.vue')
+
+  assert.match(formEndpoint, /with:\s*\{\s*schedules:/)
+  assert.match(formEndpoint, /dayOfWeek: true, startTime: true, endTime: true, name: true/)
+  assert.match(admissionPage, /formatBatchSchedule/)
+  assert.match(admissionPage, /dojo\.schedules/)
+})
+
 test('admission approval creates a student without granting portal access', async () => {
   const approval = await read('server/api/admissions/[id]/approve.post.ts')
   const schema = await read('server/database/schema.ts')

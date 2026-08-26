@@ -95,7 +95,23 @@ const uploadInput = ref<HTMLInputElement | null>(null)
 const submitting = ref(false)
 const submitError = ref('')
 const submitted = ref<any>(null)
-const dojoOptions = computed(() => (data.value?.dojos || []).map((dojo: any) => ({ label: `${dojo.name}${dojo.city ? ` — ${dojo.city}` : ''}`, value: dojo.id })))
+const shortDayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+const formatBatchTime = (value: string) => {
+  const match = /^(\d{1,2}):(\d{2})/.exec(value)
+  if (!match) return value
+  const hour = Number(match[1])
+  return `${hour % 12 || 12}:${match[2]} ${hour < 12 ? 'AM' : 'PM'}`
+}
+const formatBatchSchedule = (schedule: any) => {
+  const day = shortDayNames[schedule.dayOfWeek] || ''
+  const name = schedule.name ? `${schedule.name}: ` : ''
+  return `${name}${day} ${formatBatchTime(schedule.startTime)}–${formatBatchTime(schedule.endTime)}`.trim()
+}
+const dojoOptions = computed(() => (data.value?.dojos || []).map((dojo: any) => {
+  const location = `${dojo.name}${dojo.city ? ` — ${dojo.city}` : ''}`
+  const batchTimings = (dojo.schedules || []).map(formatBatchSchedule).join(', ')
+  return { label: `${location}${batchTimings ? ` · ${batchTimings}` : ''}`, value: dojo.id }
+}))
 const programOptions = computed(() => (data.value?.programs || []).map((program: any) => ({ label: program.displayName, value: program.id })))
 const genderOptions = [{ label: 'Male', value: 'male' }, { label: 'Female', value: 'female' }, { label: 'Other', value: 'other' }]
 const isMinor = computed(() => { if (!form.dateOfBirth) return false; const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 18); return new Date(`${form.dateOfBirth}T00:00:00`) > cutoff })
