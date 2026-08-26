@@ -1,0 +1,23 @@
+<template>
+  <div class="mx-auto max-w-7xl space-y-6">
+    <section class="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><p class="text-sm font-semibold text-primary">PEOPLE</p><h2 class="mt-1 text-2xl font-semibold">Admission applications</h2><p class="mt-2 text-sm text-slate-500">Review online submissions and confirm their printed copies.</p></div><UButton v-if="['owner', 'admin'].includes(user?.role || '')" to="/settings/admissions" color="neutral" variant="outline" icon="i-lucide-settings-2">Form settings</UButton></section>
+    <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-5"><MetricCard v-for="item in counts" :key="item.label" :label="item.label" :value="String(item.value)" :icon="item.icon" /></div>
+    <UCard><template #header><div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><h3 class="font-semibold">Applications</h3><div class="flex gap-2"><UInput v-model="search" icon="i-lucide-search" placeholder="Search applicant or reference" /><USelect v-model="status" :items="statusOptions" /></div></div></template>
+      <div v-if="pending" class="space-y-3"><USkeleton v-for="i in 4" :key="i" class="h-16" /></div>
+      <div v-else class="overflow-x-auto"><table class="min-w-full text-sm"><thead class="border-b text-left text-xs uppercase tracking-wide text-slate-400"><tr><th class="px-3 py-3">Applicant</th><th class="px-3 py-3">Reference</th><th class="px-3 py-3">Dojo / program</th><th class="px-3 py-3">Submitted</th><th class="px-3 py-3">Status</th><th class="px-3 py-3"></th></tr></thead><tbody><tr v-for="application in filtered" :key="application.id" class="border-b border-slate-100 dark:border-slate-800"><td class="px-3 py-4 font-medium">{{ application.firstName }} {{ application.lastName }}<p class="mt-1 text-xs font-normal text-slate-500">{{ application.email }}</p></td><td class="px-3 py-4 font-mono text-xs">{{ application.referenceNumber }}</td><td class="px-3 py-4">{{ application.dojo?.name }}<p class="mt-1 text-xs text-slate-500">{{ application.program?.displayName || 'No program selected' }}</p></td><td class="px-3 py-4">{{ formatDate(application.submittedAt) }}</td><td class="px-3 py-4"><UBadge :color="badgeColor(application.status)" variant="subtle" class="capitalize">{{ application.status.replaceAll('_', ' ') }}</UBadge></td><td class="px-3 py-4 text-right"><UButton :to="`/admissions/${application.id}`" size="sm" color="neutral" variant="ghost">Review</UButton></td></tr></tbody></table><EmptyState v-if="!filtered.length" icon="i-lucide-clipboard-list" message="No admission applications match this view." /></div>
+    </UCard>
+  </div>
+</template>
+
+<script setup lang="ts">
+definePageMeta({ middleware: 'auth' })
+const { user } = useUserSession()
+const { data: applications, pending } = await useFetch<any[]>('/api/admissions', { default: () => [] })
+const search = ref('')
+const status = ref('all')
+const statusOptions = [{ label: 'All statuses', value: 'all' }, { label: 'Submitted', value: 'submitted' }, { label: 'Under review', value: 'under_review' }, { label: 'Physical received', value: 'physical_received' }, { label: 'Approved', value: 'approved' }, { label: 'Rejected', value: 'rejected' }]
+const filtered = computed(() => (applications.value || []).filter((item: any) => (status.value === 'all' || item.status === status.value) && `${item.firstName} ${item.lastName} ${item.referenceNumber} ${item.email}`.toLowerCase().includes(search.value.toLowerCase())))
+const counts = computed(() => [{ label: 'Submitted', value: applications.value.filter(x => x.status === 'submitted').length, icon: 'i-lucide-inbox' }, { label: 'Under review', value: applications.value.filter(x => x.status === 'under_review').length, icon: 'i-lucide-eye' }, { label: 'Copies received', value: applications.value.filter(x => x.status === 'physical_received').length, icon: 'i-lucide-file-check-2' }, { label: 'Approved', value: applications.value.filter(x => x.status === 'approved').length, icon: 'i-lucide-circle-check' }, { label: 'Rejected', value: applications.value.filter(x => x.status === 'rejected').length, icon: 'i-lucide-circle-x' }])
+const formatDate = (value: string) => new Date(value).toLocaleDateString(undefined, { dateStyle: 'medium' })
+const badgeColor = (value: string) => value === 'approved' ? 'success' : value === 'rejected' ? 'error' : value === 'physical_received' ? 'info' : value === 'under_review' ? 'warning' : 'neutral'
+</script>

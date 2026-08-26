@@ -157,6 +157,7 @@ const allNavigation = [
     label: 'People',
     items: [
       { label: 'Students', to: '/students', icon: 'i-lucide-users-round' },
+      { label: 'Admissions', to: '/admissions/manage', icon: 'i-lucide-clipboard-list' },
       { label: 'Staff & access', to: '/users', icon: 'i-lucide-shield-check' },
       { label: 'Instructors', to: '/users/instructors', icon: 'i-lucide-graduation-cap' },
     ],
@@ -204,7 +205,10 @@ const navigation = computed(() => {
       ]
     : allNavigation
   return items.map(section => {
-  if (section.label === 'People' && !canManageStaff.value) return { ...section, items: section.items.filter(item => item.to === '/students') }
+  if (section.label === 'People') {
+    const canManageAdmissions = ['owner', 'admin'].includes(user.value?.role || '') || canManageLocations.value
+    return { ...section, items: section.items.filter(item => (canManageStaff.value || item.to === '/students') && (item.to !== '/admissions/manage' || canManageAdmissions)) }
+  }
   if (section.label === 'Finance' && !canUseFinance.value) return { ...section, items: [] }
   if (section.label === 'Finance' && canManageFeePlans.value) {
     return { ...section, items: [...section.items, { label: 'Fee plans', to: '/settings/finance/fee-plans', icon: 'i-lucide-wallet-cards' }] }
@@ -233,6 +237,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/profile': { title: 'Your profile', section: 'Account' },
   '/students': { title: 'Students', section: 'People' },
   '/students/import': { title: 'Import students', section: 'People' },
+  '/admissions/manage': { title: 'Admissions', section: 'People' },
   '/users': { title: 'Staff & access', section: 'People' },
   '/users/instructors': { title: 'Instructors', section: 'People' },
   '/dojos': { title: 'Dojos & schedules', section: 'Operations' },
@@ -272,6 +277,7 @@ const currentPage = computed(() => {
   if (route.path.startsWith('/students/')) {
     return { title: 'Student profile', section: 'People' }
   }
+  if (route.path.match(/^\/admissions\/\d+$/)) return { title: 'Review admission', section: 'People' }
   return pageMeta[route.path] || { title: 'OpenDojos', section: 'Workspace' }
 })
 const pageTitle = computed(() => currentPage.value.title)

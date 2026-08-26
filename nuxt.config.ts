@@ -27,6 +27,11 @@ export default defineNuxtConfig({
     '/insights/attendance': { redirect: '/reports/attendance' },
     '/hierarchy/levels': { redirect: '/settings/hierarchy/levels' },
     '/hierarchy/nodes': { redirect: '/settings/hierarchy/nodes' },
+    '/admissions/**': {
+      headers: {
+        'Permissions-Policy': 'camera=(self), microphone=(), geolocation=()',
+      },
+    },
     '/**': {
       headers: {
         'X-Content-Type-Options': 'nosniff',

@@ -727,6 +727,72 @@ export const documents = pgTable('documents', (t) => ({
   updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// ---------- Admissions ----------
+export const admissionForms = pgTable('admission_forms', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  title: t.text().notNull().default('Student admission application'),
+  introduction: t.text().notNull().default('Complete this form to apply for admission.'),
+  physicalCopyInstructions: t.text('physical_copy_instructions').notNull().default('Download, print, sign, and submit this form to the organization.'),
+  privacyNotice: t.text('privacy_notice').notNull().default('Your information will be used to process this admission application.'),
+  consentText: t.text('consent_text').notNull().default('I confirm that the information provided is accurate and consent to its use for admission processing.'),
+  isPublished: t.boolean('is_published').notNull().default(false),
+  requirePhysicalCopy: t.boolean('require_physical_copy').notNull().default(true),
+  updatedBy: t.integer('updated_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => [
+  uniqueIndex('admission_forms_organization_id_unique').on(table.organizationId),
+])
+
+export const admissionApplications = pgTable('admission_applications', (t) => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'restrict' }).notNull(),
+  programId: t.integer('program_id').references(() => organizationPrograms.id, { onDelete: 'set null' }),
+  referenceNumber: t.text('reference_number').notNull(),
+  accessTokenHash: t.varchar('access_token_hash', { length: 64 }).notNull(),
+  status: t.text({ enum: ['submitted', 'under_review', 'physical_received', 'approved', 'rejected'] }).notNull().default('submitted'),
+  firstName: t.text('first_name').notNull(),
+  lastName: t.text('last_name').notNull(),
+  email: t.text().notNull(),
+  phone: t.text().notNull(),
+  dateOfBirth: t.timestamp('date_of_birth', { withTimezone: true }).notNull(),
+  gender: t.text({ enum: ['male', 'female', 'other'] }),
+  address: t.text(),
+  city: t.text(),
+  stateProvince: t.text('state_province'),
+  country: t.text(),
+  postalCode: t.text('postal_code'),
+  emergencyContact: t.text('emergency_contact').notNull(),
+  emergencyPhone: t.text('emergency_phone').notNull(),
+  medicalNotes: t.text('medical_notes'),
+  guardianName: t.text('guardian_name'),
+  guardianRelationship: t.text('guardian_relationship'),
+  guardianPhone: t.text('guardian_phone'),
+  guardianEmail: t.text('guardian_email'),
+  previousExperience: t.text('previous_experience'),
+  preferredStartDate: t.timestamp('preferred_start_date', { withTimezone: true }),
+  photoPath: t.text('photo_path').notNull(),
+  consentAcceptedAt: t.timestamp('consent_accepted_at', { withTimezone: true }).notNull(),
+  formSnapshot: t.jsonb('form_snapshot').$type<Record<string, unknown>>().notNull(),
+  physicalCopyReceivedAt: t.timestamp('physical_copy_received_at', { withTimezone: true }),
+  physicalCopyReceivedBy: t.integer('physical_copy_received_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedAt: t.timestamp('reviewed_at', { withTimezone: true }),
+  reviewedBy: t.integer('reviewed_by').references(() => users.id, { onDelete: 'set null' }),
+  internalNotes: t.text('internal_notes'),
+  rejectionReason: t.text('rejection_reason'),
+  resultingStudentId: t.integer('resulting_student_id').references(() => students.id, { onDelete: 'set null' }),
+  submittedAt: t.timestamp('submitted_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => [
+  uniqueIndex('admission_applications_reference_unique').on(table.referenceNumber),
+  uniqueIndex('admission_applications_access_token_hash_unique').on(table.accessTokenHash),
+  uniqueIndex('admission_applications_resulting_student_unique').on(table.resultingStudentId),
+  index('admission_applications_organization_status_idx').on(table.organizationId, table.status),
+  index('admission_applications_dojo_id_idx').on(table.dojoId),
+])
+
 // ---------- Relations ----------
 
 // ---------- RELATIONS (declared after every table for complete inference) ----------
@@ -741,6 +807,22 @@ export const organizationsRelations = relations(organizations, ({ many }) => ({
   notifications: many(studentNotifications),
   announcements: many(announcements),
   pushSubscriptions: many(studentPushSubscriptions),
+  admissionForms: many(admissionForms),
+  admissionApplications: many(admissionApplications),
+}))
+
+export const admissionFormsRelations = relations(admissionForms, ({ one }) => ({
+  organization: one(organizations, { fields: [admissionForms.organizationId], references: [organizations.id] }),
+  editor: one(users, { fields: [admissionForms.updatedBy], references: [users.id] }),
+}))
+
+export const admissionApplicationsRelations = relations(admissionApplications, ({ one }) => ({
+  organization: one(organizations, { fields: [admissionApplications.organizationId], references: [organizations.id] }),
+  dojo: one(dojos, { fields: [admissionApplications.dojoId], references: [dojos.id] }),
+  program: one(organizationPrograms, { fields: [admissionApplications.programId], references: [organizationPrograms.id] }),
+  reviewer: one(users, { fields: [admissionApplications.reviewedBy], references: [users.id], relationName: 'admissionReviewer' }),
+  physicalCopyReceiver: one(users, { fields: [admissionApplications.physicalCopyReceivedBy], references: [users.id], relationName: 'admissionPhysicalCopyReceiver' }),
+  resultingStudent: one(students, { fields: [admissionApplications.resultingStudentId], references: [students.id] }),
 }))
 
 export const hierarchyLevelsRelations = relations(hierarchyLevels, ({ many }) => ({
@@ -773,6 +855,8 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   auditLogs: many(auditLogs),
   paymentRefunds: many(paymentRefunds),
   announcements: many(announcements),
+  reviewedAdmissionApplications: many(admissionApplications, { relationName: 'admissionReviewer' }),
+  receivedAdmissionPhysicalCopies: many(admissionApplications, { relationName: 'admissionPhysicalCopyReceiver' }),
 }))
 
 export const auditLogsRelations = relations(auditLogs, ({ one }) => ({

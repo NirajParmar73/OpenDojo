@@ -35,6 +35,7 @@ definePageMeta({ middleware: ['auth', 'admin'] })
 
 const settingsItems = [
   { title: 'General settings', description: 'Organization name, logo, and currency.', to: '/settings/general', icon: 'i-lucide-landmark' },
+  { title: 'Admission form', description: 'Publish and customize the organization-aware student application.', to: '/settings/admissions', icon: 'i-lucide-clipboard-pen-line' },
   { title: 'Plan & billing', description: 'Review plan limits and request an upgrade.', to: '/settings/subscription', icon: 'i-lucide-credit-card' },
   { title: 'Upgrade setup', description: 'Safely expand your organization structure after a plan upgrade.', to: '/settings/expand-structure', icon: 'i-lucide-git-branch' },
   { title: 'Location groups', description: 'Optionally organize multiple locations for shared reporting and permissions.', to: '/settings/hierarchy/nodes', icon: 'i-lucide-network' },
