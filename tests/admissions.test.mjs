@@ -22,7 +22,9 @@ test('the public admission dojo dropdown includes batch timings', async () => {
 
   assert.match(formEndpoint, /with:\s*\{\s*schedules:/)
   assert.match(formEndpoint, /dayOfWeek: true, startTime: true, endTime: true, name: true/)
-  assert.match(admissionPage, /formatBatchSchedule/)
+  assert.match(admissionPage, /formatBatchSchedules/)
+  assert.match(admissionPage, /group\.days\.filter\(Boolean\)\.join\('-'\)/)
+  assert.doesNotMatch(admissionPage, /schedule\.name \?/)
   assert.match(admissionPage, /dojo\.schedules/)
 })
 

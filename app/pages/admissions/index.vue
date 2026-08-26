@@ -95,21 +95,34 @@ const uploadInput = ref<HTMLInputElement | null>(null)
 const submitting = ref(false)
 const submitError = ref('')
 const submitted = ref<any>(null)
-const shortDayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const formatBatchTime = (value: string) => {
+const shortDayNames = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat']
+const parseBatchTime = (value: string) => {
   const match = /^(\d{1,2}):(\d{2})/.exec(value)
-  if (!match) return value
+  if (!match) return null
   const hour = Number(match[1])
-  return `${hour % 12 || 12}:${match[2]} ${hour < 12 ? 'AM' : 'PM'}`
+  return { time: `${hour % 12 || 12}:${match[2]}`, period: hour < 12 ? 'am' : 'pm' }
 }
-const formatBatchSchedule = (schedule: any) => {
-  const day = shortDayNames[schedule.dayOfWeek] || ''
-  const name = schedule.name ? `${schedule.name}: ` : ''
-  return `${name}${day} ${formatBatchTime(schedule.startTime)}–${formatBatchTime(schedule.endTime)}`.trim()
+const formatBatchTimeRange = (startValue: string, endValue: string) => {
+  const start = parseBatchTime(startValue)
+  const end = parseBatchTime(endValue)
+  if (!start || !end) return `${startValue} to ${endValue}`
+  return `${start.time}${start.period === end.period ? '' : ` ${start.period}`} to ${end.time} ${end.period}`
+}
+const formatBatchSchedules = (schedules: any[]) => {
+  const groups = new Map<string, { days: string[], startTime: string, endTime: string }>()
+  for (const schedule of schedules) {
+    const key = `${schedule.startTime}-${schedule.endTime}`
+    const group = groups.get(key) || { days: [], startTime: schedule.startTime, endTime: schedule.endTime }
+    group.days.push(shortDayNames[schedule.dayOfWeek] || '')
+    groups.set(key, group)
+  }
+  return [...groups.values()]
+    .map(group => `${group.days.filter(Boolean).join('-')} ${formatBatchTimeRange(group.startTime, group.endTime)}`.trim())
+    .join(', ')
 }
 const dojoOptions = computed(() => (data.value?.dojos || []).map((dojo: any) => {
   const location = `${dojo.name}${dojo.city ? ` — ${dojo.city}` : ''}`
-  const batchTimings = (dojo.schedules || []).map(formatBatchSchedule).join(', ')
+  const batchTimings = formatBatchSchedules(dojo.schedules || [])
   return { label: `${location}${batchTimings ? ` · ${batchTimings}` : ''}`, value: dojo.id }
 }))
 const programOptions = computed(() => (data.value?.programs || []).map((program: any) => ({ label: program.displayName, value: program.id })))
