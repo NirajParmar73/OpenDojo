@@ -27,3 +27,15 @@ logs
 # Local database and user-uploaded files must never be deployed from the repository.
 database.sqlite
 public/uploads/
+
+# Android build outputs, machine-specific SDK paths, and signing credentials
+android/**/.gradle/
+android/**/local.properties
+android/**/build/
+android/**/app/build/
+android/**/*.apk
+android/**/*.aab
+android/**/*.jks
+android/**/*.keystore
+*.jks
+*.keystore

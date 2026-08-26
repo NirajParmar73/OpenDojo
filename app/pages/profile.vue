@@ -204,6 +204,11 @@
         </div>
       </form>
     </UCard>
+
+    <UCard>
+      <template #header><div><h3 class="font-semibold">Delete account or workspace</h3><p class="mt-1 text-sm text-slate-500 dark:text-slate-400">Request permanent deletion of your account and associated data.</p></div></template>
+      <AccountDeletionRequest :name="profile?.name || undefined" :email="profile?.email || undefined" :organization="user?.organizationName || undefined" :account-type="user?.role === 'owner' ? 'organization_owner' : 'staff'" />
+    </UCard>
   </div>
 </template>
 

@@ -10,6 +10,7 @@ const authenticationPaths = new Set([
   '/api/auth/resend-verification',
   '/api/portal/login',
   '/api/onboarding',
+  '/api/account-deletion-requests',
 ])
 
 function clientAddress(event: any) {

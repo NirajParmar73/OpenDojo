@@ -20,6 +20,7 @@ const toast = useToast()
 const { user, loggedIn } = useUserSession()
 const route = useRoute()
 const runtimeConfig = useRuntimeConfig()
+const isPlayDistribution = usePlayDistribution()
 definePageMeta({ layout: 'auth' })
 
 const currentAppHost = classifyAppHost(useRequestURL().hostname, String(runtimeConfig.public.tenantBaseDomain || ''))
@@ -49,6 +50,7 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
       body: {
         email: event.data.email,
         password: event.data.password,
+        client: isPlayDistribution.value ? 'play_admin' : undefined,
       },
     })
     // The server has already set the session cookie. Use a full navigation so
@@ -70,7 +72,7 @@ async function onLogin(event: FormSubmitEvent<Schema>) {
       const fields = {
         email: event.data.email,
         password: event.data.password,
-        redirectTo: route.query.created === '1' ? '/getting-started?welcome=1' : '/',
+        redirectTo: route.query.created === '1' ? '/getting-started?welcome=1' : isPlayDistribution.value ? '/?source=play' : '/',
       }
       for (const [name, value] of Object.entries(fields)) {
         const input = document.createElement('input')

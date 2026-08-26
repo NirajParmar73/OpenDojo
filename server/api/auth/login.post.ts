@@ -10,6 +10,7 @@ const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
   redirectTo: z.string().max(500).optional(),
+  client: z.enum(['play_admin']).optional(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -62,7 +63,7 @@ export default defineEventHandler(async (event) => {
     return { success: true, isPlatformAdmin: true, platformLoginRequired: true }
   }
   const config = useRuntimeConfig(event)
-  if (config.enforceAppSubdomains && currentAppSurface(event) === 'staff' && !tenant && orgSlug) {
+  if (config.enforceAppSubdomains && currentAppSurface(event) === 'staff' && !tenant && orgSlug && body.client !== 'play_admin') {
     return {
       success: true,
       workspaceLoginRequired: true,

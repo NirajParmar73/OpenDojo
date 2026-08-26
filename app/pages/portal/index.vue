@@ -37,6 +37,11 @@
             <UFormField label="Emergency phone"><UInput v-model="profile.emergencyPhone" /></UFormField>
             <div class="sm:col-span-2"><UButton type="submit" :loading="savingProfile">Save contact details</UButton></div>
           </form>
+          <div class="mt-6 border-t border-slate-200 pt-6 dark:border-slate-800">
+            <h3 class="font-semibold">Delete portal account</h3>
+            <p class="mt-1 text-sm text-slate-500">Request deletion of your portal account and associated personal data.</p>
+            <div class="mt-4"><AccountDeletionRequest :name="`${data.student.firstName} ${data.student.lastName}`" :email="data.student.email || ''" :organization="data.student.dojo?.name || ''" account-type="student" /></div>
+          </div>
         </UCard>
       </div>
       <UCard v-else-if="tab === 'password'">

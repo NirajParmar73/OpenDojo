@@ -120,10 +120,11 @@ const route = useRoute()
 const colorMode = useColorMode()
 const mobileNavigationOpen = ref(false)
 const runtimeConfig = useRuntimeConfig()
+const isPlayDistribution = usePlayDistribution()
 const isPlatformHost = computed(() =>
   classifyAppHost(useRequestURL().hostname, String(runtimeConfig.public.tenantBaseDomain || '')).surface === 'platform'
 )
-const publicPaths = new Set(['/', '/pricing', '/terms', '/privacy', '/refund-policy', '/contact', '/help', '/help/organizations', '/help/students', '/help/glossary', '/faq'])
+const publicPaths = new Set(['/', '/pricing', '/terms', '/privacy', '/refund-policy', '/contact', '/account-deletion', '/help', '/help/organizations', '/help/students', '/help/glossary', '/faq'])
 const isPublicLanding = computed(() => publicPaths.has(route.path) && !loggedIn.value)
 const { data: profile, refresh: refreshProfile } = await useFetch<any>('/api/user/profile', { immediate: false })
 const { data: staffPermissions, refresh: refreshStaffPermissions } = await useFetch<any>('/api/users/me/permissions', { immediate: false })
@@ -286,6 +287,6 @@ const sectionLabel = computed(() => currentPage.value.section)
 async function logout() {
   await $fetch('/api/auth/logout', { method: 'POST' })
   await clear()
-  await router.push('/auth/login')
+  await router.push(isPlayDistribution.value ? '/auth/login?source=play' : '/auth/login')
 }
 </script>
