@@ -112,7 +112,7 @@ const formatBatchSchedules = (schedules: any[]) => {
   const groups = new Map<string, { days: string[], startTime: string, endTime: string }>()
   for (const schedule of schedules) {
     const key = `${schedule.startTime}-${schedule.endTime}`
-    const group = groups.get(key) || { days: [], startTime: schedule.startTime, endTime: schedule.endTime }
+    const group: { days: string[], startTime: string, endTime: string } = groups.get(key) || { days: [], startTime: schedule.startTime, endTime: schedule.endTime }
     group.days.push(shortDayNames[schedule.dayOfWeek] || '')
     groups.set(key, group)
   }
