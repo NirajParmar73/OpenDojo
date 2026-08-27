@@ -28,6 +28,20 @@ test('the public admission dojo dropdown includes batch timings', async () => {
   assert.match(admissionPage, /dojo\.schedules/)
 })
 
+test('selecting an admission dojo fills its shared location fields only', async () => {
+  const formEndpoint = await read('server/api/public/admissions/form.get.ts')
+  const admissionPage = await read('app/pages/admissions/index.vue')
+
+  assert.match(formEndpoint, /columns:\s*\{\s*id: true, name: true, city: true, stateProvince: true, country: true\s*\}/)
+  assert.match(admissionPage, /const selectedDojo = computed/)
+  assert.match(admissionPage, /watch\(selectedDojo/)
+  assert.match(admissionPage, /form\.city = dojo\?\.city \|\| ''/)
+  assert.match(admissionPage, /form\.stateProvince = dojo\?\.stateProvince \|\| ''/)
+  assert.match(admissionPage, /form\.country = dojo\?\.country \|\| ''/)
+  assert.doesNotMatch(admissionPage, /form\.address = dojo\?\./)
+  assert.doesNotMatch(admissionPage, /form\.postalCode = dojo\?\./)
+})
+
 test('admission approval creates a student without granting portal access', async () => {
   const approval = await read('server/api/admissions/[id]/approve.post.ts')
   const schema = await read('server/database/schema.ts')

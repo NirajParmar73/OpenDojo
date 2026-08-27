@@ -39,9 +39,9 @@
         <UFormField label="Email" required><UInput v-model="form.email" type="email" class="w-full" required /></UFormField>
         <UFormField label="Phone" required><UInput v-model="form.phone" type="tel" class="w-full" required /></UFormField>
         <UFormField label="Street address" class="sm:col-span-2"><UInput v-model="form.address" class="w-full" /></UFormField>
-        <UFormField label="City"><UInput v-model="form.city" class="w-full" /></UFormField>
-        <UFormField label="State / province"><UInput v-model="form.stateProvince" class="w-full" /></UFormField>
-        <UFormField label="Country"><UInput v-model="form.country" class="w-full" /></UFormField>
+        <UFormField label="City" help="Filled from the selected dojo"><UInput v-model="form.city" class="w-full" :readonly="Boolean(selectedDojo?.city)" /></UFormField>
+        <UFormField label="State / province" help="Filled from the selected dojo"><UInput v-model="form.stateProvince" class="w-full" :readonly="Boolean(selectedDojo?.stateProvince)" /></UFormField>
+        <UFormField label="Country" help="Filled from the selected dojo"><UInput v-model="form.country" class="w-full" :readonly="Boolean(selectedDojo?.country)" /></UFormField>
         <UFormField label="Postal / ZIP code"><UInput v-model="form.postalCode" class="w-full" /></UFormField>
       </div></UCard>
 
@@ -125,6 +125,12 @@ const dojoOptions = computed(() => (data.value?.dojos || []).map((dojo: any) => 
   const batchTimings = formatBatchSchedules(dojo.schedules || [])
   return { label: `${location}${batchTimings ? ` · ${batchTimings}` : ''}`, value: dojo.id }
 }))
+const selectedDojo = computed(() => (data.value?.dojos || []).find((dojo: any) => dojo.id === form.dojoId))
+watch(selectedDojo, (dojo) => {
+  form.city = dojo?.city || ''
+  form.stateProvince = dojo?.stateProvince || ''
+  form.country = dojo?.country || ''
+})
 const programOptions = computed(() => (data.value?.programs || []).map((program: any) => ({ label: program.displayName, value: program.id })))
 const genderOptions = [{ label: 'Male', value: 'male' }, { label: 'Female', value: 'female' }, { label: 'Other', value: 'other' }]
 const isMinor = computed(() => { if (!form.dateOfBirth) return false; const cutoff = new Date(); cutoff.setFullYear(cutoff.getFullYear() - 18); return new Date(`${form.dateOfBirth}T00:00:00`) > cutoff })

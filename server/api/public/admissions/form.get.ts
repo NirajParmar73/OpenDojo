@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const [dojos, programs] = await Promise.all([
     db.query.dojos.findMany({
       where: eq(tables.dojos.organizationId, organization.id),
-      columns: { id: true, name: true, city: true },
+      columns: { id: true, name: true, city: true, stateProvince: true, country: true },
       with: {
         schedules: {
           columns: { id: true, dayOfWeek: true, startTime: true, endTime: true, name: true },
