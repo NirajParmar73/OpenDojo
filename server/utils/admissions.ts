@@ -10,6 +10,10 @@ export const defaultAdmissionForm = {
   physicalCopyInstructions: 'Download, print, sign, and submit this form to the organization.',
   privacyNotice: 'Your information will be used to process this admission application.',
   consentText: 'I confirm that the information provided is accurate and consent to its use for admission processing.',
+  existingRegistrationTitle: 'Existing student registration',
+  existingRegistrationIntroduction: 'Already train with us? Complete this form so we can add your existing membership to OpenDojos.',
+  existingRegistrationConsentText: 'I confirm that I am an existing student of this organization and that the information provided is accurate.',
+  isExistingRegistrationPublished: false,
   isPublished: false,
   requirePhysicalCopy: true,
 }
@@ -33,4 +37,3 @@ export async function getAdmissionForm(organizationId: number) {
   return await db.query.admissionForms.findFirst({ where: eq(tables.admissionForms.organizationId, organizationId) })
     || { ...defaultAdmissionForm, organizationId }
 }
-

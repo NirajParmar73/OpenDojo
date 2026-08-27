@@ -1,0 +1,2 @@
+-- The membership number column is created directly on students by migration 0030.
+-- This no-op migration preserves the generated snapshot and journal sequence.

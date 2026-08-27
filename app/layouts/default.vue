@@ -158,7 +158,7 @@ const allNavigation = [
     label: 'People',
     items: [
       { label: 'Students', to: '/students', icon: 'i-lucide-users-round' },
-      { label: 'Admissions', to: '/admissions/manage', icon: 'i-lucide-clipboard-list' },
+      { label: 'Student applications', to: '/admissions/manage', icon: 'i-lucide-clipboard-list' },
       { label: 'Staff & access', to: '/users', icon: 'i-lucide-shield-check' },
       { label: 'Instructors', to: '/users/instructors', icon: 'i-lucide-graduation-cap' },
     ],
@@ -238,7 +238,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/profile': { title: 'Your profile', section: 'Account' },
   '/students': { title: 'Students', section: 'People' },
   '/students/import': { title: 'Import students', section: 'People' },
-  '/admissions/manage': { title: 'Admissions', section: 'People' },
+  '/admissions/manage': { title: 'Student applications', section: 'People' },
   '/users': { title: 'Staff & access', section: 'People' },
   '/users/instructors': { title: 'Instructors', section: 'People' },
   '/dojos': { title: 'Dojos & schedules', section: 'Operations' },

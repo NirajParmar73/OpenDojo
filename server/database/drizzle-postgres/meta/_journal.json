@@ -211,6 +211,20 @@
       "when": 1787717940607,
       "tag": "0029_black_lilandra",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1787817608431,
+      "tag": "0030_existing_student_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1787817983924,
+      "tag": "0031_move_membership_number_to_students",
+      "breakpoints": true
     }
   ]
 }

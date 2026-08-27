@@ -11,6 +11,10 @@ const schema = z.object({
   consentText: z.string().trim().min(3).max(4000),
   isPublished: z.boolean(),
   requirePhysicalCopy: z.boolean(),
+  existingRegistrationTitle: z.string().trim().min(3).max(150),
+  existingRegistrationIntroduction: z.string().trim().min(3).max(2000),
+  existingRegistrationConsentText: z.string().trim().min(3).max(4000),
+  isExistingRegistrationPublished: z.boolean(),
 })
 
 export default defineEventHandler(async (event) => {
@@ -22,7 +26,6 @@ export default defineEventHandler(async (event) => {
   const [form] = existing
     ? await db.update(tables.admissionForms).set(values).where(eq(tables.admissionForms.id, existing.id)).returning()
     : await db.insert(tables.admissionForms).values({ organizationId: session.user.organizationId, ...values }).returning()
-  await writeAuditLog({ organizationId: session.user.organizationId, actorUserId: session.user.id, action: body.isPublished ? 'admission_form.published' : 'admission_form.updated', entityType: 'admission_form', entityId: form!.id, targetLabel: body.title, scope: { type: 'organization' } })
+  await writeAuditLog({ organizationId: session.user.organizationId, actorUserId: session.user.id, action: body.isPublished || body.isExistingRegistrationPublished ? 'admission_form.published' : 'admission_form.updated', entityType: 'admission_form', entityId: form!.id, targetLabel: body.title, scope: { type: 'organization' } })
   return form
 })
-

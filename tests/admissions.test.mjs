@@ -65,3 +65,43 @@ test('submitted admission PDFs remain available through an unguessable token', a
   assert.match(pdf, /Applicant \/ guardian signature/)
   assert.match(pdf, /For organization use only/)
 })
+
+test('existing students can self-register without receiving portal access before approval', async () => {
+  const page = await read('app/pages/existing-student-registration.vue')
+  const submission = await read('server/api/public/existing-student-registrations/index.post.ts')
+  const approval = await read('server/api/admissions/[id]/approve.post.ts')
+  const security = await read('server/middleware/request-security.ts')
+
+  assert.doesNotMatch(page, /middleware:\s*['"]auth/)
+  assert.match(page, /Portal access is created only after a manager approves/)
+  assert.match(submission, /applicationType: 'existing'/)
+  assert.match(submission, /originalJoinedAt/)
+  assert.match(submission, /REG-/)
+  assert.match(security, /existing-student-registrations/)
+  assert.match(approval, /grantPortalAccess/)
+  assert.match(approval, /portalCredentials/)
+})
+
+test('existing student fee tracking starts independently from historical membership', async () => {
+  const enrollment = await read('server/services/student-enrollment.ts')
+  const approval = await read('server/api/admissions/[id]/approve.post.ts')
+  const schema = await read('server/database/schema.ts')
+
+  assert.match(schema, /originalJoinedAt/)
+  assert.match(schema, /applicationType/)
+  assert.match(enrollment, /feeStartDate/)
+  assert.match(enrollment, /startDate: body\.feeStartDate/)
+  assert.match(approval, /fee tracking.*starts/)
+})
+
+test('existing registrations support duplicate matching before creating a student', async () => {
+  const details = await read('server/api/admissions/[id]/index.get.ts')
+  const reviewPage = await read('app/pages/admissions/[id].vue')
+  const approval = await read('server/api/admissions/[id]/approve.post.ts')
+
+  assert.match(details, /membershipNumber/)
+  assert.match(details, /dateOfBirth/)
+  assert.match(reviewPage, /Update #/)
+  assert.match(approval, /matchedStudentId/)
+  assert.match(approval, /existing_registration\.matched/)
+})

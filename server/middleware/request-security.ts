@@ -41,7 +41,7 @@ export default defineEventHandler((event) => {
 
   if (!event.path.startsWith('/api/')) return
   const pathname = event.path.split('?')[0] || event.path
-  if (authenticationPaths.has(pathname) || (pathname === '/api/public/admissions' && event.method === 'POST')) enforceRateLimit(event, 10, 15 * 60 * 1000)
+  if (authenticationPaths.has(pathname) || (['/api/public/admissions', '/api/public/existing-student-registrations'].includes(pathname) && event.method === 'POST')) enforceRateLimit(event, 10, 15 * 60 * 1000)
   else if (!['GET', 'HEAD', 'OPTIONS'].includes(event.method)) enforceRateLimit(event, 120, 60 * 1000)
 
   if (!['GET', 'HEAD', 'OPTIONS'].includes(event.method)) {
