@@ -191,7 +191,8 @@ export const studentSteps: HelpStep[] = [
     title: 'Install the student app',
     summary: 'Add the portal to your phone or computer for quicker access.',
     details: [
-      'Open the student portal in a supported browser and choose Install Student app when offered.',
+      'Open the link your dojo sent and tap Install Student app.',
+      'If the link opens inside WhatsApp, Instagram, or Facebook on Android, tap Open in Chrome and then Install app.',
       'On iPhone or iPad, use the browser Share menu and choose Add to Home Screen if an install button is not shown.',
       'The installed app is the same secure portal in an app-like window; your organization data remains online.',
       'If you use multiple school accounts, check which account is signed in before relying on the displayed records.'

@@ -15,7 +15,7 @@
       </form>
       <div class="mt-6 rounded-xl bg-primary/10 p-4 text-sm text-slate-700 dark:text-slate-200">
         <p class="font-medium text-slate-900 dark:text-white">Install the Student app</p>
-        <p class="mt-1 leading-5">Use the <strong>Install Student app</strong> button above. If it is not shown, open your browser menu and choose <strong>Install app</strong> or <strong>Add to Home Screen</strong>.</p>
+        <p class="mt-1 leading-5">Tap <strong>Install Student app</strong> above. If you opened this link from WhatsApp, Instagram, or Facebook, we will guide you through the remaining steps.</p>
       </div>
     </UCard>
   </div>

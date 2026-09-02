@@ -3,7 +3,7 @@
   "name": "OpenDojos Student",
   "short_name": "Dojo Student",
   "description": "View your martial-arts classes, progress, attendance, and fees.",
-  "start_url": "/portal",
+  "start_url": "/portal/",
   "scope": "/portal/",
   "display": "standalone",
   "background_color": "#f5ead6",
