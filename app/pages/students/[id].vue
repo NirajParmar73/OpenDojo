@@ -127,6 +127,19 @@
             </div>
           </UCard>
           <UCard>
+            <template #header><div class="flex flex-wrap items-start justify-between gap-3"><div><h3 class="font-semibold">Vacation fee pauses</h3><p class="mt-1 text-sm text-slate-500">Recurring charges whose due date falls during an approved break are waived. Breaks must cover at least 28 days.</p></div><UButton v-if="canManageFinance" size="sm" icon="i-lucide-calendar-off" @click="showFeePauseForm = !showFeePauseForm; void 0">{{ showFeePauseForm ? 'Cancel' : 'Add vacation' }}</UButton></div></template>
+            <form v-if="showFeePauseForm && canManageFinance" class="mb-5 grid gap-3 rounded-xl border border-primary/20 bg-primary/5 p-4 sm:grid-cols-2 lg:grid-cols-4" @submit.prevent="saveFeePause">
+              <UFormField label="Vacation starts" required><UInput v-model="feePauseForm.startDate" type="date" required /></UFormField>
+              <UFormField label="Vacation ends"><UInput v-model="feePauseForm.endDate" type="date" /><template #help>Leave blank for an ongoing break.</template></UFormField>
+              <UFormField label="Reason" required class="sm:col-span-2"><UInput v-model="feePauseForm.reason" maxlength="500" placeholder="e.g. Summer vacation" required /></UFormField>
+              <div class="flex gap-2 sm:col-span-2 lg:col-span-4"><UButton type="submit" :loading="savingFeePause">{{ editingFeePauseId ? 'Save vacation' : 'Pause recurring fees' }}</UButton><UButton v-if="editingFeePauseId" type="button" color="neutral" variant="ghost" @click="resetFeePauseForm">Cancel edit</UButton></div>
+            </form>
+            <div v-if="feePauses.length" class="divide-y divide-slate-100 dark:divide-slate-800">
+              <div v-for="pause in feePauses" :key="pause.id" class="flex flex-wrap items-center justify-between gap-3 py-4"><div><p class="font-medium">{{ formatDate(pause.startDate) }} – {{ pause.endDate ? formatDate(pause.endDate) : 'Ongoing' }}</p><p class="mt-1 text-sm text-slate-500">{{ pause.reason }}<span v-if="pause.creator"> · Added by {{ pause.creator.name }}</span></p></div><div v-if="canManageFinance" class="flex gap-2"><UButton size="xs" color="neutral" variant="ghost" @click="editFeePause(pause)">Edit</UButton><UButton size="xs" color="error" variant="ghost" icon="i-lucide-trash-2" :loading="deletingFeePauseId === pause.id" @click="deleteFeePause(pause)" /></div></div>
+            </div>
+            <EmptyState v-else icon="i-lucide-calendar-check" message="No vacation fee pauses have been recorded." />
+          </UCard>
+          <UCard>
             <template #header><div><h3 class="font-semibold">Fee plan & recurring discount</h3><p class="mt-1 text-sm text-slate-500">Set the student’s plan and approved recurring discount here.</p></div></template>
             <form class="mb-5 grid gap-3 rounded-xl border border-slate-200 p-4 sm:grid-cols-2 lg:grid-cols-4 dark:border-slate-800" @submit.prevent="saveFeeAssignment">
               <UFormField label="Fee plan" required><USelect v-model="feeAssignmentForm.feePlanId" :items="feePlanOptions" :disabled="!!editingAssignmentId" class="min-w-52" :ui="{ content: 'min-w-52' }" required /></UFormField><UFormField label="Start date" required><UInput v-model="feeAssignmentForm.startDate" type="date" required /></UFormField><UFormField label="Recurring discount"><UInput v-model.number="feeAssignmentForm.discount" type="number" min="0" step="0.01" placeholder="0.00" /></UFormField><UFormField label="Discount reason" :required="feeAssignmentForm.discount > 0"><UInput v-model="feeAssignmentForm.discountReason" placeholder="Required when discounted" /></UFormField><div class="flex gap-2 sm:col-span-2 lg:col-span-4"><UButton type="submit" :loading="savingFeeAssignment">{{ editingAssignmentId ? 'Save fee terms' : 'Assign fee plan' }}</UButton><UButton v-if="editingAssignmentId" type="button" color="neutral" variant="ghost" @click="resetFeeAssignmentForm">Cancel</UButton></div>
@@ -295,6 +308,7 @@ const { data: programEnrollmentData, refresh: refreshProgramEnrollments } = awai
 const { data: programs } = await useFetch<any[]>('/api/organization/programs')
 const { data: attendanceData } = await useAsyncData(`student-${studentId}-attendance`, () => $fetch<any>(`/api/students/${studentId}/attendance`))
 const { data: feeAssignmentData, refresh: refreshFeeAssignments } = await useAsyncData(`student-${studentId}-fee-assignments`, () => $fetch<any[]>(`/api/students/${studentId}/fee-assignments`))
+const { data: feePauseData, refresh: refreshFeePauses } = await useAsyncData(`student-${studentId}-fee-pauses`, () => $fetch<any[]>(`/api/students/${studentId}/fee-pauses`))
 const { data: paymentData, refresh: refreshPayments } = await useAsyncData(`student-${studentId}-payments`, () => $fetch<any[]>(`/api/students/${studentId}/payments`))
 const { data: guardianData, refresh: refreshGuardians } = await useAsyncData(`student-${studentId}-guardians`, () => $fetch<any[]>(`/api/students/${studentId}/guardians`))
 const { data: documentData, refresh: refreshDocuments } = await useAsyncData(`student-${studentId}-documents`, () => $fetch<any[]>(`/api/students/${studentId}/documents`))
@@ -309,9 +323,15 @@ const feeAssignmentForm = reactive({ feePlanId: null as number | null, startDate
 const editingPaymentPeriodId = ref<number | null>(null)
 const correctingBillingPeriod = ref(false)
 const billingPeriodCorrection = reactive({ billingPeriod: '', reason: '' })
+const showFeePauseForm = ref(false)
+const savingFeePause = ref(false)
+const deletingFeePauseId = ref<number | null>(null)
+const editingFeePauseId = ref<number | null>(null)
+const feePauseForm = reactive({ startDate: new Date().toISOString().slice(0, 10), endDate: '', reason: '' })
 
 const attendance = computed(() => attendanceData.value || { records: [] })
 const feeAssignments = computed(() => feeAssignmentData.value || [])
+const feePauses = computed(() => feePauseData.value || [])
 const programEnrollments = computed(() => programEnrollmentData.value || [])
 const newProgramId = ref<number | null>(null)
 const addingProgram = ref(false)
@@ -340,6 +360,23 @@ function editFeeAssignment(assignment: any) { editingAssignmentId.value = assign
 async function addProgram() { if (!newProgramId.value) { toast.add({ color: 'warning', title: 'Choose a program' }); return }; addingProgram.value = true; try { await $fetch(`/api/students/${studentId}/program-enrollments`, { method: 'POST', body: { programId: newProgramId.value } }); newProgramId.value = null; await refreshProgramEnrollments(); toast.add({ color: 'success', title: 'Program added' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not add program', description: error.data?.statusMessage || error.message }) } finally { addingProgram.value = false } }
 async function saveFeeAssignment() { if (!editingAssignmentId.value && !feeAssignmentForm.feePlanId) return; if (feeAssignmentForm.discount > 0 && !feeAssignmentForm.discountReason.trim()) { toast.add({ color: 'warning', title: 'Enter a discount reason' }); return }; savingFeeAssignment.value = true; try { const body = editingAssignmentId.value ? { startDate: feeAssignmentForm.startDate, discount: Math.round(feeAssignmentForm.discount * 100), discountReason: feeAssignmentForm.discountReason || null } : { feePlanId: feeAssignmentForm.feePlanId, startDate: feeAssignmentForm.startDate, discount: Math.round(feeAssignmentForm.discount * 100), discountReason: feeAssignmentForm.discountReason || undefined }; await $fetch(editingAssignmentId.value ? `/api/students/${studentId}/fee-assignments/${editingAssignmentId.value}` : `/api/students/${studentId}/fee-assignments`, { method: editingAssignmentId.value ? 'PATCH' : 'POST', body }); await refreshFeeAssignments(); resetFeeAssignmentForm(); toast.add({ color: 'success', title: 'Fee terms saved' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not save fee terms', description: error.data?.statusMessage || error.message }) } finally { savingFeeAssignment.value = false } }
 
+function resetFeePauseForm() { Object.assign(feePauseForm, { startDate: new Date().toISOString().slice(0, 10), endDate: '', reason: '' }); editingFeePauseId.value = null; showFeePauseForm.value = false }
+function editFeePause(pause: any) { editingFeePauseId.value = pause.id; Object.assign(feePauseForm, { startDate: new Date(pause.startDate).toISOString().slice(0, 10), endDate: pause.endDate ? new Date(pause.endDate).toISOString().slice(0, 10) : '', reason: pause.reason }); showFeePauseForm.value = true }
+async function saveFeePause() {
+  savingFeePause.value = true
+  try {
+    await $fetch(editingFeePauseId.value ? `/api/students/${studentId}/fee-pauses/${editingFeePauseId.value}` : `/api/students/${studentId}/fee-pauses`, { method: editingFeePauseId.value ? 'PATCH' : 'POST', body: { ...feePauseForm, endDate: feePauseForm.endDate || null } })
+    await Promise.all([refreshFeePauses(), refreshFeeAssignments()])
+    resetFeePauseForm()
+    toast.add({ color: 'success', title: 'Vacation fee pause saved' })
+  } catch (error: any) { toast.add({ color: 'error', title: 'Could not save vacation', description: error.data?.statusMessage || error.message }) } finally { savingFeePause.value = false }
+}
+async function deleteFeePause(pause: any) {
+  if (!confirm(`Delete the fee pause starting ${formatDate(pause.startDate)}? Previously waived periods may become due again.`)) return
+  deletingFeePauseId.value = pause.id
+  try { await $fetch(`/api/students/${studentId}/fee-pauses/${pause.id}`, { method: 'DELETE' }); await Promise.all([refreshFeePauses(), refreshFeeAssignments()]); toast.add({ color: 'success', title: 'Vacation fee pause deleted' }) } catch (error: any) { toast.add({ color: 'error', title: 'Could not delete vacation', description: error.data?.statusMessage || error.message }) } finally { deletingFeePauseId.value = null }
+}
+
 function formatDate(value?: number | string | null) {
   return value ? new Date(value).toLocaleDateString() : 'Not provided'
 }
@@ -360,11 +397,11 @@ function formatPaymentPeriod(payment: any) {
 }
 
 function feePeriodStatusLabel(status: string) {
-  return ({ paid_in_advance: 'Paid in advance', paid: 'Paid', partially_paid: 'Partially paid', overdue: 'Overdue', due: 'Due' } as Record<string, string>)[status] || status
+  return ({ paid_in_advance: 'Paid in advance', paid: 'Paid', partially_paid: 'Partially paid', overdue: 'Overdue', due: 'Due', paused: 'Vacation – no fee' } as Record<string, string>)[status] || status
 }
 
-function feePeriodStatusColor(status: string): 'success' | 'error' | 'warning' {
-  return status === 'paid' || status === 'paid_in_advance' ? 'success' : status === 'overdue' ? 'error' : 'warning'
+function feePeriodStatusColor(status: string): 'success' | 'error' | 'warning' | 'neutral' {
+  return status === 'paused' ? 'neutral' : status === 'paid' || status === 'paid_in_advance' ? 'success' : status === 'overdue' ? 'error' : 'warning'
 }
 
 function beginBillingPeriodCorrection(payment: any) {

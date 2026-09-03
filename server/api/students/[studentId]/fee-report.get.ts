@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
 
   const student = await db.query.students.findFirst({
     where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)),
-    with: { dojo: true, program: true },
+    with: { dojo: true, program: true, feePauses: true },
   })
   if (!student) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
   if (!await hasStudentReportAccess(session.user.id, organizationId, student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'You do not have permission to view student reports' })
@@ -63,7 +63,7 @@ export default defineEventHandler(async (event) => {
   }).filter(entry => (!from || entry.date >= from) && (!to || entry.date <= to))
     .sort((a, b) => b.date.getTime() - a.date.getTime())
   const totalReceived = ledger.reduce((sum, entry) => sum + entry.amount, 0)
-  const totalOutstanding = assignments.reduce((sum, assignment: any) => sum + calculateFeeBalance({ amount: assignment.feePlan.amount, discount: assignment.discount, frequency: assignment.feePlan.frequency, startDate: assignment.startDate, endDate: assignment.endDate, dueDay: assignment.dueDay, payments: assignment.payments }).outstandingAmount, 0)
+  const totalOutstanding = assignments.reduce((sum, assignment: any) => sum + calculateFeeBalance({ amount: assignment.feePlan.amount, discount: assignment.discount, frequency: assignment.feePlan.frequency, startDate: assignment.startDate, endDate: assignment.endDate, dueDay: assignment.dueDay, payments: assignment.payments, feePauses: student.feePauses }).outstandingAmount, 0)
   const currency = organization?.currency || 'INR'
 
   const doc = new PDFDocument({ margin: 50, size: 'A4' })

@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { db, tables } from '../../utils/database'
 import { calculateFeeBalance } from '../../utils/fees'
+import { buildFeePeriodLedger } from '../../utils/fee-ledger'
 import { getAccessibleDojoIds, getHierarchyManagementScope } from '../../utils/permissions'
 import { netPaymentAmount, refundedAmount } from '../../utils/refunds'
 
@@ -28,7 +29,7 @@ export default defineEventHandler(async (event) => {
 
   const assignments = await db.query.studentFeeAssignments.findMany({
     with: {
-      student: { with: { dojo: true } },
+      student: { with: { dojo: true, feePauses: true } },
       feePlan: true,
       payments: { with: { refunds: true } },
     },
@@ -45,15 +46,20 @@ export default defineEventHandler(async (event) => {
         endDate: assignment.endDate,
         dueDay: assignment.dueDay,
         payments: assignment.payments,
+        feePauses: assignment.student.feePauses,
       })
-      const monthsPerPeriod = assignment.feePlan.frequency === 'quarterly' ? 3 : assignment.feePlan.frequency === 'half-annually' ? 6 : assignment.feePlan.frequency === 'annual' ? 12 : 1
-      const firstUnpaidDueDate = balance.pendingPeriods && balance.paidPeriods < balance.periodsDue
-        ? new Date(
-            new Date(assignment.startDate).getFullYear(),
-            new Date(assignment.startDate).getMonth() + (balance.paidPeriods * monthsPerPeriod),
-            Math.min(Math.max(assignment.dueDay || new Date(assignment.startDate).getDate() || 1, 1), 28),
-          )
-        : null
+      const ledger = buildFeePeriodLedger({
+        amount: assignment.feePlan.amount,
+        discount: assignment.discount,
+        frequency: assignment.feePlan.frequency,
+        startDate: assignment.startDate,
+        endDate: assignment.endDate,
+        dueDay: assignment.dueDay,
+        payments: assignment.payments,
+        feePauses: assignment.student.feePauses,
+      }, now)
+      const firstUnpaid = [...ledger.periods].reverse().find(period => period.scheduled && period.outstandingAmount > 0)
+      const firstUnpaidDueDate = firstUnpaid ? new Date(firstUnpaid.dueDate) : null
       const todayAtMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate())
       const daysOverdue = firstUnpaidDueDate && firstUnpaidDueDate < todayAtMidnight
         ? Math.floor((todayAtMidnight.getTime() - firstUnpaidDueDate.getTime()) / 86_400_000)

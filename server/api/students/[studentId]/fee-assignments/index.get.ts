@@ -25,6 +25,7 @@ export default defineEventHandler(async (event) => {
       eq(tables.students.id, Number(studentId)),
       eq(tables.students.organizationId, orgId)
     ),
+    with: { feePauses: true },
   })
   if (!student) {
     throw createError({ statusCode: 404, statusMessage: 'Student not found' })
@@ -54,6 +55,7 @@ export default defineEventHandler(async (event) => {
       endDate: assignment.endDate,
       dueDay: assignment.dueDay,
       payments: assignment.payments,
+      feePauses: student.feePauses,
     })
     const ledger = buildFeePeriodLedger({
       amount: assignment.feePlan.amount,
@@ -63,6 +65,7 @@ export default defineEventHandler(async (event) => {
       endDate: assignment.endDate,
       dueDay: assignment.dueDay,
       payments: assignment.payments,
+      feePauses: student.feePauses,
     })
     return {
       ...assignment,

@@ -27,7 +27,7 @@ function money(amount: number, currency: string) {
  */
 export async function reconcileStudentFeeNotifications(studentId: number, organizationId: number, now = new Date()) {
   const [student, organization, assignments, existing] = await Promise.all([
-    db.query.students.findFirst({ where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)) }),
+    db.query.students.findFirst({ where: and(eq(tables.students.id, studentId), eq(tables.students.organizationId, organizationId)), with: { feePauses: true } }),
     db.query.organizations.findFirst({ where: eq(tables.organizations.id, organizationId), columns: { currency: true } }),
     db.query.studentFeeAssignments.findMany({
       where: and(eq(tables.studentFeeAssignments.studentId, studentId), eq(tables.studentFeeAssignments.status, 'active')),
@@ -62,6 +62,7 @@ export async function reconcileStudentFeeNotifications(studentId: number, organi
       endDate: assignment.endDate,
       dueDay: assignment.dueDay,
       payments: assignment.payments,
+      feePauses: student.feePauses,
     }, now)
 
     for (const period of ledger.periods) {

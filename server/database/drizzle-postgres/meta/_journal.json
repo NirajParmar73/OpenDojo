@@ -225,6 +225,13 @@
       "when": 1787817983924,
       "tag": "0031_move_membership_number_to_students",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1788433530220,
+      "tag": "0032_student_fee_pauses",
+      "breakpoints": true
     }
   ]
 }

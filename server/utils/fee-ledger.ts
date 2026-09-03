@@ -19,6 +19,13 @@ interface FeeLedgerInput {
   endDate?: Date | number | null
   dueDay?: number | null
   payments?: LedgerPayment[]
+  feePauses?: FeePause[]
+}
+
+export interface FeePause {
+  startDate: Date | number
+  endDate?: Date | number | null
+  reason?: string | null
 }
 
 const periodPattern = /^\d{4}-(0[1-9]|1[0-2])$/
@@ -48,6 +55,14 @@ function periodDate(key: string, dueDay: number, minimum?: Date) {
   const { year, monthIndex } = parseMonth(key)
   const date = new Date(Date.UTC(year, monthIndex, Math.min(Math.max(dueDay, 1), 28)))
   return minimum && date < minimum ? minimum : date
+}
+
+function pauseForDate(pauses: FeePause[] | undefined, date: Date) {
+  return (pauses || []).find((pause) => {
+    const start = asDate(pause.startDate)
+    const end = pause.endDate ? asDate(pause.endDate) : null
+    return date >= start && (!end || date <= end)
+  })
 }
 
 export function feePeriodLabel(key: string, frequency: FeeFrequency) {
@@ -99,13 +114,19 @@ export function buildFeePeriodLedger(input: FeeLedgerInput, referenceDate = new 
   const rows = [...periods.values()]
     .sort((a, b) => a.key.localeCompare(b.key))
     .map((period) => {
+      const pause = period.scheduled && frequency !== 'one-time'
+        ? pauseForDate(input.feePauses, period.dueDate)
+        : undefined
+      const amountDue = pause ? 0 : netAmount
       const paidAmount = period.payments.reduce((sum, payment) => sum + payment.tuitionPaid, 0)
       const creditedAmount = period.payments.reduce((sum, payment) => sum + payment.creditedAmount, 0)
-      const outstandingAmount = Math.max(0, netAmount - creditedAmount)
-      const creditAmount = Math.max(0, creditedAmount - netAmount)
-      const paidInAdvance = creditedAmount >= netAmount && period.payments.some(payment => asDate(payment.paymentDate) < period.dueDate)
-      runningBalance += netAmount - creditedAmount
-      const status = creditedAmount >= netAmount
+      const outstandingAmount = Math.max(0, amountDue - creditedAmount)
+      const creditAmount = Math.max(0, creditedAmount - amountDue)
+      const paidInAdvance = amountDue > 0 && creditedAmount >= amountDue && period.payments.some(payment => asDate(payment.paymentDate) < period.dueDate)
+      runningBalance += amountDue - creditedAmount
+      const status = pause && creditedAmount === 0
+        ? 'paused'
+        : creditedAmount >= amountDue
         ? paidInAdvance ? 'paid_in_advance' : 'paid'
         : creditedAmount > 0
           ? 'partially_paid'
@@ -115,13 +136,14 @@ export function buildFeePeriodLedger(input: FeeLedgerInput, referenceDate = new 
         label: feePeriodLabel(period.key, frequency),
         dueDate: period.dueDate,
         scheduled: period.scheduled,
-        amountDue: netAmount,
+        amountDue,
         paidAmount,
         creditedAmount,
         outstandingAmount,
         creditAmount,
         runningBalance,
         status,
+        pauseReason: pause?.reason || null,
         payments: period.payments.map(payment => ({
           id: payment.id,
           receiptNumber: payment.receiptNumber,

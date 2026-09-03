@@ -13,6 +13,10 @@ export interface FeeBalanceInput {
     discountAmount?: number | null
     refunds?: Array<{ tuitionAmount?: number | null, status?: string | null }>
   }>
+  feePauses?: Array<{
+    startDate: Date | number
+    endDate?: Date | number | null
+  }>
 }
 
 function asDate(value: Date | number) {
@@ -44,8 +48,23 @@ export function calculateFeeBalance(input: FeeBalanceInput, referenceDate = new 
       : Math.floor(monthDifference(startDate, effectiveEnd) / monthsPerPeriod) + 1
   }
 
+  let pausedPeriods = 0
+  if (frequency !== 'one-time') {
+    for (let index = 0; index < periodsDue; index++) {
+      const dueDate = index === 0
+        ? new Date(Math.max(startDate.getTime(), addMonths(startDate, 0, dueDay).getTime()))
+        : addMonths(startDate, index * monthsPerPeriod, dueDay)
+      if ((input.feePauses || []).some((pause) => {
+        const pauseStart = asDate(pause.startDate)
+        const pauseEnd = pause.endDate ? asDate(pause.endDate) : null
+        return dueDate >= pauseStart && (!pauseEnd || dueDate <= pauseEnd)
+      })) pausedPeriods++
+    }
+  }
+
   const netAmountPerPeriod = Math.max(0, input.amount - (input.discount || 0))
-  const expectedAmount = netAmountPerPeriod * periodsDue
+  const billablePeriods = periodsDue - pausedPeriods
+  const expectedAmount = netAmountPerPeriod * billablePeriods
   const paidAmount = (input.payments || []).reduce((sum, payment) => {
     const refundedTuition = (payment.refunds || [])
       .filter(refund => !refund.status || refund.status === 'completed')
@@ -54,9 +73,9 @@ export function calculateFeeBalance(input: FeeBalanceInput, referenceDate = new 
   }, 0)
   const outstandingAmount = Math.max(0, expectedAmount - paidAmount)
   const paidPeriods = netAmountPerPeriod > 0
-    ? Math.min(periodsDue, Math.floor(paidAmount / netAmountPerPeriod))
-    : periodsDue
-  const pendingPeriods = Math.max(0, periodsDue - paidPeriods)
+    ? Math.min(billablePeriods, Math.floor(paidAmount / netAmountPerPeriod))
+    : billablePeriods
+  const pendingPeriods = Math.max(0, billablePeriods - paidPeriods)
   const lastDueDate = periodsDue > 0
     ? (frequency === 'one-time' ? startDate : addMonths(startDate, (periodsDue - 1) * monthsPerPeriod, dueDay))
     : null
@@ -68,6 +87,8 @@ export function calculateFeeBalance(input: FeeBalanceInput, referenceDate = new 
 
   return {
     periodsDue,
+    pausedPeriods,
+    billablePeriods,
     netAmountPerPeriod,
     expectedAmount,
     paidAmount,

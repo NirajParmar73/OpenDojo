@@ -501,6 +501,22 @@ test('student PDF reports require management access and identify archived studen
   assert.match(reportPage, /student\.status === 'archived' \? ' — Archived'/)
 })
 
+test('vacation fee pauses are territory managed and shared by all billing consumers', async () => {
+  const schema = await read('server/database/schema.ts')
+  const access = await read('server/utils/student-fee-pauses.ts')
+  const createPause = await read('server/api/students/[studentId]/fee-pauses/index.post.ts')
+  const finance = await read('server/api/finance/overview.get.ts')
+  const reminders = await read('server/utils/student-notifications.ts')
+  const studentPage = await read('app/pages/students/[id].vue')
+
+  assert.match(schema, /studentFeePauses/)
+  assert.match(access, /hasFinanceManagementAccess/)
+  assert.match(createPause, /student\.fee_pause\.created/)
+  assert.match(finance, /feePauses: assignment\.student\.feePauses/)
+  assert.match(reminders, /feePauses: student\.feePauses/)
+  assert.match(studentPage, /Vacation fee pauses/)
+})
+
 test('landing and guided setup explain the current syllabus-to-grading workflow', async () => {
   const landing = await read('app/pages/index.vue')
   const onboarding = await read('app/pages/onboarding.vue')

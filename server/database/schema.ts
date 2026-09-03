@@ -658,6 +658,19 @@ export const studentFeeAssignments = pgTable('student_fee_assignments', (t) => (
   updatedAt: t.timestamp({ withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
 
+// Dated tuition holidays. Territory access is derived from the student's
+// current dojo so hierarchy managers cannot manage students outside their scope.
+export const studentFeePauses = pgTable('student_fee_pauses', (t) => ({
+  id: t.serial('id').primaryKey(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
+  endDate: t.timestamp('end_date', { withTimezone: true }),
+  reason: t.text().notNull(),
+  createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}))
+
 // ---------- Payments ----------
 export const payments = pgTable('payments', (t) => ({
   id: t.serial('id').primaryKey(),
@@ -919,6 +932,7 @@ export const studentsRelations = relations(students, ({ one, many }) => ({
   portalAccounts: many(studentPortalAccounts),
   notifications: many(studentNotifications),
   announcementReads: many(announcementReads),
+  feePauses: many(studentFeePauses),
   pushSubscriptions: many(studentPushSubscriptions),
 }))
 
@@ -1068,6 +1082,17 @@ export const studentFeeAssignmentsRelations = relations(studentFeeAssignments, (
   }),
   programEnrollment: one(studentProgramEnrollments, { fields: [studentFeeAssignments.programEnrollmentId], references: [studentProgramEnrollments.id] }),
   payments: many(payments),
+}))
+
+export const studentFeePausesRelations = relations(studentFeePauses, ({ one }) => ({
+  student: one(students, {
+    fields: [studentFeePauses.studentId],
+    references: [students.id],
+  }),
+  creator: one(users, {
+    fields: [studentFeePauses.createdBy],
+    references: [users.id],
+  }),
 }))
 
 export const paymentsRelations = relations(payments, ({ one, many }) => ({

@@ -83,6 +83,36 @@ test('fee ledger identifies prepaid and missing billing periods', () => {
   assert.equal(missingJuly.firstUnpaidPeriod, '2026-07')
 })
 
+test('vacation fee pauses waive recurring periods without creating arrears', () => {
+  const input = {
+    amount: 1_000_00,
+    frequency: 'monthly',
+    startDate: new Date('2026-05-01T00:00:00.000Z'),
+    dueDay: 1,
+    feePauses: [{ startDate: new Date('2026-06-01T00:00:00.000Z'), endDate: new Date('2026-07-31T23:59:59.999Z'), reason: 'Summer vacation' }],
+  }
+  const ledger = feeLedger.buildFeePeriodLedger(input, new Date('2026-08-02T00:00:00.000Z'))
+  const balance = fees.calculateFeeBalance(input, new Date('2026-08-02T00:00:00.000Z'))
+
+  assert.equal(ledger.periods.find(period => period.key === '2026-06').status, 'paused')
+  assert.equal(ledger.periods.find(period => period.key === '2026-07').amountDue, 0)
+  assert.equal(ledger.firstUnpaidPeriod, '2026-05')
+  assert.equal(balance.periodsDue, 4)
+  assert.equal(balance.pausedPeriods, 2)
+  assert.equal(balance.billablePeriods, 2)
+  assert.equal(balance.expectedAmount, 2_000_00)
+})
+
+test('vacations do not waive one-time fees', () => {
+  const balance = fees.calculateFeeBalance({
+    amount: 500_00,
+    frequency: 'one-time',
+    startDate: new Date('2026-06-01T00:00:00.000Z'),
+    feePauses: [{ startDate: new Date('2026-05-01T00:00:00.000Z'), endDate: null }],
+  }, new Date('2026-07-01T00:00:00.000Z'))
+  assert.equal(balance.expectedAmount, 500_00)
+})
+
 test('completed tuition refunds restore the outstanding fee balance', () => {
   const balance = fees.calculateFeeBalance({
     amount: 100_00,
