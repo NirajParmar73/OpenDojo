@@ -5,6 +5,7 @@ import path from 'node:path'
 import { db, tables } from '../../../utils/database'
 import { hasStudentReportAccess } from '../../../utils/permissions'
 import { getCurrentBeltRankId } from '../../../utils/gradings'
+import { getStudentSyllabusProgress } from '../../../utils/syllabus'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
@@ -20,11 +21,12 @@ export default defineEventHandler(async (event) => {
   const isOwnPortalReport = session.user.role === 'student' && portalStudentId === studentId
   if (!isOwnPortalReport && !await hasStudentReportAccess(session.user.id, session.user.organizationId, student.dojoId)) throw createError({ statusCode: 403, statusMessage: 'You do not have permission to view student reports' })
 
-  const [gradings, attendance, achievements, organization] = await Promise.all([
+  const [gradings, attendance, achievements, organization, syllabusProgress] = await Promise.all([
     db.query.studentGradings.findMany({ where: eq(tables.studentGradings.studentId, studentId), with: { beltRank: true }, orderBy: (grading, { asc }) => [asc(grading.awardedDate)] }),
     db.query.attendance.findMany({ where: eq(tables.attendance.studentId, studentId), with: { session: true } }),
     db.query.studentAchievements.findMany({ where: eq(tables.studentAchievements.studentId, studentId), orderBy: (achievement, { desc }) => [desc(achievement.startDate)] }),
-    db.query.organizations.findFirst({ where: eq(tables.organizations.id, session.user.organizationId) })
+    db.query.organizations.findFirst({ where: eq(tables.organizations.id, session.user.organizationId) }),
+    getStudentSyllabusProgress(studentId, session.user.organizationId)
   ])
   const total = attendance.length
   const present = attendance.filter(record => record.status === 'present' || record.status === 'late').length
@@ -80,6 +82,60 @@ export default defineEventHandler(async (event) => {
   y += 19
   doc.font('Helvetica').fontSize(10).fillColor('#4b5563').text(`Present or late: ${present} of ${total} recorded sessions`, 48, y)
   y += 30
+
+  startNewPageIfNeeded(120)
+  doc.font('Helvetica-Bold').fontSize(13).fillColor('#111827').text('Next grading syllabus', 48, y)
+  y += 22
+  if (!syllabusProgress?.version) {
+    doc.font('Helvetica').fontSize(10).fillColor('#4b5563').text(syllabusProgress?.reason || 'No published syllabus is available for this student.', 48, y)
+    y += 26
+  } else {
+    const percentage = syllabusProgress.total ? Math.round(syllabusProgress.completed / syllabusProgress.total * 100) : 0
+    const targetRank = syllabusProgress.targetRank?.name || 'Next rank'
+    const summaryHeight = syllabusProgress.migration?.available ? 86 : 68
+    doc.roundedRect(48, y, contentWidth, summaryHeight, 7).fill('#f5f3ff')
+    doc.font('Helvetica-Bold').fontSize(11).fillColor('#312e81').text(`Preparing for ${targetRank}`, 60, y + 12)
+    doc.font('Helvetica').fontSize(9.5).fillColor('#4b5563').text(`Version ${syllabusProgress.version.version} • ${syllabusProgress.completed} of ${syllabusProgress.total} required items ready (${percentage}%)`, 60, y + 31)
+    const barWidth = contentWidth - 24
+    doc.roundedRect(60, y + 49, barWidth, 7, 3.5).fill('#ddd6fe')
+    if (percentage > 0) doc.roundedRect(60, y + 49, barWidth * Math.min(percentage, 100) / 100, 7, 3.5).fill(syllabusProgress.ready ? '#16a34a' : '#7c3aed')
+    if (syllabusProgress.migration?.available) {
+      doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#b45309').text(`A newer syllabus version (${syllabusProgress.migration.toVersion}) is available.`, 60, y + 65)
+    }
+    y += summaryHeight + 15
+
+    for (const section of syllabusProgress.sections) {
+      const sectionDescriptionHeight = section.description
+        ? doc.font('Helvetica').fontSize(9).heightOfString(section.description, { width: contentWidth - 20 })
+        : 0
+      startNewPageIfNeeded(32 + sectionDescriptionHeight)
+      doc.font('Helvetica-Bold').fontSize(11).fillColor('#111827').text(section.name, 48, y)
+      y += 16
+      if (section.description) {
+        doc.font('Helvetica').fontSize(9).fillColor('#64748b').text(section.description, 58, y, { width: contentWidth - 20 })
+        y += sectionDescriptionHeight + 7
+      }
+
+      for (const item of section.items as Array<(typeof section.items)[number] & { inherited?: boolean }>) {
+        const qualifiers = [item.required ? null : 'Optional', item.inherited ? 'Earlier belt' : null].filter(Boolean).join(' • ')
+        const itemLabel = `${item.name}${qualifiers ? ` (${qualifiers})` : ''}`
+        const labelWidth = contentWidth - 108
+        const labelHeight = doc.font('Helvetica').fontSize(9.5).heightOfString(itemLabel, { width: labelWidth })
+        const descriptionHeight = item.description
+          ? doc.font('Helvetica').fontSize(8.5).heightOfString(item.description, { width: labelWidth })
+          : 0
+        const rowHeight = Math.max(26, 12 + labelHeight + (descriptionHeight ? descriptionHeight + 4 : 0))
+        startNewPageIfNeeded(rowHeight + 4)
+        doc.roundedRect(48, y, contentWidth, rowHeight, 4).fill('#f8fafc')
+        doc.font('Helvetica').fontSize(9.5).fillColor('#334155').text(itemLabel, 58, y + 7, { width: labelWidth })
+        if (item.description) doc.font('Helvetica').fontSize(8.5).fillColor('#64748b').text(item.description, 58, y + 9 + labelHeight, { width: labelWidth })
+        const itemReady = item.assessment?.status === 'ready'
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor(itemReady ? '#15803d' : '#64748b').text(itemReady ? 'READY' : 'WORKING', 48 + contentWidth - 88, y + 8, { width: 78, align: 'right' })
+        y += rowHeight + 4
+      }
+      y += 8
+    }
+  }
 
   startNewPageIfNeeded(48)
   doc.font('Helvetica-Bold').fontSize(13).fillColor('#111827').text('Grading journey', 48, y)

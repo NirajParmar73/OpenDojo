@@ -496,6 +496,10 @@ test('student PDF reports require management access and identify archived studen
     assert.match(report, /hasStudentReportAccess/)
   }
   assert.match(progressReport, /isOwnPortalReport/)
+  assert.match(progressReport, /getStudentSyllabusProgress/)
+  assert.match(progressReport, /Next grading syllabus/)
+  assert.match(progressReport, /Earlier belt/)
+  assert.doesNotMatch(progressReport, /assessment\?\.notes/)
   assert.match(studentPage, /v-if="canViewStudentReports"/)
   assert.match(reportPage, /Report access required/)
   assert.match(reportPage, /student\.status === 'archived' \? ' — Archived'/)
