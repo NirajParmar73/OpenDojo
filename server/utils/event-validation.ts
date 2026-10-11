@@ -41,6 +41,7 @@ export const eventSchema = z.object({
   startDate: z.string().date(), endDate: z.string().date(), registrationDeadline: z.string().date(), detailsDeadline: z.string().date().nullable().default(null),
   status: z.enum(['draft', 'open', 'closed', 'completed', 'cancelled']).default('draft'),
   registrationMode: z.enum(['public', 'linked']).default('public'),
+  transportProvided: z.boolean().default(true),
   dojoIds: z.array(z.number().int().positive()).max(500).default([]),
   capacity: z.number().int().min(0).max(100000).default(0), bedCapacity: z.number().int().min(0).max(100000).default(0), outboundCapacity: z.number().int().min(0).max(100000).default(0), returnCapacity: z.number().int().min(0).max(100000).default(0),
   prices: z.object({ student: money, parent: money, transportOut: money, transportReturn: money, accommodation: money, taxBps: z.number().int().min(0).max(10000) }),

@@ -4,7 +4,7 @@ import PDFDocument from 'pdfkit'
 import sharp from 'sharp'
 import { eq } from 'drizzle-orm'
 import { db, tables } from './database'
-import { eventCharge } from '../../shared/utils/event-finance'
+import { attendeeRequestsTransport, eventCharge } from '../../shared/utils/event-finance'
 import { formatAmount } from './currency'
 
 async function image(path: string | null, folder: 'logos' | 'event-photos') {
@@ -45,6 +45,7 @@ export async function eventRegistrationPdf(printToken: string) {
   if (request.instructorName) field('Instructor', request.instructorName)
   field('Contact', `${request.contactName} · ${request.contactPhone}`)
   field('Emergency contact', `${request.emergencyName} · ${request.emergencyPhone}`)
+  if (!event.transportProvided && !request.attendees.some(attendeeRequestsTransport)) doc.moveDown(0.4).text('Travel is arranged by students and parents. The organizer does not provide transport.')
   doc.y = Math.max(doc.y + 8, photoY + (photo ? 135 : 0))
   const heading = (value: string) => { doc.moveDown(0.8).font('Helvetica-Bold').fontSize(12).fillColor(accent).text(value); doc.moveDown(0.3).font('Helvetica').fontSize(10).fillColor('#0f172a') }
   heading('Participants and services')

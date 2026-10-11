@@ -11,7 +11,7 @@ Managers can correct core contact/source details on a submitted request before a
 ## First event
 
 1. Create an event with dates, registration/details deadlines, venue and participation/cancellation terms.
-2. Set separate student and parent base rates. Optional accommodation and each travel direction have per-person prices; enter zero when included. Prices are before tax. Monetary storage follows the existing application convention of hundredths of the currency unit.
+2. Set separate student and parent base rates. Meals and training can be included in those rates. New events created in the admin form default to self-arranged travel: leave **Organization provides transport** unchecked to remove bus choices, prices and capacities from registration. Accommodation has a per-person price; enter zero when included. If the organization provides transport, enable it and set per-direction prices and seat capacities. Existing events retain their transport setting. Prices are before tax. Monetary storage follows the existing application convention of hundredths of the currency unit.
 3. Set capacities for people, beds and outward/return bus seats. Zero means unlimited. Provisional, pending and confirmed bookings reserve capacity. Waiting-list and cancelled bookings do not.
 4. Choose staff approval, a deposit per booking, or full payment as the confirmation policy. Complete names, parent relationships, meals, booking contact and consent are always required for confirmation.
 5. Open registration. Anyone with the link can request a place without an account or student record. Blank parent names are allowed provisionally. New events ask for a student photo and a signed printed application by default; managers can change either requirement in the event editor.

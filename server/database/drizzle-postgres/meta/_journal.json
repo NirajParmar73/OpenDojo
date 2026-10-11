@@ -281,6 +281,13 @@
       "when": 1791714198798,
       "tag": "0039_event_registration_location_instructor",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1791716774020,
+      "tag": "0040_event_transport_availability",
+      "breakpoints": true
     }
   ]
 }

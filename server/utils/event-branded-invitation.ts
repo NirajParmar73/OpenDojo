@@ -45,7 +45,7 @@ export async function brandedEventInvitation(http: H3Event, id: number, token?: 
   doc.text(settings.letterBody || `You are invited to participate in ${event.name}. Any student may register alone or with up to two accompanying parents. Event registration does not require a dojo account.`, { align: 'left' })
   doc.moveDown()
   doc.font('Helvetica-Bold').text('Participation and registration').font('Helvetica')
-  doc.text(`Student fee: ${formatAmount(event.prices.student, event.currency)} | Parent fee: ${formatAmount(event.prices.parent, event.currency)} per person. Optional transport and accommodation are quoted on the registration form.`)
+  doc.text(`Student fee: ${formatAmount(event.prices.student, event.currency)} | Parent fee: ${formatAmount(event.prices.parent, event.currency)} per person. ${event.transportProvided ? 'Optional transport and accommodation are quoted on the registration form.' : 'Accommodation is quoted on the registration form. Travel is arranged by students and parents; the organizer does not provide transport.'}`)
   const publicToken = token || ('publicRegistrationToken' in event ? event.publicRegistrationToken : null)
   if (event.publicRegistrationEnabled && publicToken) {
     const link = `${getRequestURL(http).origin}/event-registration/${publicToken}`

@@ -3,7 +3,7 @@ import { and, desc, eq, inArray } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import { db, tables } from './database'
 import { getAccessibleDojoIds } from './permissions'
-import { bookingBalance, bookingMissingDetails, bookingPaymentStatus, capacityProblem, eventCharge, eventFinancials, eventOccupancy, reservingStatuses } from '../../shared/utils/event-finance'
+import { attendeeRequestsTransport, bookingBalance, bookingMissingDetails, bookingPaymentStatus, capacityProblem, eventCharge, eventFinancials, eventOccupancy, reservingStatuses } from '../../shared/utils/event-finance'
 import type { EventAnswer, EventAttendee, EventGuestProfile, EventPrices } from '../../shared/types/events'
 import { bookingSchema, bookingUpdateSchema, costSchema, costUpdateSchema, eventRequestCorrectionSchema, eventSchema, ledgerSchema } from './event-validation'
 import { z } from 'zod'
@@ -117,8 +117,15 @@ export async function saveEvent(actor: Actor, input: unknown, id?: number) {
       if (!canManageEvent(actor, previous)) return fail('You cannot manage this event', 403)
       if (body.registrationMode !== previous.registrationMode && (input as Record<string, unknown>)?.registrationMode !== undefined) return fail('The registration mode cannot change after an event is created')
       body.registrationMode = previous.registrationMode === 'public' ? 'public' : 'linked'
+      if ((input as Record<string, unknown>)?.transportProvided === undefined) body.transportProvided = previous.transportProvided
       if (body.registrationMode === 'public' && body.dojoIds.length) return fail('Public events belong to the organization, not individual dojos')
       const { bookings, costs } = await records(id, tx)
+      if (!body.transportProvided) {
+        if (bookings.some(booking => booking.status !== 'cancelled' && booking.attendees.some(attendeeRequestsTransport))) return fail('Remove or cancel existing transport bookings before disabling transport')
+        const requests = await tx.select({ status: tables.eventRegistrationRequests.status, attendees: tables.eventRegistrationRequests.attendees }).from(tables.eventRegistrationRequests).where(eq(tables.eventRegistrationRequests.eventId, id))
+        if (requests.some(request => request.status === 'submitted' && request.attendees.some(attendeeRequestsTransport))) return fail('Review or reject transport requests before disabling transport')
+      }
+      if (!body.transportProvided) { body.outboundCapacity = 0; body.returnCapacity = 0; body.prices.transportOut = 0; body.prices.transportReturn = 0 }
       const problem = capacityProblem(eventOccupancy(bookings), body)
       if (problem) return fail(problem)
       if (bookings.length && JSON.stringify([...body.dojoIds].sort()) !== JSON.stringify([...previous.dojoIds].sort())) return fail('Keep the event dojo scope unchanged after bookings exist')
@@ -132,6 +139,7 @@ export async function saveEvent(actor: Actor, input: unknown, id?: number) {
     if (body.registrationMode !== 'public') return fail('New events use organization-wide public registration')
     if (body.status === 'completed' || body.status === 'cancelled') return fail('Create the event as a draft or open event')
     if (body.registrationMode === 'public' && body.dojoIds.length) return fail('Public events belong to the organization, not individual dojos')
+    if (!body.transportProvided) { body.outboundCapacity = 0; body.returnCapacity = 0; body.prices.transportOut = 0; body.prices.transportReturn = 0 }
     const organization = await tx.query.organizations.findFirst({ where: eq(tables.organizations.id, actor.organizationId) })
     const [saved] = await tx.insert(tables.campEvents).values({ ...body, organizationId: actor.organizationId, currency: organization?.currency || 'INR', createdBy: actor.userId }).returning()
     await audit(tx, actor, saved!.id, 'event.created', body.name)
@@ -193,6 +201,7 @@ async function createEventBookingInTx(tx: Tx, actor: Actor, id: number, body: Bo
     if (body.discount && !canManageEvent(actor, event)) return fail('Only event managers can discount bookings', 403)
     if (bookings.some(booking => booking.studentId === student.id && booking.status !== 'cancelled')) return fail('This student already has an active booking', 409)
     const attendees = normalizeAttendees(body.attendees, student, [], actor.portal)
+    if (!event.transportProvided && attendees.some(attendeeRequestsTransport)) return fail('Transport is not provided for this event')
     const prices = priceSnapshot || event.prices
     if (body.discount > eventCharge(attendees, prices).subtotal) return fail('Discount cannot exceed the booking price')
     const values = { eventId: id, studentId: student.id, dojoId: student.dojoId, reference: `EV-${randomUUID().slice(0, 8).toUpperCase()}`, requestKey: body.requestKey, attendees, prices, contactName: body.contactName, contactPhone: body.contactPhone, emergencyName: body.emergencyName, emergencyPhone: body.emergencyPhone, discount: body.discount, notes: body.notes, consent: { ...body.consent, terms: termsSnapshot ?? event.terms, acceptedAt: body.consent.accepted ? new Date().toISOString() : null }, customAnswers, status: 'provisional' }
@@ -231,6 +240,7 @@ async function createGuestBookingInTx(tx: Tx, actor: Actor, event: Camp, request
   const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
   if (bookings.some(booking => booking.guestProfile?.dateOfBirth === request.dateOfBirth && normalize(booking.attendees.find(person => person.type === 'student')?.name || '') === normalize(request.studentName) && booking.status !== 'cancelled')) return fail('A guest booking for this student and birth date already exists', 409)
   const attendees = normalizeAttendees(request.attendees.map(({ id: _id, studentId: _studentId, checkedInAt: _checkedInAt, ...person }) => person), null)
+  if (!event.transportProvided && attendees.some(attendeeRequestsTransport)) return fail('Transport is not provided for this event')
   const guestProfile: EventGuestProfile = { dateOfBirth: request.dateOfBirth || '', membershipNumber: request.membershipNumber, dojoName: request.sourceDojoName || 'Independent', city: request.sourceCity, state: request.sourceState, country: request.sourceCountry, instructorName: request.instructorName }
   const values = { eventId: event.id, studentId: null, guestProfile, dojoId: event.registrationMode === 'public' ? null : request.dojoId, reference: `EV-${randomUUID().slice(0, 8).toUpperCase()}`, requestKey: request.requestKey, attendees, prices: request.prices, contactName: request.contactName, contactPhone: request.contactPhone, emergencyName: request.emergencyName, emergencyPhone: request.emergencyPhone, discount: 0, notes: request.notes, consent: request.consent, customAnswers: request.customAnswers, status: 'provisional' }
   const problem = capacityProblem(eventOccupancy([...bookings, values]), event)
@@ -334,6 +344,7 @@ export async function updateEventBooking(actor: Actor, id: number, bookingId: nu
     const student = previous.studentId ? await tx.query.students.findFirst({ where: eq(tables.students.id, previous.studentId) }) : null
     if (previous.studentId && !student) return fail('Student not found', 404)
     const attendees = body.attendees ? normalizeAttendees(body.attendees, student || null, previous.attendees, actor.portal) : previous.attendees
+    if (!event.transportProvided && attendees.some(attendeeRequestsTransport)) return fail('Transport is not provided for this event')
     if (body.checkInId) {
       if (previous.status !== 'confirmed') return fail('Confirm the booking before check-in')
       const person = attendees.find(person => person.id === body.checkInId)

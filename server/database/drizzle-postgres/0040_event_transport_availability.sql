@@ -1,0 +1,1 @@
+ALTER TABLE "camp_events" ADD COLUMN "transport_provided" boolean DEFAULT true NOT NULL;

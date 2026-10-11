@@ -106,17 +106,23 @@ try {
   await service.setPublicEventRegistration(staff, publicEvent!.id, { action: 'disable' })
   await assert.rejects(publicService.publicRegistrationForm(publicHttp, rotated.token!), /unavailable/)
   console.log('PASS: public link, provisional intake, private review, matching, idempotency and revocation')
-  const genericEvent = await service.saveEvent(staff, { ...body, name: 'Open community camp', registrationMode: 'public' })
+  const genericEvent = await service.saveEvent(staff, { ...body, name: 'Open community camp', registrationMode: 'public', transportProvided: false })
   assert.equal(genericEvent!.registrationMode, 'public')
+  assert.equal(genericEvent!.transportProvided, false)
+  assert.equal(genericEvent!.prices.transportOut, 0)
+  assert.equal(genericEvent!.prices.transportReturn, 0)
   const genericLink = await service.setPublicEventRegistration(staff, genericEvent!.id, { action: 'enable' })
   const genericForm = await publicService.publicRegistrationForm(publicHttp, genericLink.token!)
   assert.equal(genericForm.event.registrationMode, 'public')
+  assert.equal(genericForm.event.transportProvided, false)
   assert.deepEqual(genericForm.dojos, [])
   const genericInput = { requestKey: randomUUID(), sourceCity: 'Pune', sourceState: 'Maharashtra', instructorName: 'Coach Rao', dateOfBirth: '2011-03-04', attendees: [{ type: 'student', name: 'Independent Student' }], contactName: 'Independent Parent', contactPhone: '9000000044', consent: { name: 'Independent Parent', phone: '9000000044', accepted: true } }
   for (const field of ['sourceCity', 'sourceState', 'instructorName'] as const) {
     await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, genericLink.token!, { ...genericInput, [field]: '   ' }), /Enter city, state and instructor name/)
   }
   await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, genericLink.token!, { ...genericInput, sourceType: 'internal', dojoId: dojo!.id }), /cannot link to a dojo/)
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, genericLink.token!, { ...genericInput, attendees: [{ type: 'student', name: 'Independent Student', transportOut: true }] }), /Transport is not provided/)
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, genericLink.token!, { ...genericInput, attendees: [{ type: 'student', name: 'Independent Student', busOut: 'Pickup point' }] }), /Transport is not provided/)
   await publicService.submitPublicEventRegistration(publicHttp, genericLink.token!, genericInput)
   const genericRequest = (await service.getEventDetail(staff, genericEvent!.id)).registrationRequests[0]!
   assert.equal(genericRequest.dojoId, null)
@@ -132,6 +138,7 @@ try {
   assert.equal(genericDetail.bookings[0]!.dojoId, null)
   assert.equal(genericDetail.bookings[0]!.guestProfile?.city, 'Pune')
   assert.equal(genericDetail.bookings[0]!.guestProfile?.instructorName, 'Coach Rao')
+  await assert.rejects(service.updateEventBooking(staff, genericEvent!.id, genericDetail.bookings[0]!.id, { version: genericDetail.bookings[0]!.version, attendees: genericDetail.bookings[0]!.attendees.map(person => ({ ...person, transportReturn: true })) }), /Transport is not provided/)
   await assert.rejects(service.updateEventBooking(staff, genericEvent!.id, genericDetail.bookings[0]!.id, { version: genericDetail.bookings[0]!.version, guestProfile: { ...genericDetail.bookings[0]!.guestProfile!, city: '   ' } }), /Enter city, state and instructor name/)
   assert.equal(genericDetail.students.length, 0)
   assert.ok(genericDetail.finances!.bookingRevenue > 0)
@@ -142,6 +149,19 @@ try {
   await assert.rejects(service.getEventDetail(portal, genericEvent!.id), /Event not found/)
   assert.equal((await service.listEvents({ ...staff, dojoIds: [dojo!.id] })).events.some(row => row.id === genericEvent!.id), false)
   console.log('PASS: generic organization event admits independent participants without dojo or student links')
+  const busEvent = await service.saveEvent(staff, { ...body, name: 'Bus camp', registrationMode: 'public', transportProvided: true })
+  const busLink = await service.setPublicEventRegistration(staff, busEvent!.id, { action: 'enable' })
+  await publicService.submitPublicEventRegistration(publicHttp, busLink.token!, { ...genericInput, requestKey: randomUUID(), attendees: [{ type: 'student', name: 'Bus Student', transportOut: true }] })
+  await assert.rejects(service.saveEvent(staff, { ...body, name: 'Bus camp', registrationMode: 'public', transportProvided: false }, busEvent!.id), /Review or reject transport requests/)
+  const busRequest = (await service.getEventDetail(staff, busEvent!.id)).registrationRequests[0]!
+  await service.reviewEventRegistration(staff, busEvent!.id, busRequest.id, { action: 'approve' })
+  await assert.rejects(service.saveEvent(staff, { ...body, name: 'Bus camp', registrationMode: 'public', transportProvided: false }, busEvent!.id), /Remove or cancel existing transport bookings/)
+  const busBooking = (await service.getEventDetail(staff, busEvent!.id)).bookings[0]!
+  await service.updateEventBooking(staff, busEvent!.id, busBooking.id, { version: busBooking.version, status: 'cancelled' })
+  const selfArrangedBusEvent = await service.saveEvent(staff, { ...body, name: 'Bus camp', registrationMode: 'public', transportProvided: false }, busEvent!.id)
+  assert.equal(selfArrangedBusEvent!.prices.transportOut, 0)
+  assert.equal(selfArrangedBusEvent!.outboundCapacity, 0)
+  console.log('PASS: self-arranged travel hides transport charges and refuses bus requests')
   const attendee = (type: 'student' | 'parent', name = '') => ({ type, name, relationship: type === 'parent' ? 'Mother' : '', meal: 'Jain', accommodation: true })
   const bookingInput = { requestKey: randomUUID(), studentId: students[0]!.id, attendees: [attendee('student'), attendee('parent')], contactName: 'Guardian', contactPhone: '9000000000', consent: { accepted: false, name: '', phone: '' } }
   const provisional = await service.createEventBooking(portal, event!.id, bookingInput)

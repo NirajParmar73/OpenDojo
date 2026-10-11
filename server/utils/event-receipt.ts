@@ -2,6 +2,7 @@ import PDFDocument from 'pdfkit'
 import type { H3Event } from 'h3'
 import { eventActor, getEventDetail } from './events'
 import { formatAmount } from './currency'
+import { attendeeRequestsTransport } from '../../shared/utils/event-finance'
 
 export async function eventReceipt(http: H3Event, portal = false) {
   const detail = await getEventDetail(await eventActor(http, portal), Number(getRouterParam(http, 'id')))
@@ -26,7 +27,7 @@ export async function eventReceipt(http: H3Event, portal = false) {
   if (booking) {
     doc.moveDown().font('Helvetica-Bold').text(`Booking ${booking.reference} - ${booking.status}`).font('Helvetica')
     doc.text(`Contact: ${booking.contactName || 'Pending'} | ${booking.contactPhone || 'Pending'}`).moveDown()
-    for (const person of booking.attendees) doc.text(`${person.name || 'Parent name pending'} (${person.type}) | ${person.meal || 'Meal pending'} | Stay: ${person.accommodation ? 'Yes' : 'No'} | Bus: ${person.transportOut ? 'Out' : '-'} / ${person.transportReturn ? 'Return' : '-'}`)
+    for (const person of booking.attendees) doc.text(`${person.name || 'Parent name pending'} (${person.type}) | ${person.meal || 'Meal pending'} | Stay: ${person.accommodation ? 'Yes' : 'No'}${detail.event.transportProvided || attendeeRequestsTransport(person) ? ` | Bus: ${person.transportOut ? 'Out' : '-'} / ${person.transportReturn ? 'Return' : '-'}` : ''}`)
     doc.moveDown().text(`Booking charges before tax: ${amount(booking.balance.net)}`).text(`Tax: ${amount(booking.balance.tax)}`).text(`Total: ${amount(booking.balance.total)}`).text(`Net paid: ${amount(booking.balance.paid)}`).text(`Outstanding: ${amount(booking.balance.outstanding)}`).text(`Refund / credit due: ${amount(booking.balance.credit)}`)
     doc.moveDown().fontSize(10).text('Balances above are current at the time of download. A booking summary does not acknowledge payment; transaction receipts record individual settlements.')
     if (!transaction) { doc.moveDown().text(`Consent: ${booking.consent.accepted ? `${booking.consent.name}, ${booking.consent.acceptedAt}` : 'Pending'}`); doc.moveDown().text(booking.consent.terms || '') }

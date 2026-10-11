@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import sharp from 'sharp'
 import { and, eq, inArray } from 'drizzle-orm'
 import type { H3Event } from 'h3'
-import { eventCharge } from '../../shared/utils/event-finance'
+import { attendeeRequestsTransport, eventCharge } from '../../shared/utils/event-finance'
 import { db, tables } from './database'
 import { publicEventRegistrationSchema, validateEventAnswers } from './event-validation'
 import { saveUploadedFile } from './upload'
@@ -29,7 +29,7 @@ export async function publicRegistrationForm(http: H3Event, token: string) {
   ])
   return {
     organization: { name: organization?.name || '', logo: organization?.logo || null },
-    event: { name: event.name, description: event.description, venue: event.venue, startDate: event.startDate, endDate: event.endDate, registrationDeadline: event.registrationDeadline, detailsDeadline: event.detailsDeadline, registrationMode: event.registrationMode, prices: event.prices, currency: event.currency, confirmationRule: event.confirmationRule, deposit: event.deposit, terms: event.terms, instructions: event.instructions, formSettings: event.formSettings, invitationFilename: invitation?.filename || null },
+    event: { name: event.name, description: event.description, venue: event.venue, startDate: event.startDate, endDate: event.endDate, registrationDeadline: event.registrationDeadline, detailsDeadline: event.detailsDeadline, registrationMode: event.registrationMode, transportProvided: event.transportProvided, prices: event.prices, currency: event.currency, confirmationRule: event.confirmationRule, deposit: event.deposit, terms: event.terms, instructions: event.instructions, formSettings: event.formSettings, invitationFilename: invitation?.filename || null },
     dojos,
   }
 }
@@ -47,6 +47,7 @@ export async function submitPublicEventRegistration(http: H3Event, token: string
     if (prior) return { reference: prior.reference, status: prior.status, printToken: prior.printToken, physicalCopyInstructions: prior.physicalCopyRequired ? prior.physicalCopyInstructions : '' }
     if (locked.registrationMode === 'public' && body.dojoId !== null) throw createError({ statusCode: 400, statusMessage: 'Public event registration cannot link to a dojo' })
     if (locked.registrationMode === 'public' && (!body.sourceCity || !body.sourceState || !body.instructorName)) throw createError({ statusCode: 400, statusMessage: 'Enter city, state and instructor name' })
+    if (!locked.transportProvided && body.attendees.some(attendeeRequestsTransport)) throw createError({ statusCode: 400, statusMessage: 'Transport is not provided for this event' })
     const sourceType = locked.registrationMode === 'public' ? 'external' : body.sourceType
     const dojo = locked.registrationMode === 'linked' && sourceType === 'internal' && body.dojoId ? await tx.query.dojos.findFirst({ where: and(eq(tables.dojos.id, body.dojoId), eq(tables.dojos.organizationId, locked.organizationId)) }) : null
     if (locked.registrationMode === 'linked' && sourceType === 'internal' && (!dojo || (locked.dojoIds.length && !locked.dojoIds.includes(dojo.id)))) throw createError({ statusCode: 400, statusMessage: 'Choose an eligible dojo' })

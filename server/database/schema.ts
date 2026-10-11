@@ -1244,6 +1244,7 @@ export const campEvents = pgTable('camp_events', t => ({
   startDate: t.text('start_date').notNull(), endDate: t.text('end_date').notNull(), registrationDeadline: t.text('registration_deadline').notNull(), detailsDeadline: t.text('details_deadline'),
   status: t.text().notNull().default('draft'),
   registrationMode: t.text('registration_mode').notNull().default('linked'),
+  transportProvided: t.boolean('transport_provided').notNull().default(true),
   dojoIds: t.jsonb('dojo_ids').$type<number[]>().notNull().default([]),
   capacity: t.integer().notNull().default(0), bedCapacity: t.integer('bed_capacity').notNull().default(0), outboundCapacity: t.integer('outbound_capacity').notNull().default(0), returnCapacity: t.integer('return_capacity').notNull().default(0),
   prices: t.jsonb().$type<EventPrices>().notNull(), currency: t.text().notNull(),

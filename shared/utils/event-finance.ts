@@ -2,6 +2,10 @@ import type { BookingStatus, EventAttendee, EventPrices } from '../types/events'
 
 export const reservingStatuses: BookingStatus[] = ['provisional', 'pending', 'confirmed']
 
+export function attendeeRequestsTransport(person: Pick<EventAttendee, 'transportOut' | 'transportReturn' | 'busOut' | 'busReturn'>) {
+  return person.transportOut || person.transportReturn || Boolean(person.busOut?.trim() || person.busReturn?.trim())
+}
+
 export function eventCharge(attendees: Pick<EventAttendee, 'type' | 'transportOut' | 'transportReturn' | 'accommodation'>[], prices: EventPrices, discount = 0) {
   const subtotal = attendees.reduce((sum, person) => sum + prices[person.type]
     + (person.transportOut ? prices.transportOut : 0)
