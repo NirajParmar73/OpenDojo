@@ -1,0 +1,2 @@
+ALTER TABLE "camp_events" ADD COLUMN "registration_mode" text DEFAULT 'linked' NOT NULL;--> statement-breakpoint
+ALTER TABLE "camp_events" ADD CONSTRAINT "camp_events_registration_mode_check" CHECK ("camp_events"."registration_mode" IN ('public','linked'));

@@ -1,6 +1,8 @@
 // server/database/schema.ts
 import { check, index, pgTable, uniqueIndex, type AnyPgColumn } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
+import type { EventAnswer, EventAttendee, EventConsent, EventFormSettings, EventGuestProfile, EventPrices } from '../../shared/types/events'
+import { defaultEventFormSettings } from '../../shared/types/events'
 
 // ---------- TABLE DEFINITIONS (all tables first) ----------
 
@@ -1232,4 +1234,117 @@ export const expensesRelations = relations(expenses, ({ one }) => ({
     fields: [expenses.createdBy],
     references: [users.id],
   }),
+}))
+
+// Events have their own bookings and immutable cash ledger. They never credit tuition.
+export const campEvents = pgTable('camp_events', t => ({
+  id: t.serial().primaryKey(),
+  organizationId: t.integer('organization_id').notNull().references(() => organizations.id, { onDelete: 'cascade' }),
+  name: t.text().notNull(), description: t.text().notNull().default(''), venue: t.text().notNull().default(''),
+  startDate: t.text('start_date').notNull(), endDate: t.text('end_date').notNull(), registrationDeadline: t.text('registration_deadline').notNull(), detailsDeadline: t.text('details_deadline'),
+  status: t.text().notNull().default('draft'),
+  registrationMode: t.text('registration_mode').notNull().default('linked'),
+  dojoIds: t.jsonb('dojo_ids').$type<number[]>().notNull().default([]),
+  capacity: t.integer().notNull().default(0), bedCapacity: t.integer('bed_capacity').notNull().default(0), outboundCapacity: t.integer('outbound_capacity').notNull().default(0), returnCapacity: t.integer('return_capacity').notNull().default(0),
+  prices: t.jsonb().$type<EventPrices>().notNull(), currency: t.text().notNull(),
+  confirmationRule: t.text('confirmation_rule').notNull().default('staff'), deposit: t.integer().notNull().default(0),
+  terms: t.text().notNull().default(''), instructions: t.text().notNull().default(''),
+  formSettings: t.jsonb('form_settings').$type<EventFormSettings>().notNull().default(defaultEventFormSettings),
+  fixedBudget: t.integer('fixed_budget').notNull().default(0), perPersonBudget: t.integer('per_person_budget').notNull().default(0), overheadBudget: t.integer('overhead_budget').notNull().default(0),
+  createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  publicRegistrationToken: t.text('public_registration_token').unique(),
+  publicRegistrationEnabled: t.boolean('public_registration_enabled').notNull().default(false),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: t.timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}), table => [index('camp_events_org_idx').on(table.organizationId), check('camp_events_status_check', sql`${table.status} IN ('draft','open','closed','completed','cancelled')`), check('camp_events_registration_mode_check', sql`${table.registrationMode} IN ('public','linked')`)])
+
+export const eventBookings = pgTable('event_bookings', t => ({
+  id: t.serial().primaryKey(), eventId: t.integer('event_id').notNull().references(() => campEvents.id, { onDelete: 'cascade' }),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'no action' }),
+  guestProfile: t.jsonb('guest_profile').$type<EventGuestProfile | null>(),
+  dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
+  reference: t.text().notNull().unique(), requestKey: t.text('request_key').notNull(),
+  status: t.text().notNull().default('provisional'),
+  contactName: t.text('contact_name').notNull().default(''), contactPhone: t.text('contact_phone').notNull().default(''),
+  emergencyName: t.text('emergency_name').notNull().default(''), emergencyPhone: t.text('emergency_phone').notNull().default(''),
+  attendees: t.jsonb().$type<EventAttendee[]>().notNull(), prices: t.jsonb().$type<EventPrices>().notNull(),
+  consent: t.jsonb().$type<EventConsent>().notNull(), discount: t.integer().notNull().default(0),
+  customAnswers: t.jsonb('custom_answers').$type<EventAnswer[]>().notNull().default([]),
+  cancellationFee: t.integer('cancellation_fee').notNull().default(0), notes: t.text().notNull().default(''),
+  version: t.integer().notNull().default(1),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: t.timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}), table => [
+  index('event_bookings_event_idx').on(table.eventId),
+  uniqueIndex('event_bookings_request_idx').on(table.eventId, table.requestKey),
+  uniqueIndex('event_bookings_active_student_idx').on(table.eventId, table.studentId).where(sql`${table.status} <> 'cancelled'`),
+  check('event_bookings_status_check', sql`${table.status} IN ('provisional','pending','confirmed','waitlisted','cancelled')`),
+  check('event_bookings_amounts_check', sql`${table.discount} >= 0 AND ${table.cancellationFee} >= 0`),
+  check('event_bookings_identity_check', sql`(${table.studentId} IS NOT NULL AND ${table.guestProfile} IS NULL) OR (${table.studentId} IS NULL AND ${table.guestProfile} IS NOT NULL)`),
+])
+
+export const eventCosts = pgTable('event_costs', t => ({
+  id: t.serial().primaryKey(), eventId: t.integer('event_id').notNull().references(() => campEvents.id, { onDelete: 'cascade' }),
+  description: t.text().notNull(), supplier: t.text().notNull(), category: t.text().notNull(),
+  amount: t.integer().notNull(), tax: t.integer().notNull().default(0), status: t.text().notNull().default('committed'),
+  dueDate: t.text('due_date'), invoiceNumber: t.text('invoice_number').notNull().default(''),
+  notes: t.text().notNull().default(''), requestKey: t.text('request_key').notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}), table => [index('event_costs_event_idx').on(table.eventId), uniqueIndex('event_costs_request_idx').on(table.eventId, table.requestKey), check('event_costs_amount_check', sql`${table.amount} >= 0 AND ${table.tax} >= 0`), check('event_costs_category_check', sql`${table.category} IN ('direct','overhead')`), check('event_costs_status_check', sql`${table.status} IN ('committed','incurred','cancelled')`)])
+
+export const eventLedger = pgTable('event_ledger', t => ({
+  id: t.serial().primaryKey(), eventId: t.integer('event_id').notNull().references(() => campEvents.id, { onDelete: 'cascade' }),
+  bookingId: t.integer('booking_id').references(() => eventBookings.id, { onDelete: 'no action' }),
+  costId: t.integer('cost_id').references(() => eventCosts.id, { onDelete: 'no action' }),
+  sourceId: t.integer('source_id').references((): AnyPgColumn => eventLedger.id, { onDelete: 'no action' }),
+  kind: t.text().notNull(), amount: t.integer().notNull(), tax: t.integer().notNull().default(0),
+  method: t.text().notNull(), reference: t.text().notNull().default(''), receiptNumber: t.text('receipt_number').notNull().unique(),
+  description: t.text().notNull(), occurredOn: t.text('occurred_on').notNull(), requestKey: t.text('request_key').notNull(),
+  createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}), table => [
+  index('event_ledger_event_idx').on(table.eventId), uniqueIndex('event_ledger_request_idx').on(table.eventId, table.requestKey),
+  check('event_ledger_amount_check', sql`${table.amount} > 0 AND ${table.tax} >= 0 AND ${table.tax} <= ${table.amount}`),
+  check('event_ledger_kind_check', sql`${table.kind} IN ('payment','refund','income','income_refund','cost_payment','cost_refund')`),
+  check('event_ledger_link_check', sql`(${table.kind} IN ('payment','refund') AND ${table.bookingId} IS NOT NULL AND ${table.costId} IS NULL) OR (${table.kind} IN ('cost_payment','cost_refund') AND ${table.costId} IS NOT NULL AND ${table.bookingId} IS NULL) OR (${table.kind} IN ('income','income_refund') AND ${table.bookingId} IS NULL AND ${table.costId} IS NULL)`),
+])
+
+export const eventActivity = pgTable('event_activity', t => ({
+  id: t.serial().primaryKey(), eventId: t.integer('event_id').notNull().references(() => campEvents.id, { onDelete: 'cascade' }),
+  bookingId: t.integer('booking_id').references(() => eventBookings.id, { onDelete: 'no action' }),
+  actor: t.text().notNull(), action: t.text().notNull(), details: t.text().notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}), table => [index('event_activity_event_idx').on(table.eventId)])
+
+export const eventRegistrationRequests = pgTable('event_registration_requests', t => ({
+  id: t.serial().primaryKey(),
+  eventId: t.integer('event_id').notNull().references(() => campEvents.id, { onDelete: 'cascade' }),
+  bookingId: t.integer('booking_id').references(() => eventBookings.id, { onDelete: 'set null' }),
+  requestKey: t.text('request_key').notNull(), reference: t.text().notNull().unique(),
+  status: t.text().notNull().default('submitted'),
+  studentName: t.text('student_name').notNull(), dateOfBirth: t.text('date_of_birth'),
+  membershipNumber: t.text('membership_number').notNull().default(''), dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
+  sourceType: t.text('source_type').notNull().default('internal'), sourceDojoName: t.text('source_dojo_name').notNull().default(''), sourceCity: t.text('source_city').notNull().default(''), sourceState: t.text('source_state').notNull().default(''), sourceCountry: t.text('source_country').notNull().default(''), instructorName: t.text('instructor_name').notNull().default(''),
+  contactName: t.text('contact_name').notNull(), contactPhone: t.text('contact_phone').notNull(),
+  emergencyName: t.text('emergency_name').notNull().default(''), emergencyPhone: t.text('emergency_phone').notNull().default(''),
+  attendees: t.jsonb().$type<EventAttendee[]>().notNull(), consent: t.jsonb().$type<EventConsent>().notNull(),
+  prices: t.jsonb().$type<EventPrices>().notNull(), notes: t.text().notNull().default(''), waitlist: t.boolean().notNull().default(false),
+  customAnswers: t.jsonb('custom_answers').$type<EventAnswer[]>().notNull().default([]),
+  photoPath: t.text('photo_path'), printToken: t.text('print_token').unique(),
+  physicalCopyRequired: t.boolean('physical_copy_required').notNull().default(false),
+  physicalCopyInstructions: t.text('physical_copy_instructions').notNull().default(''),
+  physicalCopyReceivedAt: t.timestamp('physical_copy_received_at', { withTimezone: true }),
+  physicalCopyReceivedBy: t.integer('physical_copy_received_by').references(() => users.id, { onDelete: 'set null' }),
+  reviewedBy: t.integer('reviewed_by').references(() => users.id, { onDelete: 'set null' }), reviewedAt: t.timestamp('reviewed_at', { withTimezone: true }),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}), table => [
+  index('event_registration_requests_event_idx').on(table.eventId),
+  uniqueIndex('event_registration_requests_key_idx').on(table.eventId, table.requestKey),
+  check('event_registration_requests_status_check', sql`${table.status} IN ('submitted','approved','rejected')`),
+  check('event_registration_requests_source_check', sql`${table.sourceType} IN ('internal','external')`),
+])
+
+export const eventInvitations = pgTable('event_invitations', t => ({
+  eventId: t.integer('event_id').primaryKey().references(() => campEvents.id, { onDelete: 'cascade' }),
+  filename: t.text().notNull(), dataBase64: t.text('data_base64').notNull(),
+  uploadedBy: t.integer('uploaded_by').references(() => users.id, { onDelete: 'set null' }),
+  uploadedAt: t.timestamp('uploaded_at', { withTimezone: true }).notNull().defaultNow(),
 }))

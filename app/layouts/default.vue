@@ -168,6 +168,7 @@ const allNavigation = [
     items: [
       { label: 'Dojos & schedules', to: '/dojos', icon: 'i-lucide-building-2' },
       { label: 'Attendance', to: '/attendance', icon: 'i-lucide-calendar-check-2' },
+      { label: 'Events & camps', to: '/events', icon: 'i-lucide-tent-tree' },
       { label: 'Promotion readiness', to: '/promotion-eligibility', icon: 'i-lucide-list-checks' },
       { label: 'Grading exams', to: '/grading-exams', icon: 'i-lucide-award' },
       { label: 'Tournament setup', to: '/tournaments', icon: 'i-lucide-trophy' },
@@ -244,6 +245,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
   '/dojos': { title: 'Dojos & schedules', section: 'Operations' },
   '/getting-started': { title: 'Getting started', section: 'Organization' },
   '/attendance': { title: 'Attendance', section: 'Operations' },
+  '/events': { title: 'Events & camps', section: 'Operations' },
   '/promotion-eligibility': { title: 'Promotion readiness', section: 'Operations' },
   '/tournaments': { title: 'Tournament management', section: 'Operations' },
   '/tournament-results': { title: 'Tournament results', section: 'Operations' },
@@ -272,6 +274,7 @@ const pageMeta: Record<string, { title: string, section: string }> = {
 }
 
 const currentPage = computed(() => {
+  if (route.path.startsWith('/events/')) return { title: 'Event management', section: 'Operations' }
   if (route.path.match(/^\/students\/[^/]+\/edit$/)) {
     return { title: 'Edit student', section: 'People' }
   }

@@ -1,0 +1,2 @@
+ALTER TABLE "event_registration_requests" ADD COLUMN "source_city" text DEFAULT '' NOT NULL;--> statement-breakpoint
+ALTER TABLE "event_registration_requests" ADD COLUMN "instructor_name" text DEFAULT '' NOT NULL;

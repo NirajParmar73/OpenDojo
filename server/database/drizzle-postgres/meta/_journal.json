@@ -232,6 +232,55 @@
       "when": 1788433530220,
       "tag": "0032_student_fee_pauses",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791702669958,
+      "tag": "0033_event_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791705579304,
+      "tag": "0034_public_event_registration",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791707035831,
+      "tag": "0035_external_event_guests",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1791708895322,
+      "tag": "0036_customizable_event_forms",
+      "breakpoints": true
+    },
+    {
+      "idx": 37,
+      "version": "7",
+      "when": 1791710668495,
+      "tag": "0037_event_registration_print_and_photo",
+      "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1791712229335,
+      "tag": "0038_generic_organization_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 39,
+      "version": "7",
+      "when": 1791714198798,
+      "tag": "0039_event_registration_location_instructor",
+      "breakpoints": true
     }
   ]
 }

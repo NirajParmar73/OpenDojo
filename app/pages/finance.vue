@@ -10,6 +10,8 @@
       <NuxtLink v-for="action in financeActions" :key="action.to" :to="action.to" class="group rounded-2xl border border-slate-200 bg-white p-4 transition hover:border-primary/40 hover:shadow-sm dark:border-slate-800 dark:bg-slate-900"><div class="flex items-center gap-3"><span class="rounded-xl bg-primary/10 p-2 text-primary"><UIcon :name="action.icon" class="h-5 w-5" /></span><div><p class="font-medium group-hover:text-primary">{{ action.label }}</p><p class="mt-0.5 text-xs text-slate-500">{{ action.description }}</p></div></div></NuxtLink>
     </nav>
 
+    <EventFinanceSummary />
+
     <div v-if="pending" class="grid gap-4 sm:grid-cols-2 xl:grid-cols-4"><USkeleton v-for="index in 4" :key="index" class="h-28 rounded-2xl" /></div>
     <UAlert v-else-if="error" color="error" title="Unable to load collections" :description="error.message" />
     <template v-else-if="overview">

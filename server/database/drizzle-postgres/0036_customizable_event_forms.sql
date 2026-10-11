@@ -1,0 +1,3 @@
+ALTER TABLE "camp_events" ADD COLUMN "form_settings" jsonb DEFAULT '{"title":"","introduction":"","accentColor":"#0f766e","privacyNotice":"","submitLabel":"Send registration","confirmationMessage":"","letterHeading":"Invitation to participate","letterBody":"","contactText":"","questions":[]}'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "event_bookings" ADD COLUMN "custom_answers" jsonb DEFAULT '[]'::jsonb NOT NULL;--> statement-breakpoint
+ALTER TABLE "event_registration_requests" ADD COLUMN "custom_answers" jsonb DEFAULT '[]'::jsonb NOT NULL;
