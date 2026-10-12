@@ -364,7 +364,7 @@ export async function updateEventBooking(actor: Actor, id: number, bookingId: nu
       consent: body.consent ? { ...body.consent, terms: previous.consent.terms || event.terms, acceptedAt: body.consent.accepted ? new Date().toISOString() : null } : previous.consent }
     const charge = eventCharge(attendees, next.prices, next.discount)
     if (next.discount > charge.subtotal || next.cancellationFee > charge.net) return fail('Discount or retained cancellation fee exceeds the booking price')
-    if (next.status === 'confirmed' && bookingMissingDetails(next).length) return fail('Complete attendee names, relationships, meals, contact and consent before confirmation')
+    if (next.status === 'confirmed' && bookingMissingDetails(next).length) return fail('Complete attendee names, relationships, contact and consent before confirmation')
     if (next.status === 'waitlisted' && bookingBalance(previous, ledger).paid > 0) return fail('Refund the booking before moving it to the waiting list')
     if (reservingStatuses.includes(next.status as 'pending')) {
       const problem = capacityProblem(eventOccupancy(bookings.map(booking => booking.id === bookingId ? next : booking)), event)

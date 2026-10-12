@@ -57,7 +57,6 @@ export async function eventRegistrationPdf(printToken: string) {
   for (const person of request.attendees) {
     const services = [person.transportOut && 'outward transport', person.transportReturn && 'return transport', person.accommodation && 'accommodation'].filter(Boolean).join(', ') || 'no optional services'
     doc.text(`${person.type === 'student' ? 'Student' : 'Accompanying person'}: ${person.name || 'Name pending'}${person.relationship ? ` (${person.relationship})` : ''}${person.underFive ? `, under 5 (${person.dateOfBirth || 'birth date pending'}), no fee` : ''} — ${services}`)
-    if (person.meal) doc.text(`Meal: ${person.meal}`)
     if (person.medicalNotes) doc.text(`Needs: ${person.medicalNotes}`)
   }
   if (request.customAnswers.length) {

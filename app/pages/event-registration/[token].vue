@@ -46,7 +46,6 @@
               <label v-if="index">Email<input v-model="person.email" type="email" maxlength="250"></label>
               <label v-if="index && data.event.registrationForm" class="flex items-center gap-2 self-end"><input v-model="person.underFive" type="checkbox">Under 5 years on event start date (free)</label>
               <label v-if="index && person.underFive && data.event.registrationForm">Accompanying person's birth date<input v-model="person.dateOfBirth" type="date" :max="today" required></label>
-              <label v-if="!data.event.registrationForm || data.event.registrationForm.includesMeals">Meal preference<input v-model="person.meal" maxlength="100" placeholder="Vegetarian, regular, allergy…"></label>
               <label class="sm:col-span-2">Medical, dietary or accessibility needs<textarea v-model="person.medicalNotes" rows="2" maxlength="2000" placeholder="Only information the event team needs" /></label>
             </div>
             <div v-if="!data.event.registrationForm" class="mt-4 flex flex-wrap gap-4 text-sm"><label v-if="data.event.transportProvided" class="flex items-center gap-2"><input v-model="person.transportOut" type="checkbox">Outward transport</label><label v-if="data.event.transportProvided" class="flex items-center gap-2"><input v-model="person.transportReturn" type="checkbox">Return transport</label><label class="flex items-center gap-2"><input v-model="person.accommodation" type="checkbox">Accommodation</label></div>
@@ -78,7 +77,7 @@ const token = String(route.params.token)
 const { data, pending, error } = await useFetch<any>(`/api/public/events/${encodeURIComponent(token)}/form`)
 const settings = computed(() => data.value?.event.formSettings || defaultEventFormSettings)
 const today = new Date().toISOString().slice(0, 10)
-const blankPerson = (type: 'student' | 'parent') => ({ type, name: '', relationship: '', phone: '', email: '', meal: '', medicalNotes: '', underFive: false, dateOfBirth: '', transportOut: false, transportReturn: false, accommodation: false, room: '', busOut: '', busReturn: '' })
+const blankPerson = (type: 'student' | 'parent') => ({ type, name: '', relationship: '', phone: '', email: '', medicalNotes: '', underFive: false, dateOfBirth: '', transportOut: false, transportReturn: false, accommodation: false, room: '', busOut: '', busReturn: '' })
 const form = reactive({ requestKey: crypto.randomUUID(), sourceType: 'external', dojoId: null as number | null, sourceDojoName: '', sourceCity: '', sourceState: '', sourceCountry: '', instructorName: '', dateOfBirth: '', membershipNumber: '', currentGrade: '', attendees: [blankPerson('student')], contactName: '', contactPhone: '', emergencyName: '', emergencyPhone: '', consent: { name: '', phone: '', accepted: false }, notes: '', waitlist: false, website: '', customAnswers: {} as Record<string, string | boolean> })
 const student = computed(() => form.attendees[0]!)
 const parentCount = ref(0)

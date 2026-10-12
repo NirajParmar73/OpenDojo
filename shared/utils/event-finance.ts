@@ -66,12 +66,11 @@ export function capacityProblem(occupancy: ReturnType<typeof eventOccupancy>, ca
   return null
 }
 
-export function bookingMissingDetails(booking: { attendees: EventAttendee[], contactName: string, contactPhone: string, registrationForm?: { includesMeals: boolean } | null, consent: { accepted: boolean, name: string, phone: string } }) {
+export function bookingMissingDetails(booking: { attendees: EventAttendee[], contactName: string, contactPhone: string, consent: { accepted: boolean, name: string, phone: string } }) {
   const missing: string[] = []
   if (!booking.contactName.trim() || !booking.contactPhone.trim()) missing.push('Booking contact')
   if (booking.attendees.some(person => !person.name.trim())) missing.push('Attendee names')
   if (booking.attendees.some(person => person.type === 'parent' && !person.relationship.trim())) missing.push('Accompanying person relationships')
-  if (booking.registrationForm?.includesMeals !== false && booking.attendees.some(person => !person.meal.trim())) missing.push('Meal preferences')
   if (!booking.consent.accepted || !booking.consent.name.trim() || !booking.consent.phone.trim()) missing.push('Consent')
   return missing
 }

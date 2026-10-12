@@ -83,8 +83,8 @@ export async function submitPublicEventRegistration(http: H3Event, token: string
       const uploaded = await saveUploadedFile({ name: 'photo', filename: 'student.jpg', data: normalized, type: 'image/jpeg' }, 'event-photos', ['image/jpeg'])
       savedPhotoPath = uploaded.path
     }
-    const attendees = body.attendees.map(person => ({ ...person,
-      ...(selectedForm ? { underFive: person.type === 'parent' && person.underFive, accommodation: selectedForm.includesAccommodation, transportOut: selectedForm.includesTransportOut, transportReturn: selectedForm.includesTransportReturn, meal: selectedForm.includesMeals ? person.meal : '', busOut: '', busReturn: '', room: '' } : {}),
+    const attendees = body.attendees.map(person => ({ ...person, meal: '',
+      ...(selectedForm ? { underFive: person.type === 'parent' && person.underFive, accommodation: selectedForm.includesAccommodation, transportOut: selectedForm.includesTransportOut, transportReturn: selectedForm.includesTransportReturn, busOut: '', busReturn: '', room: '' } : {}),
       id: randomUUID(), studentId: null, checkedInAt: null }))
     const prices = selectedForm ? formPrices(selectedForm) : locked.prices
     const studentName = attendees.find(person => person.type === 'student')!.name

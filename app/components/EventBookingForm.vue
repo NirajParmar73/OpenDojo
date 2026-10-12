@@ -16,7 +16,6 @@
           <label v-if="person.type === 'parent'">Relationship<select v-model="person.relationship"><option value="">Not yet known</option><option v-if="person.relationship && !['Mother', 'Father', 'Guardian', 'Grandparent', 'Guest', 'Sibling', 'Other'].includes(person.relationship)" :value="person.relationship">{{ person.relationship }}</option><option v-for="relationship in ['Mother', 'Father', 'Guardian', 'Grandparent', 'Guest', 'Sibling', 'Other']" :key="relationship">{{ relationship }}</option></select></label>
           <label>Phone<input v-model="person.phone" type="tel" maxlength="60"></label>
           <label v-if="person.type === 'parent'">Email (optional)<input v-model="person.email" type="email" maxlength="250"></label>
-          <label v-if="initial?.registrationForm?.includesMeals !== false">Meal preference<select v-model="person.meal"><option value="">Not yet known</option><option v-for="meal in ['Vegetarian', 'Non-vegetarian', 'Jain', 'Vegan', 'Other']" :key="meal">{{ meal }}</option></select></label>
           <p v-if="person.underFive" class="self-end text-sm text-slate-500">Under 5 · born {{ person.dateOfBirth }} · no fee</p>
           <label class="sm:col-span-2">Allergies, dietary or medical requirements<textarea v-model="person.medicalNotes" rows="2" maxlength="2000" placeholder="Only information needed by the event team" /></label>
         </div>
@@ -39,7 +38,7 @@
 import { eventCharge } from '#shared/utils/event-finance'
 const props = defineProps<{ event: any, students: any[], initial?: any, portal: boolean, canManage: boolean, endpoint: string }>()
 const emit = defineEmits(['saved', 'cancel'])
-const blankPerson = (type: string) => ({ type, name: '', relationship: '', phone: '', email: '', meal: '', medicalNotes: '', underFive: false, dateOfBirth: '', transportOut: false, transportReturn: false, accommodation: false, room: '', busOut: '', busReturn: '' })
+const blankPerson = (type: string) => ({ type, name: '', relationship: '', phone: '', email: '', medicalNotes: '', underFive: false, dateOfBirth: '', transportOut: false, transportReturn: false, accommodation: false, room: '', busOut: '', busReturn: '' })
 const form = reactive<any>(props.initial ? { ...JSON.parse(JSON.stringify(props.initial)), saveGuardians: false } : { studentId: props.portal ? props.students[0]?.id || 0 : 0, requestKey: crypto.randomUUID(), attendees: [blankPerson('student')], contactName: '', contactPhone: '', emergencyName: '', emergencyPhone: '', consent: { name: '', phone: '', accepted: false }, notes: '', saveGuardians: false, waitlist: false })
 const selectedStudent = computed(() => props.students.find(student => student.id === form.studentId))
 const parentCount = ref(form.attendees.length - 1)

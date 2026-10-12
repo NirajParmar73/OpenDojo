@@ -80,6 +80,7 @@ try {
   await publicService.submitPublicEventRegistration(publicHttp, link.token!, guestInput)
   publicDetail = await service.getEventDetail(staff, publicEvent!.id)
   const guestRequest = publicDetail.registrationRequests.find(row => row.studentName === 'Outside Student')!
+  assert.equal(guestRequest.attendees[0]!.meal, '')
   await service.reviewEventRegistration(staff, publicEvent!.id, guestRequest.id, { action: 'approve', mode: 'guest' })
   publicDetail = await service.getEventDetail(staff, publicEvent!.id)
   const guestBooking = publicDetail.bookings.find(row => row.guestProfile?.dojoName === 'Outside Academy')!
