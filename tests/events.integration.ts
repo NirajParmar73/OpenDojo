@@ -219,7 +219,27 @@ try {
   const groupBooking = (await service.getEventDetail(staff, feeEvent!.id)).bookings.find(row => row.registrationForm?.id === localForm.id && row.attendees.length === 11)!
   assert.equal(groupBooking.balance.total, 290000)
   assert.equal((await service.updateEventBooking(staff, feeEvent!.id, groupBooking.id, { version: groupBooking.version, attendees: groupBooking.attendees }))!.attendees.length, 11)
-  console.log('PASS: separate local and outstation forms, ten accompanying people, fixed inclusions and price snapshots')
+  const multiPeople = [
+    { type: 'student', name: 'Sibling One', dateOfBirth: '2010-01-01', currentGrade: 'Blue belt' },
+    { type: 'student', name: 'Sibling Two', dateOfBirth: '2012-02-02', currentGrade: 'Green belt' },
+    { type: 'student', name: 'Sibling Three', dateOfBirth: '2014-03-03', currentGrade: 'Yellow belt' },
+    { type: 'parent', name: 'Sibling Parent', relationship: 'Mother' },
+  ]
+  const multiInput = { ...groupInput, requestKey: randomUUID(), attendees: multiPeople }
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, localForm.token, { ...multiInput, attendees: multiPeople.map((person, index) => index === 1 ? { ...person, currentGrade: '' } : person) }), /every student/)
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, localForm.token, { ...multiInput, attendees: multiPeople.map((person, index) => index === 1 ? { ...person, dateOfBirth: '' } : person) }), /every student/)
+  const multiSubmission = await publicService.submitPublicEventRegistration(publicHttp, localForm.token, multiInput)
+  assert.equal(multiSubmission.quote, 290000)
+  const multiRequest = (await service.getEventDetail(staff, feeEvent!.id)).registrationRequests.find(row => row.reference === multiSubmission.reference)!
+  await service.reviewEventRegistration(staff, feeEvent!.id, multiRequest.id, { action: 'approve' })
+  const multiDetail = await service.getEventDetail(staff, feeEvent!.id)
+  const multiBooking = multiDetail.bookings.find(row => row.requestKey === multiInput.requestKey)!
+  assert.deepEqual(multiBooking.attendees.filter(person => person.type === 'student').map(person => person.currentGrade), ['Blue belt', 'Green belt', 'Yellow belt'])
+  assert.equal(multiBooking.balance.total, 290000)
+  await assert.rejects(service.updateEventBooking(staff, feeEvent!.id, multiBooking.id, { version: multiBooking.version, attendees: multiBooking.attendees.filter(person => person.name !== 'Sibling Two') }), /cannot be added or removed/)
+  assert.equal(multiDetail.registrationSummary!.enrolledStudents, 6)
+  assert.equal(multiDetail.occupancy.people, 19)
+  console.log('PASS: separate forms support three students, ten accompanying people and combined fee snapshots')
   const attendee = (type: 'student' | 'parent', name = '') => ({ type, name, relationship: type === 'parent' ? 'Mother' : '', meal: 'Jain', accommodation: true })
   const bookingInput = { requestKey: randomUUID(), studentId: students[0]!.id, attendees: [attendee('student'), attendee('parent')], contactName: 'Guardian', contactPhone: '9000000000', consent: { accepted: false, name: '', phone: '' } }
   const provisional = await service.createEventBooking(portal, event!.id, bookingInput)
@@ -332,6 +352,20 @@ try {
   customDetail = await service.getEventDetail(staff, customEvent!.id)
   assert.equal(customDetail.bookings[0]!.contactPhone, '9000000099')
   assert.equal(customDetail.bookings[0]!.customAnswers[0]!.label, 'Preferred workshop')
+  const siblingPhotoEvent = await service.saveEvent(staff, { ...body, name: 'Siblings photo camp', registrationMode: 'public', transportProvided: false, formSettings: { ...customSettings, questions: [] } })
+  const siblingPhotoLink = await service.setPublicEventRegistration(staff, siblingPhotoEvent!.id, { action: 'enable' })
+  const siblingPhotoInput = { ...genericInput, requestKey: randomUUID(), attendees: [{ type: 'student', name: 'Photo Sibling One', dateOfBirth: '2011-01-01' }, { type: 'student', name: 'Photo Sibling Two', dateOfBirth: '2013-02-02' }] }
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, siblingPhotoLink.token!, siblingPhotoInput, { data: photoData, type: 'image/png' }), /student photograph 2/)
+  const siblingSubmission = await publicService.submitPublicEventRegistration(publicHttp, siblingPhotoLink.token!, siblingPhotoInput, { data: photoData, type: 'image/png' }, [{ index: 1, data: photoData, type: 'image/png' }])
+  const siblingRequest = (await service.getEventDetail(staff, siblingPhotoEvent!.id)).registrationRequests[0]!
+  assert.equal(siblingRequest.attendees.filter(person => person.type === 'student' && person.photoPath).length, 2)
+  assert.notEqual(siblingRequest.attendees[0]!.photoPath, siblingRequest.attendees[1]!.photoPath)
+  const siblingPdf = await printable.eventRegistrationPdf(siblingSubmission.printToken!)
+  assert.equal(siblingPdf.buffer.subarray(0, 5).toString(), '%PDF-')
+  await service.markEventPhysicalCopy(staff, siblingPhotoEvent!.id, siblingRequest.id)
+  await service.reviewEventRegistration(staff, siblingPhotoEvent!.id, siblingRequest.id, { action: 'approve' })
+  assert.equal((await service.getEventDetail(staff, siblingPhotoEvent!.id)).registrationSummary!.enrolledStudents, 2)
+  for (const person of siblingRequest.attendees) if (person.photoPath) rmSync(join(process.cwd(), 'public', person.photoPath), { force: true })
   const editableCost = await service.addEventCost(staff, customEvent!.id, { requestKey: randomUUID(), supplier: 'Bus', description: 'Transport', category: 'direct', amount: 10000 })
   await service.updateEventCost(staff, customEvent!.id, editableCost!.id, { supplier: 'Coach', amount: 12000 })
   assert.equal((await service.getEventDetail(staff, customEvent!.id)).costs[0]!.amount, 12000)

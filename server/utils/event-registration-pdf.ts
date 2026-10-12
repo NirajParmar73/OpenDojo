@@ -54,9 +54,19 @@ export async function eventRegistrationPdf(printToken: string) {
   doc.y = Math.max(doc.y + 8, photoY + (photo ? 135 : 0))
   const heading = (value: string) => { doc.moveDown(0.8).font('Helvetica-Bold').fontSize(12).fillColor(accent).text(value); doc.moveDown(0.3).font('Helvetica').fontSize(10).fillColor('#0f172a') }
   heading('Participants and services')
+  let printedStudent = 0
   for (const person of request.attendees) {
+    if (doc.y > 690) doc.addPage()
     const services = [person.transportOut && 'outward transport', person.transportReturn && 'return transport', person.accommodation && 'accommodation'].filter(Boolean).join(', ') || 'no optional services'
     doc.text(`${person.type === 'student' ? 'Student' : 'Accompanying person'}: ${person.name || 'Name pending'}${person.relationship ? ` (${person.relationship})` : ''}${person.underFive ? `, under 5 (${person.dateOfBirth || 'birth date pending'}), no fee` : ''} — ${services}`)
+    if (person.type === 'student') {
+      printedStudent++
+      doc.text(`Born: ${person.dateOfBirth || request.dateOfBirth} · Grade / belt: ${person.currentGrade || (printedStudent === 1 ? request.currentGrade : '') || 'Not supplied'} · Member no: ${person.membershipNumber || (printedStudent === 1 ? request.membershipNumber : '') || 'Not supplied'}`, { width: 390 })
+      if (printedStudent > 1 && person.photoPath) {
+        const studentPhoto = await image(person.photoPath, 'event-photos')
+        if (studentPhoto) { const top = doc.y; try { doc.image(studentPhoto, 455, top, { fit: [70, 85] }); doc.y = Math.max(doc.y, top + 88) } catch { /* omit unreadable photo */ } }
+      }
+    }
     if (person.medicalNotes) doc.text(`Needs: ${person.medicalNotes}`)
   }
   if (request.customAnswers.length) {

@@ -41,12 +41,12 @@ export async function publicRegistrationForm(http: H3Event, token: string) {
   }
 }
 
-export async function submitPublicEventRegistration(http: H3Event, token: string, input: unknown, photo?: { data: Buffer, type?: string }) {
+export async function submitPublicEventRegistration(http: H3Event, token: string, input: unknown, photo?: { data: Buffer, type?: string }, additionalPhotos: { index: number, data: Buffer, type?: string }[] = []) {
   const result = publicEventRegistrationSchema.safeParse(input)
   if (!result.success) throw createError({ statusCode: 400, statusMessage: result.error.issues.map(issue => `${issue.path.join('.')}: ${issue.message}`).join('; ') })
   const body = result.data
   const { event } = await publicRegistrationTarget(http, token)
-  let savedPhotoPath: string | null = null
+  const savedPhotoPaths: string[] = []
   try { return await db.transaction(async tx => {
     const [locked] = await tx.select().from(tables.campEvents).where(eq(tables.campEvents.id, event.id)).for('update')
     const selectedForm = locked?.registrationForms.find(item => item.token === token && item.enabled) || null
@@ -56,7 +56,11 @@ export async function submitPublicEventRegistration(http: H3Event, token: string
     if (selectedForm && body.formSignature !== formSignature(selectedForm)) throw createError({ statusCode: 409, statusMessage: 'This form fee or inclusions changed. Reload the page and review the updated price before submitting.' })
     if (locked.registrationMode === 'public' && body.dojoId !== null) throw createError({ statusCode: 400, statusMessage: 'Public event registration cannot link to a dojo' })
     if (locked.registrationMode === 'public' && (!body.sourceCity || !body.sourceState || !body.instructorName)) throw createError({ statusCode: 400, statusMessage: 'Enter city, state and instructor name' })
-    if (selectedForm && !body.currentGrade) throw createError({ statusCode: 400, statusMessage: 'Enter the student current grade or belt' })
+    const students = body.attendees.filter(person => person.type === 'student')
+    if (selectedForm && !(students[0]?.currentGrade || body.currentGrade)) throw createError({ statusCode: 400, statusMessage: 'Enter the student current grade or belt' })
+    if (locked.registrationMode === 'linked' && students.length !== 1) throw createError({ statusCode: 400, statusMessage: 'Linked event forms accept one student' })
+    if (locked.registrationMode === 'public' && students.some((person, index) => !(person.dateOfBirth || (index === 0 && body.dateOfBirth)))) throw createError({ statusCode: 400, statusMessage: 'Enter a birth date for every student' })
+    if (selectedForm && students.some((person, index) => !(person.currentGrade || (index === 0 && body.currentGrade)))) throw createError({ statusCode: 400, statusMessage: 'Enter the current grade or belt for every student' })
     if (!selectedForm && !locked.transportProvided && body.attendees.some(attendeeRequestsTransport)) throw createError({ statusCode: 400, statusMessage: 'Transport is not provided for this event' })
     if (!selectedForm && body.attendees.some(person => person.underFive)) throw createError({ statusCode: 400, statusMessage: 'The under-five concession is not available on this form' })
     if (locked.registrationMode === 'linked' && body.attendees.length > 3) throw createError({ statusCode: 400, statusMessage: 'At most two accompanying people may register on this linked event form' })
@@ -74,30 +78,37 @@ export async function submitPublicEventRegistration(http: H3Event, token: string
     if (locked.registrationMode === 'linked' && sourceType === 'internal' && (!dojo || (locked.dojoIds.length && !locked.dojoIds.includes(dojo.id)))) throw createError({ statusCode: 400, statusMessage: 'Choose an eligible dojo' })
     if (locked.registrationMode === 'linked' && sourceType === 'external' && (!body.sourceDojoName || !body.sourceState || !body.sourceCountry)) throw createError({ statusCode: 400, statusMessage: 'Enter your dojo or school, state and country' })
     const customAnswers = validateEventAnswers(locked.formSettings, body.customAnswers)
-    if (locked.formSettings.requirePhoto && !photo?.data?.length) throw createError({ statusCode: 400, statusMessage: 'Take or upload a student photograph' })
-    if (photo?.data?.length) {
-      if (!['image/jpeg', 'image/png', 'image/webp'].includes(photo.type || '') || photo.data.length > 5 * 1024 * 1024) throw createError({ statusCode: 400, statusMessage: 'Use a JPG, PNG, or WebP photograph up to 5 MB' })
+    if (additionalPhotos.some((item, index) => item.index < 1 || item.index >= students.length || additionalPhotos.findIndex(other => other.index === item.index) !== index)) throw createError({ statusCode: 400, statusMessage: 'Invalid student photograph list' })
+    const uploadedPhotoPaths: (string | null)[] = []
+    for (let index = 0; index < students.length; index++) {
+      const selectedPhoto = index === 0 ? photo : additionalPhotos.find(item => item.index === index)
+      if (locked.formSettings.requirePhoto && !selectedPhoto?.data?.length) throw createError({ statusCode: 400, statusMessage: `Take or upload student photograph ${index + 1}` })
+      if (!selectedPhoto?.data?.length) { uploadedPhotoPaths.push(null); continue }
+      if (!['image/jpeg', 'image/png', 'image/webp'].includes(selectedPhoto.type || '') || selectedPhoto.data.length > 5 * 1024 * 1024) throw createError({ statusCode: 400, statusMessage: 'Use a JPG, PNG, or WebP photograph up to 5 MB' })
       let normalized: Buffer
-      try { const source = sharp(photo.data, { limitInputPixels: 16_000_000 }); const metadata = await source.metadata(); if (!['jpeg', 'png', 'webp'].includes(metadata.format || '')) throw new Error('Unsupported image'); normalized = await source.rotate().resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer() }
+      try { const source = sharp(selectedPhoto.data, { limitInputPixels: 16_000_000 }); const metadata = await source.metadata(); if (!['jpeg', 'png', 'webp'].includes(metadata.format || '')) throw new Error('Unsupported image'); normalized = await source.rotate().resize({ width: 1200, height: 1200, fit: 'inside', withoutEnlargement: true }).jpeg({ quality: 82 }).toBuffer() }
       catch { throw createError({ statusCode: 400, statusMessage: 'The photograph could not be read' }) }
       const uploaded = await saveUploadedFile({ name: 'photo', filename: 'student.jpg', data: normalized, type: 'image/jpeg' }, 'event-photos', ['image/jpeg'])
-      savedPhotoPath = uploaded.path
+      savedPhotoPaths.push(uploaded.path)
+      uploadedPhotoPaths.push(uploaded.path)
     }
+    let studentIndex = 0
     const attendees = body.attendees.map(person => ({ ...person, meal: '',
+      ...(person.type === 'student' ? { dateOfBirth: person.dateOfBirth || (studentIndex === 0 ? body.dateOfBirth : ''), currentGrade: person.currentGrade || (studentIndex === 0 ? body.currentGrade : ''), membershipNumber: person.membershipNumber || (studentIndex === 0 ? body.membershipNumber : ''), photoPath: uploadedPhotoPaths[studentIndex++] || undefined } : {}),
       ...(selectedForm ? { underFive: person.type === 'parent' && person.underFive, accommodation: selectedForm.includesAccommodation, transportOut: selectedForm.includesTransportOut, transportReturn: selectedForm.includesTransportReturn, busOut: '', busReturn: '', room: '' } : {}),
       id: randomUUID(), studentId: null, checkedInAt: null }))
     const prices = selectedForm ? formPrices(selectedForm) : locked.prices
     const studentName = attendees.find(person => person.type === 'student')!.name
     const [saved] = await tx.insert(tables.eventRegistrationRequests).values({
       eventId: locked.id, requestKey: body.requestKey, reference: `EVR-${randomUUID().slice(0, 10).toUpperCase()}`,
-      studentName, dateOfBirth: body.dateOfBirth, membershipNumber: body.membershipNumber, currentGrade: body.currentGrade, dojoId: locked.registrationMode === 'public' ? null : dojo?.id || null,
+      studentName, dateOfBirth: attendees.find(person => person.type === 'student')!.dateOfBirth, membershipNumber: attendees.find(person => person.type === 'student')!.membershipNumber, currentGrade: attendees.find(person => person.type === 'student')!.currentGrade, dojoId: locked.registrationMode === 'public' ? null : dojo?.id || null,
       sourceType, sourceDojoName: dojo?.name || body.sourceDojoName, sourceCity: dojo?.city || body.sourceCity, sourceState: dojo?.stateProvince || body.sourceState, sourceCountry: dojo?.country || body.sourceCountry, instructorName: body.instructorName,
       contactName: body.contactName, contactPhone: body.contactPhone, emergencyName: body.emergencyName, emergencyPhone: body.emergencyPhone,
       attendees, consent: { ...body.consent, terms: locked.terms, acceptedAt: new Date().toISOString() },
       prices, registrationForm: selectedForm ? formSnapshot(selectedForm) : null, notes: body.notes, waitlist: body.waitlist, customAnswers,
-      photoPath: savedPhotoPath, printToken: randomBytes(32).toString('hex'),
+      photoPath: uploadedPhotoPaths[0] || null, printToken: randomBytes(32).toString('hex'),
       physicalCopyRequired: Boolean(locked.formSettings.requirePhysicalCopy), physicalCopyInstructions: locked.formSettings.physicalCopyInstructions || '',
     }).returning()
     return { reference: saved!.reference, status: saved!.status, quote: eventCharge(attendees, prices).total, printToken: saved!.printToken, physicalCopyInstructions: saved!.physicalCopyRequired ? saved!.physicalCopyInstructions : '' }
-  }) } catch (error) { if (savedPhotoPath) await unlink(join(process.cwd(), 'public', savedPhotoPath)).catch(() => {}); throw error }
+  }) } catch (error) { await Promise.all(savedPhotoPaths.map(path => unlink(join(process.cwd(), 'public', path)).catch(() => {}))); throw error }
 }

@@ -8,5 +8,6 @@ export default defineEventHandler(async event => {
   let body: unknown
   try { body = JSON.parse(registration.data.toString('utf8')) } catch { throw createError({ statusCode: 400, statusMessage: 'Invalid registration details' }) }
   const file = parts?.find(part => part.name === 'photo' && part.filename)
-  return submitPublicEventRegistration(event, token, body, file ? { data: file.data, type: file.type } : undefined)
+  const additionalPhotos = parts?.filter(part => /^studentPhoto-[1-9]$/.test(part.name || '') && part.filename).map(part => ({ index: Number(part.name!.split('-')[1]), data: part.data, type: part.type })) || []
+  return submitPublicEventRegistration(event, token, body, file ? { data: file.data, type: file.type } : undefined, additionalPhotos)
 })

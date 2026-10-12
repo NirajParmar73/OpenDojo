@@ -99,7 +99,7 @@ export async function getEventDetail(actor: Actor, id: number) {
     costs: manager ? costs : [], finances: manager ? eventFinancials(event, bookings, costs, ledger) : null,
     activity: manager ? await db.select().from(tables.eventActivity).where(eq(tables.eventActivity.eventId, id)).orderBy(desc(tables.eventActivity.id)).limit(100) : [],
     registrationRequests: requests, invitation,
-    registrationSummary: manager ? { submitted: requests.filter(request => request.status === 'submitted').length, approved: requests.filter(request => request.status === 'approved').length, rejected: requests.filter(request => request.status === 'rejected').length, enrolledStudents: active.length, internalStudents: active.filter(booking => booking.studentId !== null).length, guestStudents: active.filter(booking => booking.studentId === null).length, waitlistedStudents: bookings.filter(booking => booking.status === 'waitlisted').length, parents: eventOccupancy(bookings).parents, paidBookings: active.filter(booking => bookingPaymentStatus(booking, ledger) === 'paid').length, partPaidBookings: active.filter(booking => bookingPaymentStatus(booking, ledger) === 'part_paid').length, pendingFeeBookings: active.filter(booking => bookingPaymentStatus(booking, ledger) === 'pending').length } : null,
+    registrationSummary: manager ? { submitted: requests.filter(request => request.status === 'submitted').length, approved: requests.filter(request => request.status === 'approved').length, rejected: requests.filter(request => request.status === 'rejected').length, enrolledStudents: eventOccupancy(bookings).students, internalStudents: active.filter(booking => booking.studentId !== null).reduce((sum, booking) => sum + booking.attendees.filter(person => person.type === 'student').length, 0), guestStudents: active.filter(booking => booking.studentId === null).reduce((sum, booking) => sum + booking.attendees.filter(person => person.type === 'student').length, 0), waitlistedStudents: bookings.filter(booking => booking.status === 'waitlisted').reduce((sum, booking) => sum + booking.attendees.filter(person => person.type === 'student').length, 0), parents: eventOccupancy(bookings).parents, paidBookings: active.filter(booking => bookingPaymentStatus(booking, ledger) === 'paid').length, partPaidBookings: active.filter(booking => bookingPaymentStatus(booking, ledger) === 'part_paid').length, pendingFeeBookings: active.filter(booking => bookingPaymentStatus(booking, ledger) === 'pending').length } : null,
     students: students.filter(student => student.status === 'active' && (!event.dojoIds.length || (student.dojoId && event.dojoIds.includes(student.dojoId)))).map(student => ({ id: student.id, name: `${student.firstName} ${student.lastName}`, phone: student.phone || '', dojoId: student.dojoId, membershipNumber: student.membershipNumber || '', dateOfBirth: student.dateOfBirth?.toISOString().slice(0, 10) || null, emergencyContact: student.emergencyContact || '', emergencyPhone: student.emergencyPhone || '', guardians: guardians.filter(guardian => guardian.studentId === student.id).map(guardian => ({ id: guardian.id, name: guardian.name, relationship: guardian.relationship, phone: guardian.phone || '', email: guardian.email || '' })) })),
   }
 }
@@ -168,12 +168,13 @@ async function saveGuardians(tx: Tx, booking: Booking) {
     await tx.insert(tables.guardians).values({ studentId: booking.studentId, name: person.name, relationship: person.relationship, phone: person.phone || null, email: person.email || null })
   }
 }
-function normalizeAttendees(input: { id?: string, type: 'student' | 'parent', underFive?: boolean, dateOfBirth?: string, name: string, relationship: string, phone: string, email: string, meal: string, medicalNotes: string, transportOut: boolean, transportReturn: boolean, accommodation: boolean, room: string, busOut: string, busReturn: string }[], student: { id: number, firstName: string, lastName: string } | null, previous: EventAttendee[] = [], portal = false) {
-  if (input.filter(person => person.type === 'student').length !== 1) return fail('Select exactly one student')
+function normalizeAttendees(input: { id?: string, type: 'student' | 'parent', underFive?: boolean, dateOfBirth?: string, currentGrade?: string, membershipNumber?: string, photoPath?: string, name: string, relationship: string, phone: string, email: string, meal: string, medicalNotes: string, transportOut: boolean, transportReturn: boolean, accommodation: boolean, room: string, busOut: string, busReturn: string }[], student: { id: number, firstName: string, lastName: string } | null, previous: EventAttendee[] = [], portal = false) {
+  const studentCount = input.filter(person => person.type === 'student').length
+  if (student ? studentCount !== 1 : studentCount < 1 || studentCount > 10 || input.length - studentCount > 10) return fail(student ? 'Select exactly one linked student' : 'Select one to ten students and up to ten accompanying people')
   const result = input.map(person => {
     const old = previous.find(item => item.id === person.id)
     if (person.id && !old) return fail('Attendee has changed; refresh the booking')
-    return { ...person, underFive: person.underFive ?? old?.underFive ?? false, dateOfBirth: person.dateOfBirth ?? old?.dateOfBirth ?? '', id: old?.id || randomUUID(), studentId: person.type === 'student' ? student?.id || null : null, name: person.type === 'student' && student ? `${student.firstName} ${student.lastName}` : person.name, room: portal ? old?.room || '' : person.room, busOut: portal ? old?.busOut || '' : person.busOut, busReturn: portal ? old?.busReturn || '' : person.busReturn, checkedInAt: old?.checkedInAt || null }
+    return { ...person, underFive: person.underFive ?? old?.underFive ?? false, dateOfBirth: person.dateOfBirth || old?.dateOfBirth || '', currentGrade: person.currentGrade || old?.currentGrade || '', membershipNumber: person.membershipNumber || old?.membershipNumber || '', photoPath: old?.photoPath || person.photoPath, id: old?.id || randomUUID(), studentId: person.type === 'student' ? student?.id || null : null, name: person.type === 'student' && student ? `${student.firstName} ${student.lastName}` : person.name, room: portal ? old?.room || '' : person.room, busOut: portal ? old?.busOut || '' : person.busOut, busReturn: portal ? old?.busReturn || '' : person.busReturn, checkedInAt: old?.checkedInAt || null }
   })
   if (new Set(result.map(person => person.id)).size !== result.length) return fail('Duplicate attendee')
   return result
@@ -240,7 +241,7 @@ async function createGuestBookingInTx(tx: Tx, actor: Actor, event: Camp, request
   const { bookings, ledger } = await records(event.id, tx)
   if (bookings.some(booking => booking.requestKey === request.requestKey)) return fail('This request already has a booking', 409)
   const normalize = (value: string) => value.trim().replace(/\s+/g, ' ').toLowerCase()
-  if (bookings.some(booking => booking.guestProfile?.dateOfBirth === request.dateOfBirth && normalize(booking.attendees.find(person => person.type === 'student')?.name || '') === normalize(request.studentName) && booking.status !== 'cancelled')) return fail('A guest booking for this student and birth date already exists', 409)
+  if (request.attendees.some(candidate => candidate.type === 'student' && bookings.some(booking => booking.status !== 'cancelled' && booking.attendees.some(person => person.type === 'student' && normalize(person.name) === normalize(candidate.name) && (person.dateOfBirth || booking.guestProfile?.dateOfBirth) === (candidate.dateOfBirth || request.dateOfBirth))))) return fail('A guest booking for a student with this name and birth date already exists', 409)
   const attendees = normalizeAttendees(request.attendees.map(({ id: _id, studentId: _studentId, checkedInAt: _checkedInAt, ...person }) => person), null)
   if (!event.transportProvided && attendees.some(attendeeRequestsTransport)) return fail('Transport is not provided for this event')
   const guestProfile: EventGuestProfile = { dateOfBirth: request.dateOfBirth || '', membershipNumber: request.membershipNumber, dojoName: request.sourceDojoName || 'Independent', city: request.sourceCity, state: request.sourceState, country: request.sourceCountry, instructorName: request.instructorName, currentGrade: request.currentGrade }
@@ -285,7 +286,7 @@ export async function reviewEventRegistration(actor: Actor, id: number, requestI
       if (student.membershipNumber && request.membershipNumber && student.membershipNumber.trim().toLowerCase() !== request.membershipNumber.trim().toLowerCase()) return fail('Student membership number does not match the registration request')
       booking = (await createEventBookingInTx(tx, actor, id, {
         studentId: student.id, requestKey: request.requestKey,
-        attendees: request.attendees.map(({ id: _id, studentId: _studentId, checkedInAt: _checkedInAt, ...person }) => ({ ...person, underFive: person.underFive ?? false, dateOfBirth: person.dateOfBirth ?? '' })), contactName: request.contactName, contactPhone: request.contactPhone,
+        attendees: request.attendees.map(({ id: _id, studentId: _studentId, checkedInAt: _checkedInAt, ...person }) => ({ ...person, underFive: person.underFive ?? false, dateOfBirth: person.dateOfBirth ?? '', currentGrade: person.currentGrade ?? '', membershipNumber: person.membershipNumber ?? '' })), contactName: request.contactName, contactPhone: request.contactPhone,
         emergencyName: request.emergencyName, emergencyPhone: request.emergencyPhone,
         consent: request.consent, discount: 0, notes: request.notes, saveGuardians: false, waitlist: body.waitlist || request.waitlist,
       }, request.prices, true, request.consent.terms, request.customAnswers, request.registrationForm))!
@@ -321,7 +322,7 @@ export async function correctEventRegistration(actor: Actor, id: number, request
     if (request.sourceType !== 'external' && ['sourceDojoName', 'sourceCity', 'sourceState', 'sourceCountry', 'instructorName'].some(key => key in changes)) return fail('The source dojo is linked to the existing organization location')
     if (event.registrationMode === 'public' && (!((changes.sourceCity ?? request.sourceCity).trim()) || !((changes.sourceState ?? request.sourceState).trim()) || !((changes.instructorName ?? request.instructorName).trim()))) return fail('Enter city, state and instructor name')
     if (request.registrationForm && !(changes.currentGrade ?? request.currentGrade).trim()) return fail('Enter the student current grade or belt')
-    const attendees = changes.studentName ? request.attendees.map(person => person.type === 'student' ? { ...person, name: changes.studentName! } : person) : request.attendees
+  const attendees = request.attendees.map((person, index) => index === 0 && person.type === 'student' ? { ...person, name: changes.studentName ?? person.name, dateOfBirth: changes.dateOfBirth ?? person.dateOfBirth, membershipNumber: changes.membershipNumber ?? person.membershipNumber, currentGrade: changes.currentGrade ?? person.currentGrade } : person)
     const [saved] = await tx.update(tables.eventRegistrationRequests).set({ ...changes, attendees }).where(eq(tables.eventRegistrationRequests.id, requestId)).returning()
     await audit(tx, actor, id, 'registration.corrected', `${request.reference}: ${Object.keys(changes).join(', ')}`)
     return saved
@@ -348,6 +349,11 @@ export async function updateEventBooking(actor: Actor, id: number, bookingId: nu
     const student = previous.studentId ? await tx.query.students.findFirst({ where: eq(tables.students.id, previous.studentId) }) : null
     if (previous.studentId && !student) return fail('Student not found', 404)
     const attendees = body.attendees ? normalizeAttendees(body.attendees, student || null, previous.attendees, actor.portal) : previous.attendees
+    if (event.registrationMode === 'public' && body.attendees) {
+      const originalStudents = previous.attendees.filter(person => person.type === 'student').map(person => person.id)
+      const editedStudents = attendees.filter(person => person.type === 'student').map(person => person.id)
+      if (originalStudents.length !== editedStudents.length || originalStudents.some((id, index) => id !== editedStudents[index])) return fail('Students in an approved public booking cannot be added or removed')
+    }
     if (!previous.registrationForm && attendees.some(person => person.underFive)) return fail('The under-five concession is not available on this booking')
     if (previous.registrationForm && (attendees.length !== previous.attendees.length || attendees.some(person => {
       const original = previous.attendees.find(old => old.id === person.id)

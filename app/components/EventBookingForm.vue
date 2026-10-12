@@ -5,7 +5,7 @@
       <UAlert v-if="error" color="error" :title="error" />
       <p class="text-sm text-slate-500">Parents can be entered here without an account or an existing guardian record. Missing names can be completed later; the booking remains provisional until all required details and consent are supplied.</p>
       <label v-if="!initial" class="block">Student<select v-model.number="form.studentId" required @change="setStudent"><option :value="0" disabled>Select student</option><option v-for="student in students" :key="student.id" :value="student.id">{{ student.name }}</option></select></label>
-      <p v-if="initial?.registrationForm" class="text-sm">Fee package: <strong>{{ initial.registrationForm.name }}</strong> · {{ parentCount }} accompanying people · Included services and age concessions are fixed from the approved request.</p>
+      <p v-if="initial?.registrationForm" class="text-sm">Fee package: <strong>{{ initial.registrationForm.name }}</strong> · {{ studentCount }} students and {{ parentCount }} accompanying people · Included services and age concessions are fixed from the approved request.</p>
       <label v-else class="block">Who is attending?<select v-model.number="parentCount" @change="setParents"><option :value="0">Student only</option><option v-for="count in event.registrationMode === 'public' ? 10 : 2" :key="count" :value="count">Student + {{ count }} accompanying {{ count === 1 ? 'person' : 'people' }}</option></select></label>
       <p v-if="!event.transportProvided" class="text-sm text-slate-500">Travel is arranged by students and parents; this event does not provide transport.</p>
       <fieldset v-for="(person, index) in form.attendees" :key="person.id || index" class="rounded-xl border border-slate-200 p-4 dark:border-slate-800">
@@ -16,6 +16,9 @@
           <label v-if="person.type === 'parent'">Relationship<select v-model="person.relationship"><option value="">Not yet known</option><option v-if="person.relationship && !['Mother', 'Father', 'Guardian', 'Grandparent', 'Guest', 'Sibling', 'Other'].includes(person.relationship)" :value="person.relationship">{{ person.relationship }}</option><option v-for="relationship in ['Mother', 'Father', 'Guardian', 'Grandparent', 'Guest', 'Sibling', 'Other']" :key="relationship">{{ relationship }}</option></select></label>
           <label>Phone<input v-model="person.phone" type="tel" maxlength="60"></label>
           <label v-if="person.type === 'parent'">Email (optional)<input v-model="person.email" type="email" maxlength="250"></label>
+          <label v-if="person.type === 'student' && !form.studentId">Date of birth<input v-model="person.dateOfBirth" type="date" maxlength="10"></label>
+          <label v-if="person.type === 'student' && !form.studentId && initial?.registrationForm">Current grade / belt<input v-model="person.currentGrade" maxlength="100"></label>
+          <label v-if="person.type === 'student' && !form.studentId">Membership number<input v-model="person.membershipNumber" maxlength="100"></label>
           <p v-if="person.underFive" class="self-end text-sm text-slate-500">Under 5 · born {{ person.dateOfBirth }} · no fee</p>
           <label class="sm:col-span-2">Allergies, dietary or medical requirements<textarea v-model="person.medicalNotes" rows="2" maxlength="2000" placeholder="Only information needed by the event team" /></label>
         </div>
@@ -41,13 +44,14 @@ const emit = defineEmits(['saved', 'cancel'])
 const blankPerson = (type: string) => ({ type, name: '', relationship: '', phone: '', email: '', medicalNotes: '', underFive: false, dateOfBirth: '', transportOut: false, transportReturn: false, accommodation: false, room: '', busOut: '', busReturn: '' })
 const form = reactive<any>(props.initial ? { ...JSON.parse(JSON.stringify(props.initial)), saveGuardians: false } : { studentId: props.portal ? props.students[0]?.id || 0 : 0, requestKey: crypto.randomUUID(), attendees: [blankPerson('student')], contactName: '', contactPhone: '', emergencyName: '', emergencyPhone: '', consent: { name: '', phone: '', accepted: false }, notes: '', saveGuardians: false, waitlist: false })
 const selectedStudent = computed(() => props.students.find(student => student.id === form.studentId))
-const parentCount = ref(form.attendees.length - 1)
+const studentCount = computed(() => form.attendees.filter((person: any) => person.type === 'student').length)
+const parentCount = ref(form.attendees.filter((person: any) => person.type === 'parent').length)
 const discount = ref((props.initial?.discount || 0) / 100)
 const { formatMinor } = useMoney(() => props.event.currency)
 const quote = computed(() => eventCharge(form.attendees, props.initial?.prices || props.event.prices, Math.round(Number(discount.value) * 100)))
 function setStudent() { const student = selectedStudent.value; if (!student) return; form.attendees[0].name = student.name; form.attendees[0].phone = student.phone; form.emergencyName = student.emergencyContact; form.emergencyPhone = student.emergencyPhone }
 if (!props.initial) setStudent()
-function setParents() { while (form.attendees.length < parentCount.value + 1) form.attendees.push(blankPerson('parent')); form.attendees.splice(parentCount.value + 1) }
+function setParents() { while (form.attendees.length < parentCount.value + studentCount.value) form.attendees.push(blankPerson('parent')); form.attendees.splice(parentCount.value + studentCount.value) }
 function chooseGuardian(person: any, id: string) { const guardian = selectedStudent.value?.guardians.find((item: any) => item.id === Number(id)); if (guardian) Object.assign(person, { name: guardian.name, relationship: guardian.relationship, phone: guardian.phone, email: guardian.email }) }
 const saving = ref(false); const error = ref('')
 async function save() {

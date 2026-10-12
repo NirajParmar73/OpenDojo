@@ -76,6 +76,9 @@ export interface EventAttendee {
   type: 'student' | 'parent'
   underFive?: boolean
   dateOfBirth?: string
+  currentGrade?: string
+  membershipNumber?: string
+  photoPath?: string
   studentId?: number | null
   name: string
   relationship: string
