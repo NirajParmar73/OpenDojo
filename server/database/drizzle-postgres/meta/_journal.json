@@ -288,6 +288,20 @@
       "when": 1791716774020,
       "tag": "0040_event_transport_availability",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1791777917684,
+      "tag": "0041_faithful_sentry",
+      "breakpoints": true
+    },
+    {
+      "idx": 42,
+      "version": "7",
+      "when": 1791778118909,
+      "tag": "0042_damp_mad_thinker",
+      "breakpoints": true
     }
   ]
 }

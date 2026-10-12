@@ -18,6 +18,12 @@ export const eventFormSettingsSchema = z.object({
 }).superRefine((value, ctx) => {
   if (new Set(value.questions.map(question => question.id)).size !== value.questions.length) ctx.addIssue({ code: 'custom', message: 'Each custom question needs a unique ID' })
 })
+export const registrationFormSchema = z.object({
+  name: text(120).min(1), audience: text(160).default(''), description: text(2000).default(''),
+  studentFee: money, companionFee: money, taxBps: z.number().int().min(0).max(10000),
+  includesTraining: z.boolean(), includesMeals: z.boolean(), includesAccommodation: z.boolean(),
+  includesTransportOut: z.boolean(), includesTransportReturn: z.boolean(), enabled: z.boolean().default(true),
+})
 export function validateEventAnswers(settings: EventFormSettings, raw: unknown): EventAnswer[] {
   const result = z.record(z.string().uuid(), z.union([z.string().max(3000), z.boolean()])).safeParse(raw || {})
   if (!result.success) throw createError({ statusCode: 400, statusMessage: 'Invalid custom answers' })
@@ -59,6 +65,8 @@ export const eventSchema = z.object({
 
 export const attendeeSchema = z.object({
   id: z.string().uuid().optional(), type: z.enum(['student', 'parent']),
+  underFive: z.boolean().default(false),
+  dateOfBirth: z.union([z.string().date(), z.literal('')]).default(''),
   name: text(), relationship: text(100).default(''), phone: text(60).default(''), email: z.union([z.email(), z.literal('')]).default(''),
   meal: text(100).default(''), medicalNotes: text(2000).default(''),
   transportOut: z.boolean().default(false), transportReturn: z.boolean().default(false), accommodation: z.boolean().default(false),
@@ -75,9 +83,10 @@ export const bookingSchema = z.object({
 
 export const publicEventRegistrationSchema = z.object({
   requestKey: z.string().uuid(), sourceType: z.enum(['internal', 'external']).default('internal'), dojoId: z.number().int().positive().nullable().default(null),
+  formSignature: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   sourceDojoName: text(250).default(''), sourceCity: text(150).default(''), sourceState: text(150).default(''), sourceCountry: text(150).default(''), instructorName: text(250).default(''),
-  dateOfBirth: z.string().date(), membershipNumber: text(100).default(''),
-  attendees: z.array(attendeeSchema).min(1).max(3),
+  dateOfBirth: z.string().date(), membershipNumber: text(100).default(''), currentGrade: text(100).default(''),
+  attendees: z.array(attendeeSchema).min(1).max(6),
   contactName: text().min(1), contactPhone: text(60).min(5),
   emergencyName: text().default(''), emergencyPhone: text(60).default(''),
   consent: z.object({ name: text().min(1), phone: text(60).min(5), accepted: z.literal(true) }),
@@ -88,7 +97,7 @@ export const publicEventRegistrationSchema = z.object({
   if (value.attendees.filter(person => person.type === 'student').length !== 1 || !value.attendees.find(person => person.type === 'student')?.name.trim()) ctx.addIssue({ code: 'custom', message: 'Enter one student name and up to two parents' })
 })
 export const eventRequestCorrectionSchema = z.object({
-  studentName: text().min(1).optional(), dateOfBirth: z.string().date().optional(), membershipNumber: text(100).optional(),
+  studentName: text().min(1).optional(), dateOfBirth: z.string().date().optional(), membershipNumber: text(100).optional(), currentGrade: text(100).optional(),
   contactName: text().min(1).optional(), contactPhone: text(60).min(5).optional(), emergencyName: text().optional(), emergencyPhone: text(60).optional(),
   sourceDojoName: text(250).optional(), sourceCity: text(150).optional(), sourceState: text(150).optional(), sourceCountry: text(150).optional(), instructorName: text(250).optional(),
   notes: text(3000).optional(),
@@ -96,8 +105,8 @@ export const eventRequestCorrectionSchema = z.object({
 
 export const bookingUpdateSchema = z.object({
   version: z.number().int().positive(),
-  guestProfile: z.object({ dateOfBirth: z.string().date(), membershipNumber: text(100), dojoName: text(250), city: text(150).optional(), state: text(150), country: text(150), instructorName: text(250).optional() }).optional(),
-  attendees: z.array(attendeeSchema).min(1).max(3).optional(),
+  guestProfile: z.object({ dateOfBirth: z.string().date(), membershipNumber: text(100), dojoName: text(250), city: text(150).optional(), state: text(150), country: text(150), instructorName: text(250).optional(), currentGrade: text(100).optional() }).optional(),
+  attendees: z.array(attendeeSchema).min(1).max(6).optional(),
   contactName: text().optional(), contactPhone: text(60).optional(), emergencyName: text().optional(), emergencyPhone: text(60).optional(),
   consent: z.object({ name: text(), phone: text(60), accepted: z.boolean() }).optional(),
   discount: money.optional(), cancellationFee: money.optional(), notes: text(3000).optional(),

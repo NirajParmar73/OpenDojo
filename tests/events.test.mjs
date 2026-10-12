@@ -36,7 +36,7 @@ test('provisional parents reserve places; waiting list and cancelled bookings do
 })
 test('unnamed parents and incomplete consent prevent confirmation', () => {
   const missing = bookingMissingDetails(booking({ attendees: [person(), person('parent', { name: '', relationship: '', meal: '' })], consent: { accepted: false, name: '', phone: '' } }))
-  assert.deepEqual(missing, ['Attendee names', 'Parent relationships', 'Meal preferences', 'Consent'])
+  assert.deepEqual(missing, ['Attendee names', 'Accompanying person relationships', 'Meal preferences', 'Consent'])
 })
 test('profit includes unpaid supplier costs while cash includes actual settlements', () => {
   const result = eventFinancials({ fixedBudget: 1000000, perPersonBudget: 200000, overheadBudget: 100000 }, [booking()], [{ id: 1, amount: 1000000, tax: 100000, category: 'direct', status: 'committed' }, { id: 2, amount: 100000, tax: 0, category: 'overhead', status: 'incurred' }], [{ bookingId: 1, costId: null, kind: 'payment', amount: 500000, tax: 0 }, { bookingId: null, costId: 1, kind: 'cost_payment', amount: 200000, tax: 0 }])

@@ -4,7 +4,7 @@ import type { H3Event } from 'h3'
 import { db, tables } from './database'
 import { getAccessibleDojoIds } from './permissions'
 import { attendeeRequestsTransport, bookingBalance, bookingMissingDetails, bookingPaymentStatus, capacityProblem, eventCharge, eventFinancials, eventOccupancy, reservingStatuses } from '../../shared/utils/event-finance'
-import type { EventAnswer, EventAttendee, EventGuestProfile, EventPrices } from '../../shared/types/events'
+import type { EventAnswer, EventAttendee, EventGuestProfile, EventPrices, EventRegistrationFormSnapshot } from '../../shared/types/events'
 import { bookingSchema, bookingUpdateSchema, costSchema, costUpdateSchema, eventRequestCorrectionSchema, eventSchema, ledgerSchema } from './event-validation'
 import { z } from 'zod'
 
@@ -43,7 +43,7 @@ function ownsBooking(actor: Actor, booking: Booking) {
   return actor.portal ? booking.studentId === actor.studentId : actor.dojoIds === null || (booking.dojoId !== null && actor.dojoIds.includes(booking.dojoId))
 }
 function publicEvent(event: Camp) {
-  const { fixedBudget: _a, perPersonBudget: _b, overheadBudget: _c, createdBy: _d, publicRegistrationToken: _e, ...publicFields } = event
+  const { fixedBudget: _a, perPersonBudget: _b, overheadBudget: _c, createdBy: _d, publicRegistrationToken: _e, registrationForms: _f, ...publicFields } = event
   return publicFields
 }
 async function eventRecord(actor: Actor, id: number, tx: Tx | typeof db = db, lock = false) {
@@ -121,6 +121,7 @@ export async function saveEvent(actor: Actor, input: unknown, id?: number) {
       if (body.registrationMode === 'public' && body.dojoIds.length) return fail('Public events belong to the organization, not individual dojos')
       const { bookings, costs } = await records(id, tx)
       if (!body.transportProvided) {
+        if (previous.registrationForms.some(form => form.enabled && (form.includesTransportOut || form.includesTransportReturn))) return fail('Disable transport on each active registration form first')
         if (bookings.some(booking => booking.status !== 'cancelled' && booking.attendees.some(attendeeRequestsTransport))) return fail('Remove or cancel existing transport bookings before disabling transport')
         const requests = await tx.select({ status: tables.eventRegistrationRequests.status, attendees: tables.eventRegistrationRequests.attendees }).from(tables.eventRegistrationRequests).where(eq(tables.eventRegistrationRequests.eventId, id))
         if (requests.some(request => request.status === 'submitted' && request.attendees.some(attendeeRequestsTransport))) return fail('Review or reject transport requests before disabling transport')
@@ -167,12 +168,12 @@ async function saveGuardians(tx: Tx, booking: Booking) {
     await tx.insert(tables.guardians).values({ studentId: booking.studentId, name: person.name, relationship: person.relationship, phone: person.phone || null, email: person.email || null })
   }
 }
-function normalizeAttendees(input: { id?: string, type: 'student' | 'parent', name: string, relationship: string, phone: string, email: string, meal: string, medicalNotes: string, transportOut: boolean, transportReturn: boolean, accommodation: boolean, room: string, busOut: string, busReturn: string }[], student: { id: number, firstName: string, lastName: string } | null, previous: EventAttendee[] = [], portal = false) {
+function normalizeAttendees(input: { id?: string, type: 'student' | 'parent', underFive?: boolean, dateOfBirth?: string, name: string, relationship: string, phone: string, email: string, meal: string, medicalNotes: string, transportOut: boolean, transportReturn: boolean, accommodation: boolean, room: string, busOut: string, busReturn: string }[], student: { id: number, firstName: string, lastName: string } | null, previous: EventAttendee[] = [], portal = false) {
   if (input.filter(person => person.type === 'student').length !== 1) return fail('Select exactly one student')
   const result = input.map(person => {
     const old = previous.find(item => item.id === person.id)
     if (person.id && !old) return fail('Attendee has changed; refresh the booking')
-    return { ...person, id: old?.id || randomUUID(), studentId: person.type === 'student' ? student?.id || null : null, name: person.type === 'student' && student ? `${student.firstName} ${student.lastName}` : person.name, room: portal ? old?.room || '' : person.room, busOut: portal ? old?.busOut || '' : person.busOut, busReturn: portal ? old?.busReturn || '' : person.busReturn, checkedInAt: old?.checkedInAt || null }
+    return { ...person, underFive: person.underFive ?? old?.underFive ?? false, dateOfBirth: person.dateOfBirth ?? old?.dateOfBirth ?? '', id: old?.id || randomUUID(), studentId: person.type === 'student' ? student?.id || null : null, name: person.type === 'student' && student ? `${student.firstName} ${student.lastName}` : person.name, room: portal ? old?.room || '' : person.room, busOut: portal ? old?.busOut || '' : person.busOut, busReturn: portal ? old?.busReturn || '' : person.busReturn, checkedInAt: old?.checkedInAt || null }
   })
   if (new Set(result.map(person => person.id)).size !== result.length) return fail('Duplicate attendee')
   return result
@@ -188,7 +189,7 @@ function automaticStatus(event: Camp, booking: Booking, ledger: typeof tables.ev
 }
 
 type BookingInput = z.output<typeof bookingSchema>
-async function createEventBookingInTx(tx: Tx, actor: Actor, id: number, body: BookingInput, priceSnapshot?: EventPrices, review = false, termsSnapshot?: string, customAnswers: EventAnswer[] = []) {
+async function createEventBookingInTx(tx: Tx, actor: Actor, id: number, body: BookingInput, priceSnapshot?: EventPrices, review = false, termsSnapshot?: string, customAnswers: EventAnswer[] = [], registrationForm: EventRegistrationFormSnapshot | null = null) {
   if (actor.portal && (body.studentId !== actor.studentId || body.discount)) return fail('You can register only your own student', 403)
     const event = await eventRecord(actor, id, tx, true)
     if (event.registrationMode === 'public') return fail('Use the event invitation and public registration form for this event', 409)
@@ -201,10 +202,11 @@ async function createEventBookingInTx(tx: Tx, actor: Actor, id: number, body: Bo
     if (body.discount && !canManageEvent(actor, event)) return fail('Only event managers can discount bookings', 403)
     if (bookings.some(booking => booking.studentId === student.id && booking.status !== 'cancelled')) return fail('This student already has an active booking', 409)
     const attendees = normalizeAttendees(body.attendees, student, [], actor.portal)
+    if (!registrationForm && attendees.some(person => person.underFive)) return fail('The under-five concession is not available on this event')
     if (!event.transportProvided && attendees.some(attendeeRequestsTransport)) return fail('Transport is not provided for this event')
     const prices = priceSnapshot || event.prices
     if (body.discount > eventCharge(attendees, prices).subtotal) return fail('Discount cannot exceed the booking price')
-    const values = { eventId: id, studentId: student.id, dojoId: student.dojoId, reference: `EV-${randomUUID().slice(0, 8).toUpperCase()}`, requestKey: body.requestKey, attendees, prices, contactName: body.contactName, contactPhone: body.contactPhone, emergencyName: body.emergencyName, emergencyPhone: body.emergencyPhone, discount: body.discount, notes: body.notes, consent: { ...body.consent, terms: termsSnapshot ?? event.terms, acceptedAt: body.consent.accepted ? new Date().toISOString() : null }, customAnswers, status: 'provisional' }
+    const values = { eventId: id, studentId: student.id, dojoId: student.dojoId, reference: `EV-${randomUUID().slice(0, 8).toUpperCase()}`, requestKey: body.requestKey, attendees, prices, registrationForm, contactName: body.contactName, contactPhone: body.contactPhone, emergencyName: body.emergencyName, emergencyPhone: body.emergencyPhone, discount: body.discount, notes: body.notes, consent: { ...body.consent, terms: termsSnapshot ?? event.terms, acceptedAt: body.consent.accepted ? new Date().toISOString() : null }, customAnswers, status: 'provisional' }
     const problem = capacityProblem(eventOccupancy([...bookings, values]), event)
     if (problem && !body.waitlist) return fail(`${problem}. Choose the waiting list to submit without reserving space.`, 409)
     if (body.waitlist) values.status = 'waitlisted'
@@ -241,8 +243,8 @@ async function createGuestBookingInTx(tx: Tx, actor: Actor, event: Camp, request
   if (bookings.some(booking => booking.guestProfile?.dateOfBirth === request.dateOfBirth && normalize(booking.attendees.find(person => person.type === 'student')?.name || '') === normalize(request.studentName) && booking.status !== 'cancelled')) return fail('A guest booking for this student and birth date already exists', 409)
   const attendees = normalizeAttendees(request.attendees.map(({ id: _id, studentId: _studentId, checkedInAt: _checkedInAt, ...person }) => person), null)
   if (!event.transportProvided && attendees.some(attendeeRequestsTransport)) return fail('Transport is not provided for this event')
-  const guestProfile: EventGuestProfile = { dateOfBirth: request.dateOfBirth || '', membershipNumber: request.membershipNumber, dojoName: request.sourceDojoName || 'Independent', city: request.sourceCity, state: request.sourceState, country: request.sourceCountry, instructorName: request.instructorName }
-  const values = { eventId: event.id, studentId: null, guestProfile, dojoId: event.registrationMode === 'public' ? null : request.dojoId, reference: `EV-${randomUUID().slice(0, 8).toUpperCase()}`, requestKey: request.requestKey, attendees, prices: request.prices, contactName: request.contactName, contactPhone: request.contactPhone, emergencyName: request.emergencyName, emergencyPhone: request.emergencyPhone, discount: 0, notes: request.notes, consent: request.consent, customAnswers: request.customAnswers, status: 'provisional' }
+  const guestProfile: EventGuestProfile = { dateOfBirth: request.dateOfBirth || '', membershipNumber: request.membershipNumber, dojoName: request.sourceDojoName || 'Independent', city: request.sourceCity, state: request.sourceState, country: request.sourceCountry, instructorName: request.instructorName, currentGrade: request.currentGrade }
+  const values = { eventId: event.id, studentId: null, guestProfile, dojoId: event.registrationMode === 'public' ? null : request.dojoId, reference: `EV-${randomUUID().slice(0, 8).toUpperCase()}`, requestKey: request.requestKey, attendees, prices: request.prices, registrationForm: request.registrationForm, contactName: request.contactName, contactPhone: request.contactPhone, emergencyName: request.emergencyName, emergencyPhone: request.emergencyPhone, discount: 0, notes: request.notes, consent: request.consent, customAnswers: request.customAnswers, status: 'provisional' }
   const problem = capacityProblem(eventOccupancy([...bookings, values]), event)
   if (problem && !waitlist) return fail(`${problem}. Select waiting list to approve without reserving a place.`, 409)
   if (waitlist) values.status = 'waitlisted'
@@ -283,10 +285,10 @@ export async function reviewEventRegistration(actor: Actor, id: number, requestI
       if (student.membershipNumber && request.membershipNumber && student.membershipNumber.trim().toLowerCase() !== request.membershipNumber.trim().toLowerCase()) return fail('Student membership number does not match the registration request')
       booking = (await createEventBookingInTx(tx, actor, id, {
         studentId: student.id, requestKey: request.requestKey,
-        attendees: request.attendees.map(({ id: _id, studentId: _studentId, checkedInAt: _checkedInAt, ...person }) => person), contactName: request.contactName, contactPhone: request.contactPhone,
+        attendees: request.attendees.map(({ id: _id, studentId: _studentId, checkedInAt: _checkedInAt, ...person }) => ({ ...person, underFive: person.underFive ?? false, dateOfBirth: person.dateOfBirth ?? '' })), contactName: request.contactName, contactPhone: request.contactPhone,
         emergencyName: request.emergencyName, emergencyPhone: request.emergencyPhone,
         consent: request.consent, discount: 0, notes: request.notes, saveGuardians: false, waitlist: body.waitlist || request.waitlist,
-      }, request.prices, true, request.consent.terms, request.customAnswers))!
+      }, request.prices, true, request.consent.terms, request.customAnswers, request.registrationForm))!
     }
     const [saved] = await tx.update(tables.eventRegistrationRequests).set({ status: 'approved', bookingId: booking!.id, reviewedBy: actor.userId, reviewedAt: new Date() }).where(eq(tables.eventRegistrationRequests.id, request.id)).returning()
     await audit(tx, actor, id, 'registration.approved', `${request.reference} → ${booking!.reference}`, booking!.id)
@@ -318,6 +320,7 @@ export async function correctEventRegistration(actor: Actor, id: number, request
     if (request.status !== 'submitted') return fail('Only pending requests can be corrected', 409)
     if (request.sourceType !== 'external' && ['sourceDojoName', 'sourceCity', 'sourceState', 'sourceCountry', 'instructorName'].some(key => key in changes)) return fail('The source dojo is linked to the existing organization location')
     if (event.registrationMode === 'public' && (!((changes.sourceCity ?? request.sourceCity).trim()) || !((changes.sourceState ?? request.sourceState).trim()) || !((changes.instructorName ?? request.instructorName).trim()))) return fail('Enter city, state and instructor name')
+    if (request.registrationForm && !(changes.currentGrade ?? request.currentGrade).trim()) return fail('Enter the student current grade or belt')
     const attendees = changes.studentName ? request.attendees.map(person => person.type === 'student' ? { ...person, name: changes.studentName! } : person) : request.attendees
     const [saved] = await tx.update(tables.eventRegistrationRequests).set({ ...changes, attendees }).where(eq(tables.eventRegistrationRequests.id, requestId)).returning()
     await audit(tx, actor, id, 'registration.corrected', `${request.reference}: ${Object.keys(changes).join(', ')}`)
@@ -340,10 +343,16 @@ export async function updateEventBooking(actor: Actor, id: number, bookingId: nu
     if (!manager && (body.status !== undefined || body.discount !== undefined || body.cancellationFee !== undefined)) return fail('Only event managers can change booking status or charges', 403)
     if (body.guestProfile && (!manager || previous.studentId !== null)) return fail('Only an event manager can correct a guest source', 403)
     if (body.guestProfile && event.registrationMode === 'public' && (!body.guestProfile.city?.trim() || !body.guestProfile.state.trim() || !body.guestProfile.instructorName?.trim())) return fail('Enter city, state and instructor name')
+    if (body.guestProfile && previous.registrationForm && !body.guestProfile.currentGrade?.trim()) return fail('Enter the student current grade or belt')
     if (actor.portal && body.checkInId) return fail('Check-in is managed by staff', 403)
     const student = previous.studentId ? await tx.query.students.findFirst({ where: eq(tables.students.id, previous.studentId) }) : null
     if (previous.studentId && !student) return fail('Student not found', 404)
     const attendees = body.attendees ? normalizeAttendees(body.attendees, student || null, previous.attendees, actor.portal) : previous.attendees
+    if (!previous.registrationForm && attendees.some(person => person.underFive)) return fail('The under-five concession is not available on this booking')
+    if (previous.registrationForm && (attendees.length !== previous.attendees.length || attendees.some(person => {
+      const original = previous.attendees.find(old => old.id === person.id)
+      return !original || person.underFive !== original.underFive || person.dateOfBirth !== original.dateOfBirth || person.accommodation !== original.accommodation || person.transportOut !== original.transportOut || person.transportReturn !== original.transportReturn
+    }))) return fail('This fee package has fixed attendees and inclusions; changes that affect the agreed fee are not allowed')
     if (!event.transportProvided && attendees.some(attendeeRequestsTransport)) return fail('Transport is not provided for this event')
     if (body.checkInId) {
       if (previous.status !== 'confirmed') return fail('Confirm the booking before check-in')

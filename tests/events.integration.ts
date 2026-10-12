@@ -162,6 +162,47 @@ try {
   assert.equal(selfArrangedBusEvent!.prices.transportOut, 0)
   assert.equal(selfArrangedBusEvent!.outboundCapacity, 0)
   console.log('PASS: self-arranged travel hides transport charges and refuses bus requests')
+  const formService = await import('../server/utils/event-registration-forms')
+  const offsetDate = (days: number) => new Date(Date.now() + days * 86400000).toISOString().slice(0, 10)
+  const yearsAgo = (years: number) => { const date = new Date(); date.setUTCFullYear(date.getUTCFullYear() - years); return date.toISOString().slice(0, 10) }
+  const feeEvent = await service.saveEvent(staff, { ...body, name: 'Regional fee camp', startDate: offsetDate(60), endDate: offsetDate(65), registrationDeadline: offsetDate(45), registrationMode: 'public', transportProvided: false, capacity: 0, bedCapacity: 0, confirmationRule: 'staff' })
+  const baseForm = { audience: '', description: '', studentFee: 50000, companionFee: 20000, taxBps: 0, includesTraining: true, includesMeals: true, includesAccommodation: false, includesTransportOut: false, includesTransportReturn: false, enabled: true }
+  const localForm = (await formService.saveRegistrationForm(staff, feeEvent!.id, { action: 'create', form: { ...baseForm, name: 'Jaipur local', audience: 'Jaipur students' } })).form!
+  const awayForm = (await formService.saveRegistrationForm(staff, feeEvent!.id, { action: 'create', form: { ...baseForm, name: 'Gujarat residential', audience: 'Gujarat dojos', studentFee: 110000, includesAccommodation: true } })).form!
+  assert.notEqual(localForm.token, awayForm.token)
+  const awayPublicForm = await publicService.publicRegistrationForm(publicHttp, awayForm.token)
+  const localPublicForm = await publicService.publicRegistrationForm(publicHttp, localForm.token)
+  assert.equal(awayPublicForm.event.registrationForm?.includesAccommodation, true)
+  assert.equal(localPublicForm.event.registrationForm?.includesAccommodation, false)
+  const variantInput = { ...genericInput, requestKey: randomUUID(), formSignature: localPublicForm.event.formSignature!, currentGrade: 'Blue belt', sourceCity: 'Jaipur', sourceState: 'Rajasthan', attendees: [{ type: 'student', name: 'Local Student', meal: 'Vegetarian', accommodation: true }, { type: 'parent', name: 'Young Guest', relationship: 'Guest', underFive: true, dateOfBirth: yearsAgo(2), meal: 'Vegetarian', accommodation: true }] }
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, localForm.token, { ...variantInput, currentGrade: '' }), /current grade or belt/)
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, localForm.token, { ...variantInput, attendees: [{ type: 'student', name: 'Local Student' }, { type: 'parent', name: 'Young Guest', underFive: true, dateOfBirth: yearsAgo(6) }] }), /under-five concession/)
+  const localSubmission = await publicService.submitPublicEventRegistration(publicHttp, localForm.token, variantInput)
+  assert.equal(localSubmission.quote, 50000)
+  const awaySubmission = await publicService.submitPublicEventRegistration(publicHttp, awayForm.token, { ...variantInput, formSignature: awayPublicForm.event.formSignature!, requestKey: randomUUID(), sourceCity: 'Ahmedabad', sourceState: 'Gujarat', attendees: [{ type: 'student', name: 'Away Student', meal: 'Jain' }, { type: 'parent', name: 'Adult Guest', relationship: 'Guest', meal: 'Jain' }] })
+  assert.equal(awaySubmission.quote, 130000)
+  let feeDetail = await service.getEventDetail(staff, feeEvent!.id)
+  const localRequest = feeDetail.registrationRequests.find(row => row.studentName === 'Local Student')!
+  const awayRequest = feeDetail.registrationRequests.find(row => row.studentName === 'Away Student')!
+  assert.equal(localRequest.currentGrade, 'Blue belt')
+  assert.equal(localRequest.attendees[0]!.accommodation, false)
+  assert.equal(awayRequest.attendees[0]!.accommodation, true)
+  assert.equal(localRequest.registrationForm?.name, 'Jaipur local')
+  await formService.saveRegistrationForm(staff, feeEvent!.id, { action: 'update', id: localForm.id, form: { ...baseForm, name: 'Jaipur local revised', studentFee: 90000 } })
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, localForm.token, { ...variantInput, requestKey: randomUUID() }), /fee or inclusions changed/)
+  assert.equal((await service.getEventDetail(staff, feeEvent!.id)).registrationRequests.find(row => row.id === localRequest.id)!.prices.student, 50000)
+  await service.reviewEventRegistration(staff, feeEvent!.id, localRequest.id, { action: 'approve' })
+  await service.reviewEventRegistration(staff, feeEvent!.id, awayRequest.id, { action: 'approve' })
+  feeDetail = await service.getEventDetail(staff, feeEvent!.id)
+  assert.equal(feeDetail.finances!.bookingRevenue, 180000)
+  assert.equal(feeDetail.occupancy.beds, 2)
+  const localBooking = feeDetail.bookings.find(row => row.registrationForm?.id === localForm.id)!
+  assert.equal(localBooking.balance.total, 50000)
+  await assert.rejects(service.updateEventBooking(staff, feeEvent!.id, localBooking.id, { version: localBooking.version, attendees: localBooking.attendees.map(person => ({ ...person, underFive: false })) }), /fixed attendees and inclusions/)
+  await formService.saveRegistrationForm(staff, feeEvent!.id, { action: 'delete', id: awayForm.id })
+  await assert.rejects(publicService.publicRegistrationForm(publicHttp, awayForm.token), /unavailable/)
+  assert.equal((await service.getEventDetail(staff, feeEvent!.id)).bookings.find(row => row.registrationForm?.id === awayForm.id)!.balance.total, 130000)
+  console.log('PASS: separate local and outstation form links, fixed inclusions, under-five fees and price snapshots')
   const attendee = (type: 'student' | 'parent', name = '') => ({ type, name, relationship: type === 'parent' ? 'Mother' : '', meal: 'Jain', accommodation: true })
   const bookingInput = { requestKey: randomUUID(), studentId: students[0]!.id, attendees: [attendee('student'), attendee('parent')], contactName: 'Guardian', contactPhone: '9000000000', consent: { accepted: false, name: '', phone: '' } }
   const provisional = await service.createEventBooking(portal, event!.id, bookingInput)

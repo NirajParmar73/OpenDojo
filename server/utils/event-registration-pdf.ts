@@ -40,6 +40,11 @@ export async function eventRegistrationPdf(printToken: string) {
   doc.moveDown(1).fontSize(10)
   field('Student', request.studentName)
   field('Date of birth', request.dateOfBirth)
+  if (request.currentGrade) field('Current grade / belt', request.currentGrade)
+  if (request.registrationForm) {
+    field('Registration package', request.registrationForm.name)
+    field('Included', [request.registrationForm.includesTraining && 'training', request.registrationForm.includesMeals && 'meals', request.registrationForm.includesAccommodation && 'accommodation', request.registrationForm.includesTransportOut && 'outward transport', request.registrationForm.includesTransportReturn && 'return transport'].filter(Boolean).join(', ') || 'participation only')
+  }
   field('Membership number', request.membershipNumber)
   field('From', [request.sourceDojoName, request.sourceCity, request.sourceState, request.sourceCountry].filter(Boolean).join(', '))
   if (request.instructorName) field('Instructor', request.instructorName)
@@ -51,7 +56,7 @@ export async function eventRegistrationPdf(printToken: string) {
   heading('Participants and services')
   for (const person of request.attendees) {
     const services = [person.transportOut && 'outward transport', person.transportReturn && 'return transport', person.accommodation && 'accommodation'].filter(Boolean).join(', ') || 'no optional services'
-    doc.text(`${person.type === 'student' ? 'Student' : 'Parent'}: ${person.name || 'Name pending'}${person.relationship ? ` (${person.relationship})` : ''} — ${services}`)
+    doc.text(`${person.type === 'student' ? 'Student' : 'Accompanying person'}: ${person.name || 'Name pending'}${person.relationship ? ` (${person.relationship})` : ''}${person.underFive ? `, under 5 (${person.dateOfBirth || 'birth date pending'}), no fee` : ''} — ${services}`)
     if (person.meal) doc.text(`Meal: ${person.meal}`)
     if (person.medicalNotes) doc.text(`Needs: ${person.medicalNotes}`)
   }

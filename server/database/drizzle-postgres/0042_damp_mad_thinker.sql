@@ -1,0 +1,1 @@
+ALTER TABLE "event_registration_requests" ADD COLUMN "current_grade" text DEFAULT '' NOT NULL;

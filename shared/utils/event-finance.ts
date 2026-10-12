@@ -6,11 +6,14 @@ export function attendeeRequestsTransport(person: Pick<EventAttendee, 'transport
   return person.transportOut || person.transportReturn || Boolean(person.busOut?.trim() || person.busReturn?.trim())
 }
 
-export function eventCharge(attendees: Pick<EventAttendee, 'type' | 'transportOut' | 'transportReturn' | 'accommodation'>[], prices: EventPrices, discount = 0) {
-  const subtotal = attendees.reduce((sum, person) => sum + prices[person.type]
-    + (person.transportOut ? prices.transportOut : 0)
-    + (person.transportReturn ? prices.transportReturn : 0)
-    + (person.accommodation ? prices.accommodation : 0), 0)
+export function eventCharge(attendees: Pick<EventAttendee, 'type' | 'transportOut' | 'transportReturn' | 'accommodation' | 'underFive'>[], prices: EventPrices, discount = 0) {
+  const subtotal = attendees.reduce((sum, person) => {
+    if (person.type === 'parent' && person.underFive) return sum
+    return sum + prices[person.type]
+      + (person.transportOut ? prices.transportOut : 0)
+      + (person.transportReturn ? prices.transportReturn : 0)
+      + (person.accommodation ? prices.accommodation : 0)
+  }, 0)
   const net = Math.max(0, subtotal - discount)
   const tax = Math.round(net * prices.taxBps / 10000)
   return { subtotal, discount, net, tax, total: net + tax }
@@ -63,12 +66,12 @@ export function capacityProblem(occupancy: ReturnType<typeof eventOccupancy>, ca
   return null
 }
 
-export function bookingMissingDetails(booking: { attendees: EventAttendee[], contactName: string, contactPhone: string, consent: { accepted: boolean, name: string, phone: string } }) {
+export function bookingMissingDetails(booking: { attendees: EventAttendee[], contactName: string, contactPhone: string, registrationForm?: { includesMeals: boolean } | null, consent: { accepted: boolean, name: string, phone: string } }) {
   const missing: string[] = []
   if (!booking.contactName.trim() || !booking.contactPhone.trim()) missing.push('Booking contact')
   if (booking.attendees.some(person => !person.name.trim())) missing.push('Attendee names')
-  if (booking.attendees.some(person => person.type === 'parent' && !person.relationship.trim())) missing.push('Parent relationships')
-  if (booking.attendees.some(person => !person.meal.trim())) missing.push('Meal preferences')
+  if (booking.attendees.some(person => person.type === 'parent' && !person.relationship.trim())) missing.push('Accompanying person relationships')
+  if (booking.registrationForm?.includesMeals !== false && booking.attendees.some(person => !person.meal.trim())) missing.push('Meal preferences')
   if (!booking.consent.accepted || !booking.consent.name.trim() || !booking.consent.phone.trim()) missing.push('Consent')
   return missing
 }

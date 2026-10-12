@@ -1,7 +1,7 @@
 // server/database/schema.ts
 import { check, index, pgTable, uniqueIndex, type AnyPgColumn } from 'drizzle-orm/pg-core'
 import { relations, sql } from 'drizzle-orm'
-import type { EventAnswer, EventAttendee, EventConsent, EventFormSettings, EventGuestProfile, EventPrices } from '../../shared/types/events'
+import type { EventAnswer, EventAttendee, EventConsent, EventFormSettings, EventGuestProfile, EventPrices, EventRegistrationForm, EventRegistrationFormSnapshot } from '../../shared/types/events'
 import { defaultEventFormSettings } from '../../shared/types/events'
 
 // ---------- TABLE DEFINITIONS (all tables first) ----------
@@ -1255,6 +1255,7 @@ export const campEvents = pgTable('camp_events', t => ({
   createdBy: t.integer('created_by').references(() => users.id, { onDelete: 'set null' }),
   publicRegistrationToken: t.text('public_registration_token').unique(),
   publicRegistrationEnabled: t.boolean('public_registration_enabled').notNull().default(false),
+  registrationForms: t.jsonb('registration_forms').$type<EventRegistrationForm[]>().notNull().default([]),
   createdAt: t.timestamp('created_at', { withTimezone: true }).notNull().defaultNow(), updatedAt: t.timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
 }), table => [index('camp_events_org_idx').on(table.organizationId), check('camp_events_status_check', sql`${table.status} IN ('draft','open','closed','completed','cancelled')`), check('camp_events_registration_mode_check', sql`${table.registrationMode} IN ('public','linked')`)])
 
@@ -1268,6 +1269,7 @@ export const eventBookings = pgTable('event_bookings', t => ({
   contactName: t.text('contact_name').notNull().default(''), contactPhone: t.text('contact_phone').notNull().default(''),
   emergencyName: t.text('emergency_name').notNull().default(''), emergencyPhone: t.text('emergency_phone').notNull().default(''),
   attendees: t.jsonb().$type<EventAttendee[]>().notNull(), prices: t.jsonb().$type<EventPrices>().notNull(),
+  registrationForm: t.jsonb('registration_form').$type<EventRegistrationFormSnapshot | null>(),
   consent: t.jsonb().$type<EventConsent>().notNull(), discount: t.integer().notNull().default(0),
   customAnswers: t.jsonb('custom_answers').$type<EventAnswer[]>().notNull().default([]),
   cancellationFee: t.integer('cancellation_fee').notNull().default(0), notes: t.text().notNull().default(''),
@@ -1321,13 +1323,14 @@ export const eventRegistrationRequests = pgTable('event_registration_requests', 
   bookingId: t.integer('booking_id').references(() => eventBookings.id, { onDelete: 'set null' }),
   requestKey: t.text('request_key').notNull(), reference: t.text().notNull().unique(),
   status: t.text().notNull().default('submitted'),
-  studentName: t.text('student_name').notNull(), dateOfBirth: t.text('date_of_birth'),
+  studentName: t.text('student_name').notNull(), dateOfBirth: t.text('date_of_birth'), currentGrade: t.text('current_grade').notNull().default(''),
   membershipNumber: t.text('membership_number').notNull().default(''), dojoId: t.integer('dojo_id').references(() => dojos.id, { onDelete: 'set null' }),
   sourceType: t.text('source_type').notNull().default('internal'), sourceDojoName: t.text('source_dojo_name').notNull().default(''), sourceCity: t.text('source_city').notNull().default(''), sourceState: t.text('source_state').notNull().default(''), sourceCountry: t.text('source_country').notNull().default(''), instructorName: t.text('instructor_name').notNull().default(''),
   contactName: t.text('contact_name').notNull(), contactPhone: t.text('contact_phone').notNull(),
   emergencyName: t.text('emergency_name').notNull().default(''), emergencyPhone: t.text('emergency_phone').notNull().default(''),
   attendees: t.jsonb().$type<EventAttendee[]>().notNull(), consent: t.jsonb().$type<EventConsent>().notNull(),
   prices: t.jsonb().$type<EventPrices>().notNull(), notes: t.text().notNull().default(''), waitlist: t.boolean().notNull().default(false),
+  registrationForm: t.jsonb('registration_form').$type<EventRegistrationFormSnapshot | null>(),
   customAnswers: t.jsonb('custom_answers').$type<EventAnswer[]>().notNull().default([]),
   photoPath: t.text('photo_path'), printToken: t.text('print_token').unique(),
   physicalCopyRequired: t.boolean('physical_copy_required').notNull().default(false),

@@ -6,8 +6,9 @@ import { eq } from 'drizzle-orm'
 import type { H3Event } from 'h3'
 import { db, tables } from './database'
 import { eventActor, getEventDetail } from './events'
-import { publicRegistrationEvent } from './public-event-registration'
+import { publicRegistrationTarget } from './public-event-registration'
 import { formatAmount } from './currency'
+import { formPrices } from './event-registration-forms'
 
 async function logoImage(logo: string | null) {
   if (!logo || !/^\/uploads\/logos\/[a-f0-9-]+\.(png|jpe?g|gif|webp|svg)$/i.test(logo)) return null
@@ -21,7 +22,9 @@ function readableAccent(color: string) {
 }
 
 export async function brandedEventInvitation(http: H3Event, id: number, token?: string) {
-  const event = token ? await publicRegistrationEvent(http, token) : (await getEventDetail(await eventActor(http), id)).event
+  const target = token ? await publicRegistrationTarget(http, token) : null
+  const event = target ? target.event : (await getEventDetail(await eventActor(http), id)).event
+  const selectedForm = target?.form || null
   if (event.id !== id) throw createError({ statusCode: 404, statusMessage: 'Invitation not found' })
   const organization = await db.query.organizations.findFirst({ where: eq(tables.organizations.id, event.organizationId), columns: { name: true, logo: true } })
   if (!organization) throw createError({ statusCode: 404, statusMessage: 'Organization not found' })
@@ -38,16 +41,23 @@ export async function brandedEventInvitation(http: H3Event, id: number, token?: 
   doc.fillColor(accent).fontSize(22).text(settings.letterHeading || 'Invitation to participate')
   doc.moveDown(0.8).fillColor('#0f172a').fontSize(16).text(event.name)
   doc.moveDown(0.7).font('Helvetica').fontSize(11)
+  if (selectedForm) { doc.font('Helvetica-Bold').text(selectedForm.name).font('Helvetica'); if (selectedForm.audience) doc.text(`For: ${selectedForm.audience}`) }
   doc.text(`Dates: ${event.startDate} to ${event.endDate}`)
   if (event.venue) doc.text(`Venue: ${event.venue}`)
   doc.text(`Registration closes: ${event.registrationDeadline}`)
   doc.moveDown()
-  doc.text(settings.letterBody || `You are invited to participate in ${event.name}. Any student may register alone or with up to two accompanying parents. Event registration does not require a dojo account.`, { align: 'left' })
+  doc.text(settings.letterBody || `You are invited to participate in ${event.name}. Any student may register with or without accompanying people. Event registration does not require a dojo account.`, { align: 'left' })
   doc.moveDown()
   doc.font('Helvetica-Bold').text('Participation and registration').font('Helvetica')
-  doc.text(`Student fee: ${formatAmount(event.prices.student, event.currency)} | Parent fee: ${formatAmount(event.prices.parent, event.currency)} per person. ${event.transportProvided ? 'Optional transport and accommodation are quoted on the registration form.' : 'Accommodation is quoted on the registration form. Travel is arranged by students and parents; the organizer does not provide transport.'}`)
+  const prices = selectedForm ? formPrices(selectedForm) : event.prices
+  doc.text(`Student fee: ${formatAmount(prices.student, event.currency)} | Accompanying person fee: ${formatAmount(prices.parent, event.currency)} ${selectedForm ? 'per person age 5+. Under-fives are free. Included services are fixed for this form.' : event.transportProvided ? 'per person. Optional transport and accommodation are quoted on the registration form.' : 'per person. Accommodation is quoted on the registration form. Travel is arranged by students and parents; the organizer does not provide transport.'}`)
+  if (selectedForm) {
+    const included = [selectedForm.includesTraining && 'training', selectedForm.includesMeals && 'meals', selectedForm.includesAccommodation && 'accommodation', selectedForm.includesTransportOut && 'outward transport', selectedForm.includesTransportReturn && 'return transport'].filter(Boolean).join(', ') || 'participation only'
+    doc.text(`Included: ${included}.`)
+    if (selectedForm.description) doc.moveDown(0.4).text(selectedForm.description)
+  }
   const publicToken = token || ('publicRegistrationToken' in event ? event.publicRegistrationToken : null)
-  if (event.publicRegistrationEnabled && publicToken) {
+  if ((selectedForm || event.publicRegistrationEnabled) && publicToken) {
     const link = `${getRequestURL(http).origin}/event-registration/${publicToken}`
     doc.moveDown().fillColor(accent).font('Helvetica-Bold').text('Register online:').font('Helvetica').text(link, { link, underline: true })
   }

@@ -8,6 +8,23 @@ export interface EventPrices {
   accommodation: number
   taxBps: number
 }
+export interface EventRegistrationForm {
+  id: string
+  token: string
+  name: string
+  audience: string
+  description: string
+  studentFee: number
+  companionFee: number
+  taxBps: number
+  includesTraining: boolean
+  includesMeals: boolean
+  includesAccommodation: boolean
+  includesTransportOut: boolean
+  includesTransportReturn: boolean
+  enabled: boolean
+}
+export type EventRegistrationFormSnapshot = Omit<EventRegistrationForm, 'token' | 'enabled'>
 export interface EventGuestProfile {
   dateOfBirth: string
   membershipNumber: string
@@ -16,6 +33,7 @@ export interface EventGuestProfile {
   state: string
   country: string
   instructorName?: string
+  currentGrade?: string
 }
 export type EventQuestionType = 'text' | 'textarea' | 'select' | 'checkbox' | 'date'
 export interface EventQuestion {
@@ -56,6 +74,8 @@ export const defaultEventFormSettings: EventFormSettings = {
 export interface EventAttendee {
   id: string
   type: 'student' | 'parent'
+  underFive?: boolean
+  dateOfBirth?: string
   studentId?: number | null
   name: string
   relationship: string
