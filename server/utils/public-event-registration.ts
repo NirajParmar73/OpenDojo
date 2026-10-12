@@ -59,8 +59,7 @@ export async function submitPublicEventRegistration(http: H3Event, token: string
     if (selectedForm && !body.currentGrade) throw createError({ statusCode: 400, statusMessage: 'Enter the student current grade or belt' })
     if (!selectedForm && !locked.transportProvided && body.attendees.some(attendeeRequestsTransport)) throw createError({ statusCode: 400, statusMessage: 'Transport is not provided for this event' })
     if (!selectedForm && body.attendees.some(person => person.underFive)) throw createError({ statusCode: 400, statusMessage: 'The under-five concession is not available on this form' })
-    if (!selectedForm && body.attendees.length > 3) throw createError({ statusCode: 400, statusMessage: 'At most two accompanying people may register on this form' })
-    if (selectedForm && body.attendees.length > 6) throw createError({ statusCode: 400, statusMessage: 'At most five accompanying people may register' })
+    if (locked.registrationMode === 'linked' && body.attendees.length > 3) throw createError({ statusCode: 400, statusMessage: 'At most two accompanying people may register on this linked event form' })
     if (selectedForm) for (const person of body.attendees) {
       if (person.type === 'student' && person.underFive) throw createError({ statusCode: 400, statusMessage: 'The under-five concession applies to accompanying people only' })
       if (person.underFive) {

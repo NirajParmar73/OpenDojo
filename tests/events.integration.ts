@@ -149,6 +149,12 @@ try {
   await assert.rejects(service.getEventDetail(portal, genericEvent!.id), /Event not found/)
   assert.equal((await service.listEvents({ ...staff, dojoIds: [dojo!.id] })).events.some(row => row.id === genericEvent!.id), false)
   console.log('PASS: generic organization event admits independent participants without dojo or student links')
+  const generalGroup = { ...genericInput, requestKey: randomUUID(), attendees: [{ type: 'student', name: 'General Group Student', meal: 'Vegetarian' }, ...Array.from({ length: 10 }, (_, index) => ({ type: 'parent', name: `General Guest ${index + 1}`, relationship: 'Guest', meal: 'Vegetarian' }))] }
+  const generalGroupSubmission = await publicService.submitPublicEventRegistration(publicHttp, genericLink.token!, generalGroup)
+  assert.equal(generalGroupSubmission.quote, genericEvent!.prices.student + 10 * genericEvent!.prices.parent)
+  const generalGroupRequest = (await service.getEventDetail(staff, genericEvent!.id)).registrationRequests.find(row => row.reference === generalGroupSubmission.reference)!
+  await service.reviewEventRegistration(staff, genericEvent!.id, generalGroupRequest.id, { action: 'approve', waitlist: true })
+  assert.equal((await service.getEventDetail(staff, genericEvent!.id)).bookings.find(row => row.registrationForm === null && row.attendees.length === 11)!.attendees.length, 11)
   const busEvent = await service.saveEvent(staff, { ...body, name: 'Bus camp', registrationMode: 'public', transportProvided: true })
   const busLink = await service.setPublicEventRegistration(staff, busEvent!.id, { action: 'enable' })
   await publicService.submitPublicEventRegistration(publicHttp, busLink.token!, { ...genericInput, requestKey: randomUUID(), attendees: [{ type: 'student', name: 'Bus Student', transportOut: true }] })
@@ -202,7 +208,17 @@ try {
   await formService.saveRegistrationForm(staff, feeEvent!.id, { action: 'delete', id: awayForm.id })
   await assert.rejects(publicService.publicRegistrationForm(publicHttp, awayForm.token), /unavailable/)
   assert.equal((await service.getEventDetail(staff, feeEvent!.id)).bookings.find(row => row.registrationForm?.id === awayForm.id)!.balance.total, 130000)
-  console.log('PASS: separate local and outstation form links, fixed inclusions, under-five fees and price snapshots')
+  const groupPeople = [{ type: 'student', name: 'Group Student', meal: 'Vegetarian' }, ...Array.from({ length: 10 }, (_, index) => ({ type: 'parent', name: `Guest ${index + 1}`, relationship: 'Guest', meal: 'Vegetarian' }))]
+  const groupInput = { ...variantInput, requestKey: randomUUID(), formSignature: (await publicService.publicRegistrationForm(publicHttp, localForm.token)).event.formSignature!, attendees: groupPeople }
+  await assert.rejects(publicService.submitPublicEventRegistration(publicHttp, localForm.token, { ...groupInput, attendees: [...groupPeople, { type: 'parent', name: 'Eleventh guest' }] }), /At most ten accompanying people/)
+  const groupSubmission = await publicService.submitPublicEventRegistration(publicHttp, localForm.token, groupInput)
+  assert.equal(groupSubmission.quote, 290000)
+  const groupRequest = (await service.getEventDetail(staff, feeEvent!.id)).registrationRequests.find(row => row.reference === groupSubmission.reference)!
+  await service.reviewEventRegistration(staff, feeEvent!.id, groupRequest.id, { action: 'approve' })
+  const groupBooking = (await service.getEventDetail(staff, feeEvent!.id)).bookings.find(row => row.registrationForm?.id === localForm.id && row.attendees.length === 11)!
+  assert.equal(groupBooking.balance.total, 290000)
+  assert.equal((await service.updateEventBooking(staff, feeEvent!.id, groupBooking.id, { version: groupBooking.version, attendees: groupBooking.attendees }))!.attendees.length, 11)
+  console.log('PASS: separate local and outstation forms, ten accompanying people, fixed inclusions and price snapshots')
   const attendee = (type: 'student' | 'parent', name = '') => ({ type, name, relationship: type === 'parent' ? 'Mother' : '', meal: 'Jain', accommodation: true })
   const bookingInput = { requestKey: randomUUID(), studentId: students[0]!.id, attendees: [attendee('student'), attendee('parent')], contactName: 'Guardian', contactPhone: '9000000000', consent: { accepted: false, name: '', phone: '' } }
   const provisional = await service.createEventBooking(portal, event!.id, bookingInput)
