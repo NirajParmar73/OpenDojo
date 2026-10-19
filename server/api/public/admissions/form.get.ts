@@ -18,12 +18,16 @@ export default defineEventHandler(async (event) => {
         },
       },
     }),
-    db.query.organizationPrograms.findMany({ where: eq(tables.organizationPrograms.organizationId, organization.id), columns: { id: true, displayName: true, isActive: true } }),
+    db.query.organizationPrograms.findMany({
+      where: eq(tables.organizationPrograms.organizationId, organization.id),
+      columns: { id: true, displayName: true },
+      orderBy: (program, { asc }) => [asc(program.displayName), asc(program.id)],
+    }),
   ])
   return {
     organization: { name: organization.name, slug: organization.slug, logo: organization.logo },
     form: { title: form.title, introduction: form.introduction, physicalCopyInstructions: form.physicalCopyInstructions, privacyNotice: form.privacyNotice, consentText: form.consentText, requirePhysicalCopy: form.requirePhysicalCopy },
     dojos,
-    programs: programs.filter(program => program.isActive),
+    programs,
   }
 })

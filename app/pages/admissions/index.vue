@@ -26,7 +26,7 @@
     <form class="space-y-6" @submit.prevent="submitApplication">
       <UCard><template #header><h2 class="font-semibold">Program preference</h2></template><div class="grid gap-4 sm:grid-cols-2">
         <UFormField label="Dojo / location" required><USelect v-model="form.dojoId" :items="dojoOptions" class="w-full" placeholder="Choose a dojo" required /></UFormField>
-        <UFormField label="Program"><USelect v-model="form.programId" :items="programOptions" class="w-full" placeholder="Choose a program (optional)" /></UFormField>
+        <UFormField label="Program" help="Choose from all programs offered by this organization."><USelect v-model="form.programId" :items="programOptions" class="w-full" placeholder="Choose a program (optional)" /></UFormField>
         <UFormField label="Preferred start date"><UInput v-model="form.preferredStartDate" type="date" class="w-full" /></UFormField>
         <UFormField label="Previous training experience" class="sm:col-span-2"><UTextarea v-model="form.previousExperience" class="w-full" :rows="3" /></UFormField>
       </div></UCard>

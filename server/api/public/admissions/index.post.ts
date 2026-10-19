@@ -58,7 +58,7 @@ export default defineEventHandler(async (event) => {
     body.programId ? db.query.organizationPrograms.findFirst({ where: and(eq(tables.organizationPrograms.id, body.programId), eq(tables.organizationPrograms.organizationId, organization.id)) }) : null,
   ])
   if (!dojo) throw createError({ statusCode: 400, statusMessage: 'Choose a valid dojo' })
-  if (body.programId && (!program || !program.isActive)) throw createError({ statusCode: 400, statusMessage: 'Choose a valid program' })
+  if (body.programId && !program) throw createError({ statusCode: 400, statusMessage: 'Choose a valid program' })
 
   const photo = parts.find(part => part.name === 'photo' && part.filename)
   if (!photo?.data?.length) throw createError({ statusCode: 400, statusMessage: 'A profile photograph is required' })
