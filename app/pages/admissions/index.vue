@@ -38,7 +38,7 @@
         <UFormField label="Gender"><USelect v-model="form.gender" :items="genderOptions" class="w-full" placeholder="Optional" /></UFormField>
         <UFormField label="Email" required><UInput v-model="form.email" type="email" class="w-full" required /></UFormField>
         <UFormField label="Phone" required><UInput v-model="form.phone" type="tel" class="w-full" required /></UFormField>
-        <UFormField label="Street address" class="sm:col-span-2"><UInput v-model="form.address" class="w-full" /></UFormField>
+        <UFormField label="Home Address" class="sm:col-span-2"><UInput v-model="form.address" class="w-full" /></UFormField>
         <UFormField label="City" help="Filled from the selected dojo"><UInput v-model="form.city" class="w-full" :readonly="Boolean(selectedDojo?.city)" /></UFormField>
         <UFormField label="State / province" help="Filled from the selected dojo"><UInput v-model="form.stateProvince" class="w-full" :readonly="Boolean(selectedDojo?.stateProvince)" /></UFormField>
         <UFormField label="Country" help="Filled from the selected dojo"><UInput v-model="form.country" class="w-full" :readonly="Boolean(selectedDojo?.country)" /></UFormField>
@@ -63,8 +63,8 @@
       </div></UCard>
 
       <UCard><template #header><h2 class="font-semibold">Emergency and medical information</h2></template><div class="grid gap-4 sm:grid-cols-2">
-        <UFormField label="Emergency contact" required><UInput v-model="form.emergencyContact" class="w-full" required /></UFormField>
-        <UFormField label="Emergency phone" required><UInput v-model="form.emergencyPhone" type="tel" class="w-full" required /></UFormField>
+        <UFormField label="Emergency Contact Person Name" required><UInput v-model="form.emergencyContact" class="w-full" required /></UFormField>
+        <UFormField label="Phone Number" required><UInput v-model="form.emergencyPhone" type="tel" class="w-full" required /></UFormField>
         <UFormField label="Allergies, medical conditions, or participation limitations" class="sm:col-span-2"><UTextarea v-model="form.medicalNotes" class="w-full" :rows="4" placeholder="Enter none if there is nothing to declare" /></UFormField>
       </div></UCard>
 
