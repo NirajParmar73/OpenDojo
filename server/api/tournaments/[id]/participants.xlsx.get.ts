@@ -6,7 +6,7 @@ import { buildParticipationWorkbook, participationRows } from '../../../utils/to
 export default defineEventHandler(async event => {
   const user = await tournamentStaff(event, true)
   const id = Number(getRouterParam(event, 'id'))
-  const tournament = await staffTournament(user.organizationId, id)
+  const tournament = await staffTournament(user.organizationId, id, user)
   const { division } = await getValidatedQuery(event, z.object({ division: z.enum(['colour', 'brown_black']).optional() }).parse)
   const entries = await tournamentRoster(user.id, user.organizationId, id)
   const workbook = buildParticipationWorkbook({ ...tournament, ageCutoffDate: tournament.ageCutoffDate || tournament.startDate }, participationRows(entries), division)

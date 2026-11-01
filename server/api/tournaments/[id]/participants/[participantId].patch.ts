@@ -4,6 +4,6 @@ import { updateTournamentParticipant } from '../../../../utils/tournament-regist
 export default defineEventHandler(async event => {
   const user = await tournamentStaff(event, true)
   const id = Number(getRouterParam(event, 'id'))
-  await staffTournament(user.organizationId, id)
+  await staffTournament(user.organizationId, id, user, true)
   return updateTournamentParticipant(user.organizationId, id, Number(getRouterParam(event, 'participantId')), await readBody(event))
 })

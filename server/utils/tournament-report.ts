@@ -1,7 +1,8 @@
 import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, tables } from './database'
-import { getAccessibleDojoIds } from './permissions'
+import { tournamentActor, staffTournament } from './tournament-access'
+import { canViewTournamentEntry } from '../../shared/utils/tournament-access'
 import { tournamentAge } from '../../shared/utils/tournament-participation'
 
 export const tournamentReportFilterSchema = z.object({
@@ -40,32 +41,30 @@ function resultFor(record: { result: string | null, placeSecured: number | null 
 }
 
 export async function buildTournamentReport(userId: number, organizationId: number, tournamentId: number, filters: TournamentReportFilters = {}) {
-  const tournament = await db.query.tournaments.findFirst({
-    where: and(eq(tables.tournaments.id, tournamentId), eq(tables.tournaments.organizationId, organizationId)),
-  })
-  if (!tournament) throw createError({ statusCode: 404, statusMessage: 'Tournament not found' })
+  const actor = await tournamentActor(userId, organizationId)
+  const tournament = await staffTournament(organizationId, tournamentId, actor)
 
   const organization = await db.query.organizations.findFirst({ where: eq(tables.organizations.id, organizationId) })
-  const accessibleDojoIds = await getAccessibleDojoIds(userId, organizationId)
   const records = await db.query.studentAchievements.findMany({
     where: and(eq(tables.studentAchievements.organizationId, organizationId), eq(tables.studentAchievements.tournamentId, tournamentId)),
     with: { participant: true, student: { with: { dojo: true, program: true } } },
   })
-  const visible = records.filter(record => accessibleDojoIds === null || (record.student?.dojoId != null && accessibleDojoIds.includes(record.student.dojoId)))
+  const visible = records.filter(record => canViewTournamentEntry(actor, tournament, record))
   if (!visible.length) throw createError({ statusCode: 403, statusMessage: 'This tournament has no entries in your permitted territory' })
 
   const onDate = tournament.ageCutoffDate || tournament.startDate
   const allDetails = visible.map(record => {
     const medal = medalFor(record)
+    const student = actor.dojoIds === null || (record.student?.dojoId != null && actor.dojoIds.includes(record.student.dojoId)) ? record.student : null
     return {
       id: record.id,
       studentId: record.studentId,
       competitorKey: record.studentId ? `student-${record.studentId}` : `participant-${record.participantId}`,
       studentName: record.participant?.fullName || `${record.student?.firstName || ''} ${record.student?.lastName || ''}`.trim(),
-      age: yearsOld(record.participant ? new Date(record.participant.dateOfBirth) : record.student?.dateOfBirth || null, onDate),
-      dojoId: record.student?.dojoId ?? null,
-      dojoName: record.student?.dojo?.name || 'Unassigned dojo',
-      programName: record.student?.program?.displayName || 'Program not assigned',
+      age: yearsOld(record.participant ? new Date(record.participant.dateOfBirth) : student?.dateOfBirth || null, onDate),
+      dojoId: student?.dojoId ?? null,
+      dojoName: student?.dojo?.name || 'Unassigned dojo',
+      programName: student?.program?.displayName || 'Program not assigned',
       eventType: record.eventType || 'Not set',
       ageCategory: record.ageCategory || 'Not set',
       weightCategory: record.weightCategory || null,

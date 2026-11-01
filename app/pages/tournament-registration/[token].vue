@@ -19,8 +19,9 @@
         <div class="mt-5 border-t border-white/20 pt-4"><h2 class="font-medium">Tournament participation form</h2><p class="mt-1 text-sm text-teal-100">Register one player at a time. No account is required.</p></div>
       </section>
       <UAlert v-if="!data.tournament.registrationEnabled" color="warning" icon="i-lucide-lock-keyhole" title="Registration is closed" description="Contact your tournament administrator for further participation requests." />
+      <UAlert v-else-if="!data.beltOptions.length" color="warning" title="Belts are not configured yet" description="Contact your tournament administrator to set up the organization's belts before registering." />
       <form v-else class="space-y-5" @submit.prevent="submit">
-        <UCard><TournamentParticipantFields v-model="form" :cutoff-date="data.tournament.ageCutoffDate" /></UCard>
+        <UCard><TournamentParticipantFields v-model="form" :cutoff-date="data.tournament.ageCutoffDate" :belt-options="data.beltOptions" /></UCard>
         <UCard><UCheckbox v-model="consent" required label="I confirm these participation details are correct and agree to share them with the tournament administrator and organizer." /></UCard>
         <input v-model="website" tabindex="-1" autocomplete="off" class="absolute left-[-9999px]" aria-hidden="true" aria-label="Leave empty">
         <UAlert v-if="submitError" role="alert" color="error" title="Could not submit participation" :description="submitError" />

@@ -61,6 +61,8 @@ export async function runTournamentHttpChecks(databaseUrl: string, organizationI
     const publicData = await form.json() as any
     assert.equal(publicData.tournament.name, tournament.name)
     assert.equal('participants' in publicData, false)
+    assert.ok(publicData.beltOptions.some((option: any) => option.value === 'Green'))
+    assert.equal(publicData.beltOptions.some((option: any) => option.value === 'Foreign Only'), false)
     const page = await request(`/tournament-registration/${tournament.registrationToken}`)
     assert.equal(page.status, 200)
     const pageHtml = await page.text()
@@ -116,6 +118,120 @@ export async function runTournamentHttpChecks(databaseUrl: string, organizationI
     const closedPage = await request(`/tournament-registration/${tournament.registrationToken}`)
     assert.match(await closedPage.text(), /Registration is closed/)
     console.log('PASS: real HTTP tournament creation, authorization, anonymous form SSR and submission, result editing, profile corrections, all Excel downloads, admin SSR pages and registration closure')
+
+    const [level] = await db.insert(tables.hierarchyLevels).values({ organizationId, name: 'HTTP territory', order: 1 }).returning()
+    const [node] = await db.insert(tables.hierarchyNodes).values({ organizationId, levelId: level!.id, name: 'HTTP territory' }).returning()
+    const locations = await db.insert(tables.dojos).values(['A', 'B'].map(name => ({ organizationId, nodeId: node!.id, name: `HTTP location ${name}` }))).returning()
+    const [scopedInstructor] = await db.insert(tables.users).values({ organizationId, role: 'instructor', name: 'Scoped instructor', email: 'scoped-instructor@example.test', passwordHash }).returning()
+    const [outsideInstructor] = await db.insert(tables.users).values({ organizationId, role: 'instructor', name: 'Other instructor', email: 'outside-instructor@example.test', passwordHash }).returning()
+    await db.insert(tables.assignments).values([
+      { userId: scopedInstructor!.id, role: 'instructor', scopeType: 'dojo', scopeId: locations[0]!.id },
+      { userId: outsideInstructor!.id, role: 'instructor', scopeType: 'dojo', scopeId: locations[1]!.id },
+    ])
+    const scopedCookie = await login('scoped-instructor@example.test')
+    const outsideCookie = await login('outside-instructor@example.test')
+    const permissions = await (await request('/api/tournaments/permissions', {}, scopedCookie)).json() as any
+    assert.equal(permissions.canCreate, true)
+    assert.equal(permissions.organizationWide, false)
+    assert.deepEqual(permissions.defaultDojoIds, [locations[0]!.id])
+    assert.deepEqual(permissions.dojoOptions.map((item: any) => item.value), [locations[0]!.id])
+    const scopedBody = { ...tournamentBody, name: 'Instructor participation', dojoIds: [locations[0]!.id] }
+    const scopedResponse = await request('/api/tournaments', { method: 'POST', body: JSON.stringify(scopedBody) }, scopedCookie)
+    assert.equal(scopedResponse.status, 200, await scopedResponse.clone().text())
+    const scopedTournament = await scopedResponse.json() as any
+    assert.deepEqual(scopedTournament.dojoIds, [locations[0]!.id])
+    for (const dojoIds of [[], [locations[1]!.id]]) {
+      assert.equal((await request('/api/tournaments', { method: 'POST', body: JSON.stringify({ ...scopedBody, dojoIds }) }, scopedCookie)).status, 403)
+    }
+    const list = await (await request('/api/tournaments', {}, scopedCookie)).json() as any[]
+    assert.equal(list.find(item => item.id === scopedTournament.id)!.canManage, true)
+    assert.equal(list.find(item => item.id === scopedTournament.id)!.registrationToken, scopedTournament.registrationToken)
+    assert.equal(list.find(item => item.id === tournament.id)!.canManage, false)
+    assert.equal(list.find(item => item.id === tournament.id)!.registrationToken, null)
+    const instructorPage = await request('/tournaments', {}, scopedCookie)
+    assert.equal(instructorPage.status, 200)
+    const instructorHtml = await instructorPage.text()
+    assert.ok(instructorHtml.includes('Create tournament'), 'Assigned instructor must see the creation form')
+    assert.ok(instructorHtml.includes('Participating locations'), 'Assigned instructor must see the scope selector')
+    const scopedPlayer = await request(`/api/public/tournaments/${scopedTournament.registrationToken}`, { method: 'POST', body: JSON.stringify({ ...body, fullName: 'Instructor Guest Player', requestKey: randomUUID(), kumite: false }) })
+    assert.equal(scopedPlayer.status, 200, await scopedPlayer.clone().text())
+    const scopedEntries = await (await request(`/api/tournaments/${scopedTournament.id}/entries`, {}, scopedCookie)).json() as any[]
+    assert.equal(scopedEntries.length, 1)
+    assert.equal(scopedEntries[0]!.studentId, null)
+    const scopedEntry = scopedEntries[0]!
+    const scopedResultBody = { eventType: scopedEntry.eventType, beltDivision: scopedEntry.beltDivision, ageCategory: scopedEntry.ageCategory, weightCategory: scopedEntry.weightCategory, result: '2nd place', placeSecured: 2 }
+    const scopedResult = await request(`/api/tournaments/${scopedTournament.id}/entries/${scopedEntry.id}`, { method: 'PATCH', body: JSON.stringify(scopedResultBody) }, scopedCookie)
+    assert.equal(scopedResult.status, 200, await scopedResult.clone().text())
+    assert.equal((await scopedResult.json() as any).medalType, 'silver')
+    const scopedFile = await request(`/api/tournaments/${scopedTournament.id}/participants.xlsx`, {}, scopedCookie)
+    assert.equal(scopedFile.status, 200)
+    const scopedWorkbook = new ExcelJS.Workbook()
+    await scopedWorkbook.xlsx.load(Buffer.from(await scopedFile.arrayBuffer()))
+    assert.equal(scopedWorkbook.worksheets[0]!.getCell('B9').value, 'Instructor Guest Player')
+    const scopedEdit = await request(`/api/tournaments/${scopedTournament.id}/participants/${scopedEntries[0]!.participantId}`, { method: 'PATCH', body: JSON.stringify({ ...body, fullName: 'Instructor Guest Player', weightKg: 25, kumite: false }) }, scopedCookie)
+    assert.equal(scopedEdit.status, 200, await scopedEdit.clone().text())
+    const correctedEntries = await (await request(`/api/tournaments/${scopedTournament.id}/entries`, {}, scopedCookie)).json() as any[]
+    assert.equal(correctedEntries[0]!.placeSecured, 2)
+    assert.equal(correctedEntries[0]!.weightCategory, '25 kg')
+    const ownClose = await request(`/api/tournaments/${scopedTournament.id}/registration`, { method: 'PATCH', body: JSON.stringify({ enabled: false }) }, scopedCookie)
+    assert.equal(ownClose.status, 200)
+    const ownEdit = await request(`/api/tournaments/${scopedTournament.id}`, { method: 'PATCH', body: JSON.stringify({ ...scopedBody, name: 'Updated instructor tournament', registrationEnabled: false }) }, scopedCookie)
+    assert.equal(ownEdit.status, 200, await ownEdit.clone().text())
+    assert.equal((await request(`/api/tournaments/${scopedTournament.id}`, { method: 'PATCH', body: JSON.stringify({ ...scopedBody, dojoIds: [locations[1]!.id] }) }, scopedCookie)).status, 400)
+    const outsideList = await (await request('/api/tournaments', {}, outsideCookie)).json() as any[]
+    assert.equal(outsideList.some(item => item.id === scopedTournament.id), false)
+    for (const suffix of ['/entries', '/participants.xlsx']) assert.equal((await request(`/api/tournaments/${scopedTournament.id}${suffix}`, {}, outsideCookie)).status, 404)
+    assert.equal((await request(`/api/tournaments/${scopedTournament.id}/entries/${scopedEntry.id}`, { method: 'PATCH', body: JSON.stringify(scopedResultBody) }, outsideCookie)).status, 404)
+    assert.equal((await request(`/api/tournaments/${scopedTournament.id}/participants/${scopedEntry.participantId}`, { method: 'DELETE' }, outsideCookie)).status, 404)
+    assert.equal((await request(`/api/tournaments/${scopedTournament.id}/registration`, { method: 'PATCH', body: JSON.stringify({ enabled: true }) }, outsideCookie)).status, 404)
+    assert.equal((await request(`/api/tournaments/${scopedTournament.id}`, { method: 'DELETE' }, outsideCookie)).status, 404)
+    assert.equal((await request(`/api/tournaments/${tournament.id}/registration`, { method: 'PATCH', body: JSON.stringify({ enabled: true }) }, scopedCookie)).status, 403)
+    const filteredFile = await request(`/api/tournaments/${tournament.id}/participants.xlsx`, {}, scopedCookie)
+    assert.equal(filteredFile.status, 200)
+    const filteredWorkbook = new ExcelJS.Workbook()
+    await filteredWorkbook.xlsx.load(Buffer.from(await filteredFile.arrayBuffer()))
+    assert.ok(filteredWorkbook.worksheets.every(sheet => sheet.rowCount === 8), 'Scoped export must not include organization-wide public-only participants')
+    const reportList = await (await request('/api/reports/tournaments', {}, scopedCookie)).json() as any[]
+    assert.equal(reportList.find(item => item.id === scopedTournament.id)!.participants, 1)
+    const [customSystem] = await db.insert(tables.beltSystems).values({ organizationId, name: 'HTTP custom belt system' }).returning()
+    await db.insert(tables.beltRanks).values([
+      { systemId: customSystem!.id, name: '9th Kyu - Orange Stripe', level: 'ninth_kyu', type: 'kyu', color: 'orange', order: 1 },
+      { systemId: customSystem!.id, name: 'Nidan', level: 'nidan', type: 'dan', color: null, order: 2 },
+    ])
+    const beltTournamentResponse = await request('/api/tournaments', { method: 'POST', body: JSON.stringify({ ...scopedBody, name: 'Custom belt registration' }) }, scopedCookie)
+    assert.equal(beltTournamentResponse.status, 200)
+    const beltTournament = await beltTournamentResponse.json() as any
+    const refreshedForm = await (await request(`/api/public/tournaments/${beltTournament.registrationToken}/form`)).json() as any
+    assert.ok(refreshedForm.beltOptions.some((option: any) => option.value === '9th Kyu - Orange Stripe'))
+    assert.equal(refreshedForm.beltOptions.find((option: any) => option.value === 'Nidan')!.division, 'brown_black')
+    assert.equal(refreshedForm.beltOptions.some((option: any) => option.value === 'Foreign Only'), false)
+    const configuredPage = await request(`/tournament-registration/${beltTournament.registrationToken}`)
+    const configuredHtml = await configuredPage.text()
+    assert.match(configuredHtml, /9th Kyu - Orange Stripe/)
+    assert.match(configuredHtml, /Nidan/)
+    const staffBelts = await (await request('/api/tournaments/permissions', {}, scopedCookie)).json() as any
+    assert.deepEqual(staffBelts.beltOptions, refreshedForm.beltOptions)
+    for (const belt of ['9th Kyu - Orange Stripe', 'Nidan', 'Foreign Only', 'Yellow']) {
+      const response = await request(`/api/public/tournaments/${beltTournament.registrationToken}`, { method: 'POST', body: JSON.stringify({ ...body, fullName: `${belt} Player`, belt, kumite: false, requestKey: randomUUID() }) })
+      assert.equal(response.status, ['Foreign Only', 'Yellow'].includes(belt) ? 400 : 200, await response.clone().text())
+    }
+    const customEntries = await (await request(`/api/tournaments/${beltTournament.id}/entries`, {}, scopedCookie)).json() as any[]
+    assert.equal(customEntries.length, 2)
+    assert.equal(customEntries.find(entry => entry.participant.belt === 'Nidan')!.beltDivision, 'brown_black')
+    const customExport = await request(`/api/tournaments/${beltTournament.id}/participants.xlsx`, {}, scopedCookie)
+    assert.equal(customExport.status, 200)
+    const customWorkbook = new ExcelJS.Workbook()
+    await customWorkbook.xlsx.load(Buffer.from(await customExport.arrayBuffer()))
+    assert.equal(customWorkbook.worksheets[0]!.getCell('H9').value, '9th Kyu - Orange Stripe')
+    assert.equal(customWorkbook.worksheets[1]!.getCell('H9').value, 'Nidan')
+    console.log('PASS: public/staff forms fetch current organization belts, custom belt SSR and submissions, foreign and unconfigured belt rejection, Dan classification and exact Excel belt names over HTTP')
+    await db.delete(tables.assignments).where(eq(tables.assignments.userId, scopedInstructor!.id))
+    const revoked = await (await request('/api/tournaments/permissions', {}, scopedCookie)).json() as any
+    assert.equal(revoked.canCreate, false)
+    assert.equal((await request(`/api/tournaments/${scopedTournament.id}/entries`, {}, scopedCookie)).status, 404)
+    assert.equal((await request('/api/tournaments', { method: 'POST', body: JSON.stringify(scopedBody) }, scopedCookie)).status, 403)
+    assert.equal((await request(`/api/tournaments/${scopedTournament.id}`, { method: 'DELETE' }, cookie)).status, 200)
+    console.log('PASS: assigned instructor creation and SSR controls, scope escalation rejection, public-only roster and Excel export, profile editing and sharing, cross-scope denial, filtered global exports, scoped reports and assignment revocation over HTTP')
   } finally {
     server.kill()
     await new Promise<void>(resolve => { if (server.exitCode !== null) resolve(); else server.once('exit', () => resolve()) })

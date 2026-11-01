@@ -309,6 +309,13 @@
       "when": 1793533366768,
       "tag": "0043_tournament_public_participation",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "7",
+      "when": 1793536689192,
+      "tag": "0044_tournament_location_scope",
+      "breakpoints": true
     }
   ]
 }

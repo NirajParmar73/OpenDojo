@@ -11,7 +11,7 @@
         <USelect v-model="tournamentId" :items="tournamentOptions" placeholder="Select tournament" class="max-w-xl" />
       </UFormField>
       <div v-if="tournamentId" class="mt-4 flex flex-wrap items-center gap-3"><UButton color="neutral" variant="outline" size="sm" icon="i-lucide-refresh-cw" :loading="loadingEntries" @click="refreshEntries(true)">Refresh participants</UButton><UButton to="/tournaments" color="neutral" variant="ghost" size="sm">Tournament setup</UButton></div>
-      <TournamentParticipationDownloads v-if="tournamentId && canManage" class="mt-4" :tournament-id="tournamentId" />
+      <TournamentParticipationDownloads v-if="tournamentId && canExport" class="mt-4" :tournament-id="tournamentId" />
     </UCard>
 
     <UCard v-if="tournamentId" class="mt-6">
@@ -90,8 +90,6 @@ import { tournamentAge } from '#shared/utils/tournament-participation'
 definePageMeta({ middleware: 'auth' })
 
 const route = useRoute()
-const { user } = useUserSession()
-const canManage = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
 const initialTournamentId = Number(route.query.tournament)
 const tournamentId = ref<number | null>(Number.isSafeInteger(initialTournamentId) && initialTournamentId > 0 ? initialTournamentId : null)
 const loadingEntries = ref(false)
@@ -103,6 +101,7 @@ const filters = reactive({ student: '', age: 'all', event: 'all', ageCategory: '
 const toast = useToast()
 const requestFetch = useRequestFetch()
 const { data: tournaments } = await useFetch<any[]>('/api/tournaments')
+const canExport = computed(() => !!(tournaments.value || []).find(item => item.id === tournamentId.value)?.canExport)
 
 const tournamentOptions = computed(() => (tournaments.value || []).map(t => ({ label: `${t.name} - ${t.level}`, value: t.id })))
 const placeOptions = [{ label: 'Pending', value: null }, { label: 'Did not win', value: 0 }, { label: '1st place', value: 1 }, { label: '2nd place', value: 2 }, { label: '3rd place', value: 3 }, { label: '4th place', value: 4 }]

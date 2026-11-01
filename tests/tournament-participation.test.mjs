@@ -12,7 +12,7 @@ function moduleUrl(source) {
   return `data:text/javascript;base64,${Buffer.from(js).toString('base64')}`
 }
 const sharedUrl = moduleUrl(fs.readFileSync('shared/utils/tournament-participation.ts', 'utf8'))
-const { tournamentAge, participantIdentity, beltDivision } = await import(sharedUrl)
+const { tournamentAge, participantIdentity, beltDivision, tournamentBeltOptions } = await import(sharedUrl)
 const workbookUrl = moduleUrl(fs.readFileSync('server/utils/tournament-workbook.ts', 'utf8')
   .replace('\'exceljs\'', JSON.stringify(pathToFileURL(require.resolve('exceljs')).href))
   .replace('import template from \'../assets/tournament-participation-template.json\'', `const template = ${fs.readFileSync('server/assets/tournament-participation-template.json', 'utf8')}`)
@@ -43,9 +43,27 @@ test('participant identity normalizes spacing and case without merging different
   assert.notEqual(participantIdentity('Test Player', '2017-08-15'), participantIdentity('Test Player', '2017-08-16'))
 })
 
+test('configured custom ranks use their color and Dan type for the participant division', () => {
+  const ranks = [
+    { name: 'Striped Orange', type: 'kyu', color: 'orange' },
+    { name: '3rd Kyu', type: 'kyu', color: 'brown' },
+    { name: 'Shodan', type: 'dan', color: null },
+    { name: 'Striped Orange', type: 'kyu', color: 'orange' },
+  ]
+  assert.deepEqual(tournamentBeltOptions(ranks), [
+    { label: 'Striped Orange', value: 'Striped Orange', division: 'colour' },
+    { label: '3rd Kyu', value: '3rd Kyu', division: 'brown_black' },
+    { label: 'Shodan', value: 'Shodan', division: 'brown_black' },
+  ])
+  assert.deepEqual(tournamentBeltOptions([]), [])
+  assert.equal(beltDivision('3rd Kyu', { type: 'kyu', color: '#A52A2A' }), 'brown_black')
+  assert.equal(beltDivision('Advanced rank', { type: 'kyu', color: '#000000' }), 'brown_black')
+})
+
 test('public validation requires complete export data, consent, and at least one event', () => {
   assert.equal(publicParticipantSchema.safeParse(submission).success, true)
-  for (const change of [{ kata: false }, { consent: false }, { weightKg: 0 }, { weightKg: '20' }, { weightKg: 301 }, { gender: '' }, { belt: 'Unknown' }, { ageCategory: '' }, { dateOfBirth: '2017-02-30' }, { website: 'spam' }, { requestKey: 'bad' }]) {
+  assert.equal(publicParticipantSchema.safeParse({ ...submission, belt: '9th Kyu - Orange Stripe' }).success, true)
+  for (const change of [{ kata: false }, { consent: false }, { weightKg: 0 }, { weightKg: '20' }, { weightKg: 301 }, { gender: '' }, { belt: '' }, { belt: 'a'.repeat(201) }, { ageCategory: '' }, { dateOfBirth: '2017-02-30' }, { website: 'spam' }, { requestKey: 'bad' }]) {
     assert.equal(publicParticipantSchema.safeParse({ ...submission, ...change }).success, false, JSON.stringify(change))
   }
 })

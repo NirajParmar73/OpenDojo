@@ -509,6 +509,7 @@ export const tournaments = pgTable('tournaments', (t) => ({
   coachName: t.text('coach_name').notNull().default(''),
   registrationToken: t.text('registration_token').unique(),
   registrationEnabled: t.boolean('registration_enabled').notNull().default(true),
+  dojoIds: t.jsonb('dojo_ids').$type<number[]>().notNull().default([]),
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))

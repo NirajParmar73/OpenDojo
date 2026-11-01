@@ -8,11 +8,12 @@ const schema = z.object({ studentId: z.number().int().positive(), eventType: z.e
 export default defineEventHandler(async event => {
   const user = await tournamentStaff(event)
   const id = Number(getRouterParam(event, 'id'))
-  await staffTournament(user.organizationId, id)
+  const target = await staffTournament(user.organizationId, id, user)
   const body = await readValidatedBody(event, schema.parse)
   const student = await db.query.students.findFirst({ where: and(eq(tables.students.id, body.studentId), eq(tables.students.organizationId, user.organizationId)) })
   const accessible = await getAccessibleDojoIds(user.id, user.organizationId)
   if (!student || (accessible !== null && (student.dojoId === null || !accessible.includes(student.dojoId)))) throw createError({ statusCode: 404, statusMessage: 'Student not found' })
+  if (target.dojoIds.length && (student.dojoId === null || !target.dojoIds.includes(student.dojoId))) throw createError({ statusCode: 403, statusMessage: 'Choose a student from this tournament\'s locations' })
   return db.transaction(async tx => {
     const [tournament] = await tx.select().from(tables.tournaments).where(and(eq(tables.tournaments.id, id), eq(tables.tournaments.organizationId, user.organizationId))).for('update')
     if (!tournament) throw createError({ statusCode: 404, statusMessage: 'Tournament not found' })

@@ -1,13 +1,14 @@
 import { eq } from 'drizzle-orm'
 import { db, tables } from '../../utils/database'
-import { getAccessibleDojoIds } from '../../utils/permissions'
+import { tournamentStaff } from '../../utils/tournament-access'
+import { canViewTournamentEntry } from '../../../shared/utils/tournament-access'
 
 export default defineEventHandler(async (event) => {
   const session = await getUserSession(event)
   if (!session?.user?.organizationId) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  const accessible = await getAccessibleDojoIds(session.user.id, session.user.organizationId)
+  const actor = await tournamentStaff(event)
   const achievements = await db.query.studentAchievements.findMany({ where: eq(tables.studentAchievements.organizationId, session.user.organizationId), with: { student: true, tournament: true } })
-  const visible = achievements.filter(item => item.tournamentId && (accessible === null || (item.student?.dojoId != null && accessible.includes(item.student.dojoId))))
+  const visible = achievements.filter(item => item.tournament && canViewTournamentEntry(actor, item.tournament, item))
   const tournaments = new Map<number, { id: number, name: string, level: string, venue: string | null, startDate: Date, ageCutoffDate: Date | null, participantIds: Set<string> }>()
   for (const item of visible) if (item.tournament) {
     const current = tournaments.get(item.tournament.id) || { id: item.tournament.id, name: item.tournament.name, level: item.tournament.level, venue: item.tournament.venue, startDate: item.tournament.startDate, ageCutoffDate: item.tournament.ageCutoffDate, participantIds: new Set<string>() }

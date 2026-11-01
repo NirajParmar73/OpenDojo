@@ -1,5 +1,4 @@
 import { z } from 'zod'
-import { participationBelts } from '../../shared/utils/tournament-participation'
 
 export const tournamentSchema = z.object({
   name: z.string().trim().min(1).max(200),
@@ -11,6 +10,7 @@ export const tournamentSchema = z.object({
   participantListTitle: z.string().trim().max(300).default(''),
   coachName: z.string().trim().max(200).default(''),
   registrationEnabled: z.boolean().default(true),
+  dojoIds: z.array(z.number().int().positive()).max(5000).optional(),
 }).refine(body => !body.endDate || body.endDate >= body.startDate, { message: 'End date must be on or after the start date', path: ['endDate'] })
 
 export const participantSchema = z.object({
@@ -18,7 +18,7 @@ export const participantSchema = z.object({
   dateOfBirth: z.string().date(),
   gender: z.enum(['M', 'F']),
   weightKg: z.number().positive().max(300),
-  belt: z.enum(participationBelts),
+  belt: z.string().trim().min(1).max(200),
   ageCategory: z.string().trim().min(1).max(100),
   kata: z.boolean(),
   kumite: z.boolean(),

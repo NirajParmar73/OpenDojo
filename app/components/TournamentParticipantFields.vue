@@ -18,12 +18,13 @@
 </template>
 
 <script setup lang="ts">
-import { beltDivision, participationBelts, participationCategories, tournamentAge } from '#shared/utils/tournament-participation'
+import { beltDivision, participationCategories, tournamentAge } from '#shared/utils/tournament-participation'
+import type { TournamentBeltOption } from '#shared/utils/tournament-participation'
 
-const props = defineProps<{ cutoffDate: string }>()
+const props = defineProps<{ cutoffDate: string, beltOptions: TournamentBeltOption[] }>()
 const model = defineModel<{ fullName: string, dateOfBirth: string, weightKg: number | undefined, gender: string, belt: string, ageCategory: string, kata: boolean, kumite: boolean }>({ required: true })
 const categoryListId = useId()
-const beltItems = participationBelts.map(belt => ({ label: belt, value: String(belt) }))
+const beltItems = computed(() => props.beltOptions)
 const cutoffLabel = computed(() => new Date(props.cutoffDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }))
 const maxBirthDate = computed(() => [props.cutoffDate.slice(0, 10), new Date().toISOString().slice(0, 10)].sort()[0])
 const ageLabel = computed(() => {
@@ -31,5 +32,5 @@ const ageLabel = computed(() => {
   const age = tournamentAge(model.value.dateOfBirth, props.cutoffDate)
   return Number.isFinite(age) && age >= 0 ? `${age} years` : 'Check date of birth'
 })
-const divisionLabel = computed(() => beltDivision(model.value.belt) === 'brown_black' ? 'Brown / Black belts' : 'Colour belts')
+const divisionLabel = computed(() => (props.beltOptions.find(option => option.value === model.value.belt)?.division || beltDivision(model.value.belt)) === 'brown_black' ? 'Brown / Black belts' : 'Colour belts')
 </script>
