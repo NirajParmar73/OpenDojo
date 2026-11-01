@@ -2,6 +2,7 @@ import { and, eq } from 'drizzle-orm'
 import { z } from 'zod'
 import { db, tables } from './database'
 import { getAccessibleDojoIds } from './permissions'
+import { tournamentAge } from '../../shared/utils/tournament-participation'
 
 export const tournamentReportFilterSchema = z.object({
   dojoId: z.coerce.number().int().positive().optional(),
@@ -15,10 +16,7 @@ export type TournamentReportFilters = z.infer<typeof tournamentReportFilterSchem
 
 function yearsOld(dateOfBirth: Date | null, onDate: Date) {
   if (!dateOfBirth) return null
-  let age = onDate.getFullYear() - dateOfBirth.getFullYear()
-  const anniversary = new Date(onDate.getFullYear(), dateOfBirth.getMonth(), dateOfBirth.getDate())
-  if (anniversary > onDate) age -= 1
-  return age
+  return tournamentAge(dateOfBirth, onDate)
 }
 
 type Medal = 'gold' | 'silver' | 'bronze'
@@ -51,9 +49,9 @@ export async function buildTournamentReport(userId: number, organizationId: numb
   const accessibleDojoIds = await getAccessibleDojoIds(userId, organizationId)
   const records = await db.query.studentAchievements.findMany({
     where: and(eq(tables.studentAchievements.organizationId, organizationId), eq(tables.studentAchievements.tournamentId, tournamentId)),
-    with: { student: { with: { dojo: true, program: true } } },
+    with: { participant: true, student: { with: { dojo: true, program: true } } },
   })
-  const visible = records.filter(record => accessibleDojoIds === null || (record.student.dojoId !== null && accessibleDojoIds.includes(record.student.dojoId)))
+  const visible = records.filter(record => accessibleDojoIds === null || (record.student?.dojoId != null && accessibleDojoIds.includes(record.student.dojoId)))
   if (!visible.length) throw createError({ statusCode: 403, statusMessage: 'This tournament has no entries in your permitted territory' })
 
   const onDate = tournament.ageCutoffDate || tournament.startDate
@@ -62,11 +60,12 @@ export async function buildTournamentReport(userId: number, organizationId: numb
     return {
       id: record.id,
       studentId: record.studentId,
-      studentName: `${record.student.firstName} ${record.student.lastName}`,
-      age: yearsOld(record.student.dateOfBirth, onDate),
-      dojoId: record.student.dojoId,
-      dojoName: record.student.dojo?.name || 'Unassigned dojo',
-      programName: record.student.program?.displayName || 'Program not assigned',
+      competitorKey: record.studentId ? `student-${record.studentId}` : `participant-${record.participantId}`,
+      studentName: record.participant?.fullName || `${record.student?.firstName || ''} ${record.student?.lastName || ''}`.trim(),
+      age: yearsOld(record.participant ? new Date(record.participant.dateOfBirth) : record.student?.dateOfBirth || null, onDate),
+      dojoId: record.student?.dojoId ?? null,
+      dojoName: record.student?.dojo?.name || 'Unassigned dojo',
+      programName: record.student?.program?.displayName || 'Program not assigned',
       eventType: record.eventType || 'Not set',
       ageCategory: record.ageCategory || 'Not set',
       weightCategory: record.weightCategory || null,
@@ -105,9 +104,9 @@ export async function buildTournamentReport(userId: number, organizationId: numb
   ].filter((label): label is string => Boolean(label))
 
   const summary = {
-    competitors: new Set(details.map(record => record.studentId)).size,
+    competitors: new Set(details.map(record => record.competitorKey)).size,
     entries: details.length,
-    medalists: new Set(details.filter(record => record.medal).map(record => record.studentId)).size,
+    medalists: new Set(details.filter(record => record.medal).map(record => record.competitorKey)).size,
     pending: details.filter(record => record.placeSecured === null).length,
     didNotWin: details.filter(record => record.placeSecured === 0).length,
     gold: 0,
@@ -120,19 +119,19 @@ export async function buildTournamentReport(userId: number, organizationId: numb
     summary.totalMedals += record.medalCount
   }
 
-  const categoryMap = new Map<string, { beltDivision: string, beltDivisionLabel: string, ageCategory: string, eventType: string, entries: number, competitors: Set<number>, gold: number, silver: number, bronze: number }>()
-  const dojoMap = new Map<string, { dojoName: string, entries: number, competitors: Set<number>, gold: number, silver: number, bronze: number, winningEntries: number }>()
+  const categoryMap = new Map<string, { beltDivision: string, beltDivisionLabel: string, ageCategory: string, eventType: string, entries: number, competitors: Set<string>, gold: number, silver: number, bronze: number }>()
+  const dojoMap = new Map<string, { dojoName: string, entries: number, competitors: Set<string>, gold: number, silver: number, bronze: number, winningEntries: number }>()
   for (const record of details) {
     const categoryKey = `${record.beltDivision}|${record.ageCategory}|${record.eventType}`
-    const category = categoryMap.get(categoryKey) || { beltDivision: record.beltDivision, beltDivisionLabel: record.beltDivisionLabel, ageCategory: record.ageCategory, eventType: record.eventType, entries: 0, competitors: new Set<number>(), gold: 0, silver: 0, bronze: 0 }
+    const category = categoryMap.get(categoryKey) || { beltDivision: record.beltDivision, beltDivisionLabel: record.beltDivisionLabel, ageCategory: record.ageCategory, eventType: record.eventType, entries: 0, competitors: new Set<string>(), gold: 0, silver: 0, bronze: 0 }
     category.entries += 1
-    category.competitors.add(record.studentId)
+    category.competitors.add(record.competitorKey)
     if (record.medal) category[record.medal] += record.medalCount
     categoryMap.set(categoryKey, category)
 
-    const dojo = dojoMap.get(record.dojoName) || { dojoName: record.dojoName, entries: 0, competitors: new Set<number>(), gold: 0, silver: 0, bronze: 0, winningEntries: 0 }
+    const dojo = dojoMap.get(record.dojoName) || { dojoName: record.dojoName, entries: 0, competitors: new Set<string>(), gold: 0, silver: 0, bronze: 0, winningEntries: 0 }
     dojo.entries += 1
-    dojo.competitors.add(record.studentId)
+    dojo.competitors.add(record.competitorKey)
     if (record.medal) {
       dojo[record.medal] += record.medalCount
       dojo.winningEntries += 1

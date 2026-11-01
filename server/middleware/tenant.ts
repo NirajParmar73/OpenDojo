@@ -60,7 +60,7 @@ export default defineEventHandler(async event => {
     return sendRedirect(event, platformAppUrl(baseDomain, pathname))
   }
 
-  if (session?.user?.role === 'student' && appHost.surface !== 'portal') {
+  if (session?.user?.role === 'student' && appHost.surface !== 'portal' && !pathname.startsWith('/tournament-registration/')) {
     return sendRedirect(event, portalAppUrl(baseDomain, appHost.tenantSlug))
   }
   if (session?.user?.role && session.user.role !== 'student' && appHost.surface === 'portal' && pathname !== '/portal/login') {

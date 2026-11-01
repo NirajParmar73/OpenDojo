@@ -1,0 +1,557 @@
+{
+  "columns": [
+    {
+      "width": 5.57142857142857,
+      "style": 0
+    },
+    {
+      "width": 32,
+      "style": 0
+    },
+    {
+      "width": 9.85714285714286,
+      "style": 0
+    },
+    {
+      "width": 10.7142857142857,
+      "style": 0
+    },
+    {
+      "width": 17.8571428571429,
+      "style": 0
+    },
+    {
+      "width": 35.4285714285714,
+      "style": 0
+    },
+    {
+      "width": 13.8571428571429,
+      "style": 0
+    },
+    {
+      "width": 11.8571428571429,
+      "style": 0
+    },
+    {
+      "width": 9.14285714285714,
+      "style": 0
+    },
+    {
+      "width": 14.2857142857143,
+      "style": 0
+    }
+  ],
+  "rows": [
+    {
+      "height": 23.25,
+      "cells": [
+        {
+          "style": 1
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        }
+      ]
+    },
+    {
+      "height": 21,
+      "cells": [
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        }
+      ]
+    },
+    {
+      "height": 23.25,
+      "cells": [
+        {
+          "style": 1
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        }
+      ]
+    },
+    {
+      "height": 26.25,
+      "cells": [
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 4
+        }
+      ]
+    },
+    {
+      "height": 26.25,
+      "cells": [
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 4
+        }
+      ]
+    },
+    {
+      "height": 21,
+      "cells": [
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 5
+        }
+      ]
+    },
+    {
+      "height": 21,
+      "cells": [
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 2
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 3
+        },
+        {
+          "style": 5
+        }
+      ]
+    },
+    {
+      "height": 21,
+      "cells": [
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        },
+        {
+          "style": 6
+        }
+      ]
+    }
+  ],
+  "participantRow": [
+    {
+      "style": 7
+    },
+    {
+      "style": 8
+    },
+    {
+      "style": 8
+    },
+    {
+      "style": 8
+    },
+    {
+      "style": 8
+    },
+    {
+      "style": 8
+    },
+    {
+      "style": 8
+    },
+    {
+      "style": 8
+    },
+    {
+      "style": 8
+    },
+    {
+      "style": 8
+    }
+  ],
+  "merges": [
+    "A5:E5",
+    "A7:C7"
+  ],
+  "pageSetup": {
+    "fitToPage": false,
+    "margins": {
+      "left": 0.75,
+      "right": 0.75,
+      "top": 1,
+      "bottom": 1,
+      "header": 0.5,
+      "footer": 0.5
+    }
+  },
+  "source": "KDF Championship 2025 KGI List Colour Belts.xlsx",
+  "styles": [
+    {
+      "font": {
+        "size": 11,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "vertical": "middle"
+      }
+    },
+    {
+      "font": {
+        "bold": true,
+        "size": 18,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "horizontal": "left",
+        "vertical": "middle"
+      }
+    },
+    {
+      "font": {
+        "bold": true,
+        "size": 16,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "horizontal": "left",
+        "vertical": "middle"
+      }
+    },
+    {
+      "font": {
+        "size": 16,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "horizontal": "left",
+        "vertical": "middle"
+      }
+    },
+    {
+      "font": {
+        "bold": true,
+        "size": 20,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "vertical": "middle"
+      }
+    },
+    {
+      "font": {
+        "size": 11,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "horizontal": "center",
+        "vertical": "middle"
+      }
+    },
+    {
+      "font": {
+        "bold": true,
+        "size": 16,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "horizontal": "center",
+        "vertical": "middle"
+      }
+    },
+    {
+      "font": {
+        "size": 16,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "vertical": "middle"
+      }
+    },
+    {
+      "font": {
+        "size": 16,
+        "color": {
+          "theme": 1
+        },
+        "name": "Calibri",
+        "charset": 134,
+        "scheme": "minor"
+      },
+      "border": {},
+      "fill": {
+        "type": "pattern",
+        "pattern": "none"
+      },
+      "alignment": {
+        "horizontal": "center",
+        "vertical": "middle"
+      }
+    }
+  ]
+}

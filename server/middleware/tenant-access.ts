@@ -9,6 +9,7 @@ import { renewUserSessionIfNeeded } from '../utils/session-renewal'
  */
 export default defineEventHandler(async (event) => {
   if (!event.path.startsWith('/api/') || event.path.startsWith('/api/auth/') || event.path.startsWith('/api/platform/')) return
+  if (event.path.startsWith('/api/public/tournaments/')) return
 
   const session = await getUserSession(event)
   if (!session?.user?.id) return

@@ -36,10 +36,10 @@ export default defineEventHandler(async (event) => {
       title: grading.beltRank?.name || 'Belt grading', details: grading.examiner ? `Examiner: ${grading.examiner}` : null,
       studentId: grading.student.id, studentName: `${grading.student.firstName} ${grading.student.lastName}`, dojoName: grading.student.dojo?.name || 'Unassigned'
     })),
-    ...achievements.filter(achievement => inScope(achievement.student) && achievement.certificateUrl).map(achievement => ({
+    ...achievements.filter(achievement => achievement.student && inScope(achievement.student) && achievement.certificateUrl).map(achievement => ({
       id: `achievement-${achievement.id}`, type: 'achievement', typeLabel: 'Tournament certificate', issuedAt: achievement.startDate, certificateNumber: null, certificateUrl: achievement.certificateUrl,
       title: achievement.tournamentName, details: [achievement.eventType, achievement.result || 'Participation', achievement.medalType].filter(Boolean).join(' · '),
-      studentId: achievement.student.id, studentName: `${achievement.student.firstName} ${achievement.student.lastName}`, dojoName: achievement.student.dojo?.name || 'Unassigned'
+      studentId: achievement.student!.id, studentName: `${achievement.student!.firstName} ${achievement.student!.lastName}`, dojoName: achievement.student!.dojo?.name || 'Unassigned'
     }))
   ].filter(certificate => (type === 'all' || certificate.type === type) && (!search || `${certificate.studentName} ${certificate.title} ${certificate.certificateNumber || ''} ${certificate.dojoName}`.toLowerCase().includes(search)))
     .sort((a, b) => new Date(b.issuedAt).getTime() - new Date(a.issuedAt).getTime())

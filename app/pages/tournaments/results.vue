@@ -3,13 +3,15 @@
     <section class="mb-6">
       <p class="text-sm font-semibold text-primary">OPERATIONS</p>
       <h2 class="mt-1 text-2xl font-semibold">Tournament results</h2>
-      <p class="mt-2 text-sm text-slate-500">All registered entries start as Pending. Set placement when results are announced.</p>
+      <p class="mt-2 text-sm text-slate-500">Public participation registrations and staff entries appear here as Pending. Set placement when results are announced.</p>
     </section>
 
     <UCard>
       <UFormField label="Tournament">
         <USelect v-model="tournamentId" :items="tournamentOptions" placeholder="Select tournament" class="max-w-xl" />
       </UFormField>
+      <div v-if="tournamentId" class="mt-4 flex flex-wrap items-center gap-3"><UButton color="neutral" variant="outline" size="sm" icon="i-lucide-refresh-cw" :loading="loadingEntries" @click="refreshEntries(true)">Refresh participants</UButton><UButton to="/tournaments" color="neutral" variant="ghost" size="sm">Tournament setup</UButton></div>
+      <TournamentParticipationDownloads v-if="tournamentId && canManage" class="mt-4" :tournament-id="tournamentId" />
     </UCard>
 
     <UCard v-if="tournamentId" class="mt-6">
@@ -84,15 +86,22 @@
 </template>
 
 <script setup lang="ts">
+import { tournamentAge } from '#shared/utils/tournament-participation'
 definePageMeta({ middleware: 'auth' })
 
-const tournamentId = ref<number | null>(null)
+const route = useRoute()
+const { user } = useUserSession()
+const canManage = computed(() => ['owner', 'admin'].includes(user.value?.role || ''))
+const initialTournamentId = Number(route.query.tournament)
+const tournamentId = ref<number | null>(Number.isSafeInteger(initialTournamentId) && initialTournamentId > 0 ? initialTournamentId : null)
+const loadingEntries = ref(false)
 const entries = ref<any[]>([])
 const savedEntries = ref<Record<number, { result: string | null, placeSecured: number | null }>>({})
 const savingId = ref<number | null>(null)
 const savingAll = ref(false)
 const filters = reactive({ student: '', age: 'all', event: 'all', ageCategory: 'all', beltDivision: 'all', result: '', place: 'all' as 'all' | number | null, medal: 'all' })
 const toast = useToast()
+const requestFetch = useRequestFetch()
 const { data: tournaments } = await useFetch<any[]>('/api/tournaments')
 
 const tournamentOptions = computed(() => (tournaments.value || []).map(t => ({ label: `${t.name} - ${t.level}`, value: t.id })))
@@ -119,11 +128,40 @@ const hasActiveFilters = computed(() => filters.student !== '' || filters.age !=
 const changedEntries = computed(() => entries.value.filter(entry => isChanged(entry)))
 const changedCount = computed(() => changedEntries.value.length)
 
-watch(tournamentId, async id => {
+let entriesRequest = 0
+await refreshEntries(true)
+watch(tournamentId, async () => {
   resetFilters()
-  const tournamentEntries = id ? await $fetch<any[]>(`/api/tournaments/${id}/entries`) : []
-  entries.value = tournamentEntries.map(entry => ({ ...entry, result: resultFor(entry) }))
-  savedEntries.value = Object.fromEntries(entries.value.map(entry => [entry.id, snapshot(entry)]))
+  entries.value = []
+  savedEntries.value = {}
+  await refreshEntries(true)
+})
+
+async function refreshEntries(showError = false) {
+  const id = tournamentId.value
+  if (!id || savingAll.value) return
+  const request = ++entriesRequest
+  loadingEntries.value = true
+  try {
+    const loaded = await requestFetch<any[]>(`/api/tournaments/${id}/entries`)
+    if (tournamentId.value !== id || request !== entriesRequest) return
+    const dirty = new Map(entries.value.filter(isChanged).map(entry => [entry.id, entry]))
+    entries.value = loaded.map(entry => {
+      const local = dirty.get(entry.id)
+      return { ...entry, result: local ? local.result : resultFor(entry), placeSecured: local ? local.placeSecured : entry.placeSecured }
+    })
+    for (const entry of entries.value) if (!dirty.has(entry.id)) savedEntries.value[entry.id] = snapshot(entry)
+  } catch (error: any) { if (showError) toast.add({ color: 'error', title: 'Could not refresh participants', description: error.data?.statusMessage || error.message }) }
+  finally { if (request === entriesRequest) loadingEntries.value = false }
+}
+
+let refreshTimer: ReturnType<typeof setInterval> | undefined
+onMounted(() => { refreshTimer = setInterval(() => { if (document.visibilityState === 'visible') void refreshEntries() }, 30000) })
+onBeforeUnmount(() => { if (refreshTimer) clearInterval(refreshTimer) })
+
+watch(() => route.query.tournament, value => {
+  const id = Number(value)
+  if (Number.isSafeInteger(id) && id > 0) tournamentId.value = id
 })
 
 function resetFilters() {
@@ -160,11 +198,7 @@ function medalFor(place: number | null) {
 function ageAtTournament(dateOfBirth?: string | null) {
   if (!dateOfBirth) return ''
   const tournament = (tournaments.value || []).find(item => item.id === tournamentId.value)
-  const birth = new Date(dateOfBirth)
-  const date = tournament?.ageCutoffDate ? new Date(tournament.ageCutoffDate) : tournament?.startDate ? new Date(tournament.startDate) : new Date()
-  let age = date.getFullYear() - birth.getFullYear()
-  if (date.getMonth() < birth.getMonth() || (date.getMonth() === birth.getMonth() && date.getDate() < birth.getDate())) age--
-  return `${age}`
+  return `${tournamentAge(dateOfBirth, tournament?.ageCutoffDate || tournament?.startDate || new Date())}`
 }
 
 async function persist(entry: any) {

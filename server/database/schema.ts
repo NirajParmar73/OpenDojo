@@ -505,16 +505,43 @@ export const tournaments = pgTable('tournaments', (t) => ({
   startDate: t.timestamp('start_date', { withTimezone: true }).notNull(),
   endDate: t.timestamp('end_date', { withTimezone: true }),
   ageCutoffDate: t.timestamp('age_cutoff_date', { withTimezone: true }),
+  participantListTitle: t.text('participant_list_title').notNull().default(''),
+  coachName: t.text('coach_name').notNull().default(''),
+  registrationToken: t.text('registration_token').unique(),
+  registrationEnabled: t.boolean('registration_enabled').notNull().default(true),
   createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
   updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
 }))
+
+// A public registration is a tournament participant, not a student admission.
+export const tournamentParticipants = pgTable('tournament_participants', t => ({
+  id: t.serial('id').primaryKey(),
+  organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
+  tournamentId: t.integer('tournament_id').references(() => tournaments.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'set null' }),
+  fullName: t.text('full_name').notNull(),
+  dateOfBirth: t.text('date_of_birth').notNull(),
+  gender: t.text({ enum: ['M', 'F'] }).notNull(),
+  weightKg: t.real('weight_kg').notNull(),
+  belt: t.text().notNull(),
+  ageCategory: t.text('age_category').notNull(),
+  requestKey: t.text('request_key').notNull(),
+  identityKey: t.text('identity_key').notNull(),
+  consentAt: t.timestamp('consent_at', { withTimezone: true }).notNull(),
+  createdAt: t.timestamp('created_at', { withTimezone: true }).$defaultFn(() => new Date()).notNull(),
+  updatedAt: t.timestamp('updated_at', { withTimezone: true }).$defaultFn(() => new Date()).$onUpdate(() => new Date()).notNull(),
+}), table => [
+  uniqueIndex('tournament_participant_request_unique').on(table.tournamentId, table.requestKey),
+  uniqueIndex('tournament_participant_identity_unique').on(table.tournamentId, table.identityKey),
+])
 
 // Category, event, and result are intentionally free-form so each organization
 // can follow its own competition rules.
 export const studentAchievements = pgTable('student_achievements', (t) => ({
   id: t.serial('id').primaryKey(),
   organizationId: t.integer('organization_id').references(() => organizations.id, { onDelete: 'cascade' }).notNull(),
-  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }).notNull(),
+  studentId: t.integer('student_id').references(() => students.id, { onDelete: 'cascade' }),
+  participantId: t.integer('participant_id').references(() => tournamentParticipants.id, { onDelete: 'cascade' }),
   tournamentId: t.integer('tournament_id').references(() => tournaments.id, { onDelete: 'set null' }),
   tournamentName: t.text('tournament_name').notNull(),
   tournamentLevel: t.text('tournament_level').notNull(),
@@ -1175,6 +1202,7 @@ export const announcementReadsRelations = relations(announcementReads, ({ one })
 }))
 
 export const studentAchievementsRelations = relations(studentAchievements, ({ one }) => ({
+  participant: one(tournamentParticipants, { fields: [studentAchievements.participantId], references: [tournamentParticipants.id] }),
   student: one(students, {
     fields: [studentAchievements.studentId],
     references: [students.id],
@@ -1198,6 +1226,13 @@ export const tournamentsRelations = relations(tournaments, ({ one, many }) => ({
     fields: [tournaments.organizationId],
     references: [organizations.id],
   }),
+  achievements: many(studentAchievements),
+  participants: many(tournamentParticipants),
+}))
+
+export const tournamentParticipantsRelations = relations(tournamentParticipants, ({ one, many }) => ({
+  tournament: one(tournaments, { fields: [tournamentParticipants.tournamentId], references: [tournaments.id] }),
+  student: one(students, { fields: [tournamentParticipants.studentId], references: [students.id] }),
   achievements: many(studentAchievements),
 }))
 

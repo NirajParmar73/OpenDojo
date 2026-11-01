@@ -1,7 +1,8 @@
 import { desc, eq } from 'drizzle-orm'
 import { db, tables } from '../../utils/database'
+import { tournamentStaff } from '../../utils/tournament-access'
 export default defineEventHandler(async event => {
-  const session = await getUserSession(event)
-  if (!session?.user?.organizationId) throw createError({ statusCode: 401, statusMessage: 'Unauthorized' })
-  return db.query.tournaments.findMany({ where: eq(tables.tournaments.organizationId, session.user.organizationId), orderBy: [desc(tables.tournaments.startDate)] })
+  const user = await tournamentStaff(event)
+  const tournaments = await db.query.tournaments.findMany({ where: eq(tables.tournaments.organizationId, user.organizationId), orderBy: [desc(tables.tournaments.startDate)] })
+  return tournaments.map(tournament => ({ ...tournament, registrationToken: ['owner', 'admin'].includes(user.role) ? tournament.registrationToken : null }))
 })

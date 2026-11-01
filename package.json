@@ -21,6 +21,7 @@
     "@nuxt/ui": "^4.9.0",
     "@types/nodemailer": "^8.0.1",
     "drizzle-orm": "^0.45.2",
+    "exceljs": "^4.4.0",
     "html2pdf.js": "^0.14.0",
     "nodemailer": "^9.0.3",
     "nuxt": "^4.4.8",
