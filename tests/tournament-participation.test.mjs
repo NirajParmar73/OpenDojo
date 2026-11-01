@@ -14,13 +14,13 @@ function moduleUrl(source) {
 const sharedUrl = moduleUrl(fs.readFileSync('shared/utils/tournament-participation.ts', 'utf8'))
 const { tournamentAge, participantIdentity, beltDivision } = await import(sharedUrl)
 const workbookUrl = moduleUrl(fs.readFileSync('server/utils/tournament-workbook.ts', 'utf8')
-  .replace("'exceljs'", JSON.stringify(pathToFileURL(require.resolve('exceljs')).href))
-  .replace("import template from '../assets/tournament-participation-template.json'", `const template = ${fs.readFileSync('server/assets/tournament-participation-template.json', 'utf8')}`)
-  .replace("'../../shared/utils/tournament-participation'", JSON.stringify(sharedUrl)))
+  .replace('\'exceljs\'', JSON.stringify(pathToFileURL(require.resolve('exceljs')).href))
+  .replace('import template from \'../assets/tournament-participation-template.json\'', `const template = ${fs.readFileSync('server/assets/tournament-participation-template.json', 'utf8')}`)
+  .replace('\'../../shared/utils/tournament-participation\'', JSON.stringify(sharedUrl)))
 const { buildParticipationWorkbook, participationRows } = await import(workbookUrl)
 const validationUrl = moduleUrl(fs.readFileSync('server/utils/tournament-validation.ts', 'utf8')
-  .replace("'zod'", JSON.stringify(pathToFileURL(require.resolve('zod')).href))
-  .replace("'../../shared/utils/tournament-participation'", JSON.stringify(sharedUrl)))
+  .replace('\'zod\'', JSON.stringify(pathToFileURL(require.resolve('zod')).href))
+  .replace('\'../../shared/utils/tournament-participation\'', JSON.stringify(sharedUrl)))
 const { publicParticipantSchema } = await import(validationUrl)
 const headings = { name: 'KDF State Championship 2025', participantListTitle: 'Karate-Do Gojukai India, Ahmedabad Participant List', coachName: 'Niraj Parmar', ageCutoffDate: '2025-06-11' }
 const player = { name: 'Test Player', kata: true, kumite: true, dateOfBirth: '2017-08-15', weight: '20 kg', belt: 'Green', gender: 'M', category: 'Subjunior', division: 'colour' }
